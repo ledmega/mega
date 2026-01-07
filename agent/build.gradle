@@ -1,0 +1,64 @@
+// 에이전트 모듈 빌드 설정 (Java 1.8 호환)
+
+plugins {
+	id 'java'
+	id 'application'
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+dependencies {
+	// HTTP Client
+	implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+	
+	// JSON 처리
+	implementation 'com.google.code.gson:gson:2.10.1'
+	
+	// 로깅
+	implementation 'org.slf4j:slf4j-api:1.7.36'
+	implementation 'ch.qos.logback:logback-classic:1.2.12'
+	
+	// Lombok
+	compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
+	
+	// 테스트
+	testImplementation 'junit:junit:4.13.2'
+}
+
+application {
+	mainClass = 'led.mega.agent.AgentApplication'
+}
+
+// JAR 파일명 설정
+jar {
+	archiveBaseName = 'mega-agent'
+	archiveVersion = '0.0.1-SNAPSHOT'
+	manifest {
+		attributes 'Main-Class': 'led.mega.agent.AgentApplication'
+	}
+}
+
+// 실행 가능한 JAR 생성
+task fatJar(type: Jar) {
+	archiveBaseName = 'mega-agent'
+	archiveVersion = '0.0.1-SNAPSHOT'
+	manifest {
+		attributes 'Main-Class': 'led.mega.agent.AgentApplication'
+	}
+	from {
+		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+	}
+	with jar
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+

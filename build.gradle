@@ -1,69 +1,36 @@
+// 루트 프로젝트 빌드 설정 (공통 설정만)
+
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.5'
-	id 'io.spring.dependency-management' version '1.1.7'
+	id 'io.spring.dependency-management' version '1.1.7' apply false
+	id 'org.springframework.boot' version '3.5.5' apply false
 }
 
-group = 'led'
-version = '0.0.1-SNAPSHOT'
-description = 'Demo project for Spring Boot'
-
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
-}
-
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
-}
-
-repositories {
-	mavenCentral()
-}
-
-dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-web-services'
+subprojects {
+	apply plugin: 'java'
 	
-	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.5'
-	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
-	implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.5'
-	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
-}
-
-// bootRun 시 테스트 건너뛰기 (빌드 속도 향상)
-tasks.named('bootRun') {
-	dependsOn = ['classes']
-	// JVM 인코딩 설정 (한글 로그 출력을 위해)
-	jvmArgs = ['-Dfile.encoding=UTF-8', '-Duser.language=ko', '-Duser.country=KR']
-}
-
-// Gradle 빌드 최적화 설정
-tasks.withType(JavaCompile) {
-	options.encoding = 'UTF-8'
-	options.incremental = true
-}
-
-// 의존성 다운로드 최적화
-configurations.all {
-	resolutionStrategy {
-		cacheChangingModulesFor 0, 'seconds'
-		cacheDynamicVersionsFor 0, 'seconds'
+	group = 'led'
+	version = '0.0.1-SNAPSHOT'
+	
+	repositories {
+		mavenCentral()
 	}
+	
+	// 공통 인코딩 설정
+	tasks.withType(JavaCompile) {
+		options.encoding = 'UTF-8'
+		options.incremental = true
+	}
+	
+	// 의존성 다운로드 최적화
+	configurations.all {
+		resolutionStrategy {
+			cacheChangingModulesFor 0, 'seconds'
+			cacheDynamicVersionsFor 0, 'seconds'
+		}
+	}
+}
+
+// 웹서버 모듈에만 Spring Boot 플러그인 적용
+configure(subprojects.findAll { it.name == 'webserver' }) {
+	apply plugin: 'org.springframework.boot'
 }

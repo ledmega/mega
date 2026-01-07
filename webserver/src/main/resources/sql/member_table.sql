@@ -1,0 +1,17 @@
+-- 회원 테이블 생성
+CREATE TABLE IF NOT EXISTS member (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '회원 ID (시퀀스 키)',
+    email VARCHAR(100) NOT NULL UNIQUE COMMENT '이메일',
+    password VARCHAR(255) NOT NULL COMMENT '비밀번호 (암호화)',
+    name VARCHAR(50) NOT NULL COMMENT '이름',
+    nickname VARCHAR(50) COMMENT '닉네임',
+    phone VARCHAR(20) COMMENT '전화번호',
+    role VARCHAR(20) NOT NULL DEFAULT 'ROLE_USER' COMMENT '권한 (ROLE_USER, ROLE_ADMIN)',
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' COMMENT '상태 (ACTIVE, INACTIVE, DELETED)',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '가입일시',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
+    last_login_at DATETIME COMMENT '마지막 로그인 일시',
+    INDEX idx_email (email),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='회원 테이블';
+

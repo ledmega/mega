@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 - MEGA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .signup-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .signup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .signup-header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .signup-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group label .required {
+            color: #e74c3c;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group input.error {
+            border-color: #e74c3c;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .success-message {
+            color: #27ae60;
+            font-size: 13px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #d4edda;
+            border-radius: 5px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .signup-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .signup-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .signup-button:active {
+            transform: translateY(0);
+        }
+
+        .footer-links {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="signup-container">
+        <div class="signup-header">
+            <h1>회원가입</h1>
+            <p>MEGA에 가입하고 시작하세요</p>
+        </div>
+
+        <div th:if="${successMessage}" class="success-message" th:text="${successMessage}"></div>
+
+        <form th:action="@{/signup}" method="post" th:object="${signupDto}">
+            <div class="form-group">
+                <label for="email">
+                    이메일 <span class="required">*</span>
+                </label>
+                <input type="email" id="email" name="email" 
+                       th:field="*{email}" 
+                       th:class="${#fields.hasErrors('email')} ? 'error' : ''"
+                       placeholder="example@email.com" required>
+                <span th:if="${#fields.hasErrors('email')}" class="error-message" 
+                      th:errors="*{email}">이메일 오류</span>
+            </div>
+
+            <div class="form-group">
+                <label for="password">
+                    비밀번호 <span class="required">*</span>
+                </label>
+                <input type="password" id="password" name="password" 
+                       th:field="*{password}"
+                       th:class="${#fields.hasErrors('password')} ? 'error' : ''"
+                       placeholder="최소 6자 이상" required>
+                <span th:if="${#fields.hasErrors('password')}" class="error-message" 
+                      th:errors="*{password}">비밀번호 오류</span>
+                <div class="help-text">비밀번호는 최소 6자 이상이어야 합니다.</div>
+            </div>
+
+            <div class="form-group">
+                <label for="name">
+                    이름 <span class="required">*</span>
+                </label>
+                <input type="text" id="name" name="name" 
+                       th:field="*{name}"
+                       th:class="${#fields.hasErrors('name')} ? 'error' : ''"
+                       placeholder="이름을 입력하세요" required>
+                <span th:if="${#fields.hasErrors('name')}" class="error-message" 
+                      th:errors="*{name}">이름 오류</span>
+            </div>
+
+            <div class="form-group">
+                <label for="nickname">닉네임</label>
+                <input type="text" id="nickname" name="nickname" 
+                       th:field="*{nickname}"
+                       placeholder="닉네임을 입력하세요 (선택사항)">
+                <span th:if="${#fields.hasErrors('nickname')}" class="error-message" 
+                      th:errors="*{nickname}">닉네임 오류</span>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">전화번호</label>
+                <input type="tel" id="phone" name="phone" 
+                       th:field="*{phone}"
+                       placeholder="010-1234-5678 (선택사항)">
+                <span th:if="${#fields.hasErrors('phone')}" class="error-message" 
+                      th:errors="*{phone}">전화번호 오류</span>
+            </div>
+
+            <button type="submit" class="signup-button">회원가입</button>
+        </form>
+
+        <div class="footer-links">
+            이미 계정이 있으신가요? <a href="/login">로그인하기</a>
+        </div>
+    </div>
+</body>
+</html>
+
+
