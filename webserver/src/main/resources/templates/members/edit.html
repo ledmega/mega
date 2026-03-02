@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원 수정 - MEGA</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; min-height: 100vh; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .header-content { max-width: 600px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 24px; font-weight: bold; }
+        .nav-links { display: flex; gap: 16px; }
+        .nav-link { color: white; text-decoration: none; padding: 8px 14px; border-radius: 5px; }
+        .nav-link:hover { background: rgba(255,255,255,0.2); }
+        .container { max-width: 600px; margin: 24px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 28px; }
+        .page-title { margin-bottom: 24px; font-size: 24px; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #333; font-weight: 500; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+        }
+        .form-group .error { color: #dc3545; font-size: 13px; margin-top: 4px; }
+        .actions { margin-top: 28px; display: flex; gap: 12px; }
+        .btn { padding: 12px 24px; border-radius: 8px; font-size: 14px; border: none; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .readonly { background: #f5f5f5; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <span class="logo">MEGA</span>
+            <div class="nav-links">
+                <a href="/" class="nav-link">홈</a>
+                <a href="/dashboard" class="nav-link">대시보드</a>
+                <a href="/agents" class="nav-link">에이전트</a>
+                <a href="/members" class="nav-link" style="background: rgba(255,255,255,0.25);">회원관리</a>
+                <a href="/authority" class="nav-link" sec:authorize="hasRole('ADMIN')">권한관리</a>
+                <span sec:authorize="isAuthenticated()">
+                    <span sec:authentication="name"></span>
+                    <form th:action="@{/logout}" method="post" style="display: inline;">
+                        <button type="submit" class="nav-link" style="background: none; border: none; cursor: pointer;">로그아웃</button>
+                    </form>
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <h1 class="page-title">회원 수정</h1>
+        <div class="card">
+            <p style="margin-bottom: 20px; color: #666;">이메일: <strong th:text="${member.email}"></strong></p>
+            <form th:action="@{/members/{id}/edit(id=${member.id})}" th:object="${memberUpdateDto}" method="post">
+                <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                <div class="form-group">
+                    <label for="name">이름</label>
+                    <input type="text" id="name" name="name" th:field="*{name}" required>
+                    <p th:if="${#fields.hasErrors('name')}" class="error" th:errors="*{name}"></p>
+                </div>
+                <div class="form-group">
+                    <label for="nickname">닉네임</label>
+                    <input type="text" id="nickname" name="nickname" th:field="*{nickname}">
+                    <p th:if="${#fields.hasErrors('nickname')}" class="error" th:errors="*{nickname}"></p>
+                </div>
+                <div class="form-group">
+                    <label for="phone">전화번호</label>
+                    <input type="text" id="phone" name="phone" th:field="*{phone}">
+                    <p th:if="${#fields.hasErrors('phone')}" class="error" th:errors="*{phone}"></p>
+                </div>
+                <div class="form-group" th:if="${isAdmin}">
+                    <label for="role">역할</label>
+                    <select id="role" name="role" th:field="*{role}">
+                        <option value="ROLE_USER">일반</option>
+                        <option value="ROLE_ADMIN">관리자</option>
+                    </select>
+                </div>
+                <div class="form-group" th:if="${isAdmin}">
+                    <label for="status">상태</label>
+                    <select id="status" name="status" th:field="*{status}">
+                        <option value="ACTIVE">활성</option>
+                        <option value="INACTIVE">비활성</option>
+                        <option value="DELETED">탈퇴</option>
+                    </select>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">저장</button>
+                    <a th:href="@{/members/{id}(id=${member.id})}" class="btn btn-secondary">취소</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

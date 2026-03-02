@@ -45,18 +45,27 @@ mega/                              # 루트 프로젝트
 
 **실행 방법:**
 ```bash
-# 웹서버만 실행
+# 웹서버만 실행 (권장: 루트에서 모듈 지정)
+./gradlew :webserver:bootRun
+
+# Windows (PowerShell: 현재 폴더 스크립트는 .\ 필요)
+.\gradlew.bat :webserver:bootRun
+
+# 또는 webserver 디렉터리에서
 cd webserver
 ../gradlew bootRun
-
-# 또는 루트에서
-./gradlew :webserver:bootRun
 ```
+
+**중요:** `MegaApplication`은 **webserver** 모듈에만 있습니다. IDE에서 실행할 때는 **실행 구성(Run Configuration)**의 모듈을 **webserver**로 지정해야 합니다. 루트 프로젝트를 classpath로 쓰면 `ClassNotFoundException`(예: `MemberUpdateDto`)이 날 수 있습니다.
 
 **빌드:**
 ```bash
 ./gradlew :webserver:build
 ```
+
+**문제 해결 (ClassNotFoundException: MemberUpdateDto 등):**
+- **원인:** 웹서버가 루트 프로젝트 기준으로 실행되어 webserver 모듈의 클래스가 classpath에 없음.
+- **해결:** 터미널에서 `gradlew.bat :webserver:bootRun` 으로 실행하거나, IDE에서 실행 구성의 "Use classpath of module"을 **webserver**로 선택한 뒤 다시 실행.
 
 ### 2. agent 모듈
 

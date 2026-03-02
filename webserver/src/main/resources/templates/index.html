@@ -157,6 +157,10 @@
         <div class="header-content">
             <div class="logo">MEGA</div>
             <div class="user-info" sec:authorize="isAuthenticated()">
+                <a href="/dashboard" class="logout-button" style="text-decoration: none;">대시보드</a>
+                <a href="/members/me" class="logout-button" style="text-decoration: none;">내 정보</a>
+                <a href="/members" class="logout-button" style="text-decoration: none;" sec:authorize="hasRole('ADMIN')">회원관리</a>
+                <a href="/authority" class="logout-button" style="text-decoration: none;" sec:authorize="hasRole('ADMIN')">권한관리</a>
                 <span class="user-name" sec:authentication="name">사용자</span>
                 <form th:action="@{/logout}" method="post" style="display: inline;">
                     <button type="submit" class="logout-button">로그아웃</button>
@@ -175,10 +179,18 @@
             </div>
 
             <div class="info-cards">
+                <a href="/members/me" style="text-decoration: none; color: inherit;">
                 <div class="info-card">
-                    <h3>회원 관리</h3>
-                    <p>회원 정보를 조회하고 관리할 수 있습니다.</p>
+                    <h3>내 정보</h3>
+                    <p>회원 정보를 조회하고 수정할 수 있습니다.</p>
                 </div>
+                </a>
+                <a href="/members" style="text-decoration: none; color: inherit;" sec:authorize="hasRole('ADMIN')">
+                <div class="info-card">
+                    <h3>회원관리</h3>
+                    <p>전체 회원 목록과 상태를 관리할 수 있습니다.</p>
+                </div>
+                </a>
                 <div class="info-card">
                     <h3>시스템 정보</h3>
                     <p>시스템 상태와 통계를 확인할 수 있습니다.</p>

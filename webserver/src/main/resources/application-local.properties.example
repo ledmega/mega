@@ -1,0 +1,4 @@
+spring.datasource.url=jdbc:mariadb://localhost:3306/ledmega
+spring.datasource.username=ledmega
+spring.datasource.password=CHANGE_ME
+
