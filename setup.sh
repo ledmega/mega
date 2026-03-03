@@ -3,10 +3,10 @@
 # mega 프로젝트 초기 설치 스크립트
 # 실행: bash setup.sh
 # 대상: Ubuntu (x86_64 / arm64)
+# MariaDB: Docker 컨테이너로 별도 운영 중 (localhost:33306)
 # =============================================================================
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS_DIR="/home/a86223/ws"
 REPO_URL="https://github.com/ledmega/mega.git"
 PROJECT_DIR="$WS_DIR/mega"
@@ -39,7 +39,6 @@ if [ -d "$JDK_DIR" ]; then
 else
     echo "[jdk] JDK ${JDK_VERSION} 다운로드 중..."
 
-    # 아키텍처 감지
     ARCH=$(uname -m)
     case "$ARCH" in
         x86_64)  JDK_ARCH="x64" ;;
@@ -49,12 +48,10 @@ else
 
     JDK_TAR="$PROJECT_DIR/jdk21.tar.gz"
 
-    # Adoptium (Eclipse Temurin) JDK 21 LTS 다운로드
     JDK_URL=$(curl -s "${ADOPTIUM_API}?architecture=${JDK_ARCH}&image_type=jdk&os=linux&vendor=eclipse" \
         | grep -o '"link":"[^"]*"' | head -1 | cut -d'"' -f4)
 
     if [ -z "$JDK_URL" ]; then
-        # fallback: 직접 URL 구성
         echo "[jdk] API 조회 실패 → fallback URL 사용"
         JDK_URL="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_${JDK_ARCH}_linux_hotspot_21.0.6_7.tar.gz"
     fi
@@ -80,28 +77,45 @@ else
 fi
 echo "[gradle] org.gradle.java.home=$JDK_DIR 설정 완료"
 
-# ── 5. application.properties 확인 ───────────────────────────────────────────
-APP_PROPS="$PROJECT_DIR/webserver/src/main/resources/application.properties"
-if grep -q "MEGA_DB_PASSWORD:}" "$APP_PROPS" 2>/dev/null; then
+# ── 5. .env 파일 생성 (없을 때만) ────────────────────────────────────────────
+ENV_FILE="$PROJECT_DIR/.env"
+if [ ! -f "$ENV_FILE" ]; then
     echo ""
-    echo "┌──────────────────────────────────────────────────────────────┐"
-    echo "│  ⚠  DB 비밀번호를 환경변수로 설정해야 합니다.               │"
-    echo "│                                                              │"
-    echo "│  방법 1) 실행 전 export:                                     │"
-    echo "│    export MEGA_DB_URL=jdbc:mariadb://localhost:3306/ledmega  │"
-    echo "│    export MEGA_DB_USER=ledmega                               │"
-    echo "│    export MEGA_DB_PASSWORD=your_password                     │"
-    echo "│                                                              │"
-    echo "│  방법 2) run.sh 옆에 .env 파일 생성 (setup.sh가 자동 로드)   │"
-    echo "└──────────────────────────────────────────────────────────────┘"
+    echo "[env] .env 파일이 없습니다. DB 비밀번호를 입력하세요."
+    read -rsp "MEGA_DB_PASSWORD: " INPUT_PW
+    echo ""
+
+    cat > "$ENV_FILE" <<EOF
+# Docker MariaDB 접속 정보 (localhost:33306)
+MEGA_DB_URL=jdbc:mariadb://localhost:33306/ledmega
+MEGA_DB_USER=ledmega
+MEGA_DB_PASSWORD=${INPUT_PW}
+EOF
+    chmod 600 "$ENV_FILE"
+    echo "[env] .env 생성 완료: $ENV_FILE"
+else
+    echo "[env] .env 파일이 이미 존재합니다. 건너뜁니다."
 fi
 
-# ── 6. .env 파일이 있으면 로드 ────────────────────────────────────────────────
-if [ -f "$PROJECT_DIR/.env" ]; then
-    echo "[env] .env 파일을 로드합니다..."
-    set -a
-    source "$PROJECT_DIR/.env"
-    set +a
+# .env 로드
+set -a
+source "$ENV_FILE"
+set +a
+
+# ── 6. Docker MariaDB 접속 확인 ───────────────────────────────────────────────
+echo "[db] Docker MariaDB 접속 확인 중 (localhost:33306)..."
+if command -v mysql &>/dev/null || command -v mariadb &>/dev/null; then
+    DB_CLI=$(command -v mariadb 2>/dev/null || command -v mysql)
+    if "$DB_CLI" -h 127.0.0.1 -P 33306 -u ledmega -p"${MEGA_DB_PASSWORD}" -e "SELECT 1;" ledmega &>/dev/null; then
+        echo "[db] ✓ DB 접속 성공"
+    else
+        echo "[db] ✗ DB 접속 실패. Docker 컨테이너 상태 및 비밀번호를 확인하세요."
+        echo "     docker ps | grep mariadb"
+        echo "     .env 파일: $ENV_FILE"
+    fi
+else
+    echo "[db] mysql/mariadb 클라이언트가 없어 접속 확인을 건너뜁니다."
+    echo "     앱 기동 후 로그로 확인하세요."
 fi
 
 # ── 7. 빌드 ──────────────────────────────────────────────────────────────────
@@ -114,5 +128,5 @@ echo ""
 echo "=============================="
 echo " 설치 완료!"
 echo " JAR: $JAR_PATH"
-echo " 실행: bash run.sh"
+echo " 실행: bash run.sh start"
 echo "=============================="
