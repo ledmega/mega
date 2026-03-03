@@ -1,0 +1,31 @@
+[Unit]
+Description=Mega Webserver (Spring Boot)
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=a86223
+Group=a86223
+WorkingDirectory=/home/a86223/ws/mega
+
+# .env 파일에서 환경변수 로드 (DB 비밀번호 등)
+EnvironmentFile=-/home/a86223/ws/mega/.env
+
+ExecStart=/home/a86223/ws/mega/jdk/bin/java \
+    -Dfile.encoding=UTF-8 \
+    -Duser.language=ko \
+    -Duser.country=KR \
+    -jar /home/a86223/ws/mega/webserver/build/libs/webserver-0.0.1-SNAPSHOT.jar
+
+ExecStop=/bin/kill -TERM $MAINPID
+
+# 비정상 종료 시 10초 후 자동 재시작
+Restart=on-failure
+RestartSec=10
+
+StandardOutput=append:/home/a86223/ws/mega/logs/app.log
+StandardError=append:/home/a86223/ws/mega/logs/app.log
+
+[Install]
+WantedBy=multi-user.target

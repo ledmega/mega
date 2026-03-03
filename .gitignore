@@ -47,3 +47,10 @@ logs/
 **/src/main/resources/application-prod.properties
 **/src/main/resources/application-dev.properties
 **/src/main/resources/application-staging.properties
+
+### 로컬 환경변수 (비밀번호 포함) ###
+.env
+
+### 프로젝트 내 JDK (setup.sh로 다운로드) ###
+jdk/
+mega.pid
