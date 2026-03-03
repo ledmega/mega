@@ -1,3 +1,10 @@
+-- 데이터베이스 생성
+CREATE DATABASE IF NOT EXISTS `ledmega`
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE `ledmega`;
+
 -- 회원 테이블 생성
 CREATE TABLE IF NOT EXISTS member (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '회원 ID (시퀀스 키)',
