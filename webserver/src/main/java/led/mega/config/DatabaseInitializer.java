@@ -38,8 +38,6 @@ public class DatabaseInitializer implements ApplicationRunner {
     private String password;
 
     private static final String DB_NAME = "ledmega";
-    // 데이터베이스명 없이 연결 (포트만 지정) - 모든 사용자가 접근 가능
-    private static final String BASE_URL = "jdbc:mariadb://localhost:3306/?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Seoul";
     private static final String SCHEMA_SQL_FILE = "classpath:sql/schema.sql";
 
     @Override
@@ -62,19 +60,27 @@ public class DatabaseInitializer implements ApplicationRunner {
 
     /**
      * 데이터베이스가 없으면 생성
+     * BASE_URL: datasourceUrl에서 DB명을 제거하고 포트만 남긴 URL 사용 (하드코딩 방지)
      */
     private void initializeDatabase() {
         log.info("데이터베이스 '{}' 존재 여부 확인 중...", DB_NAME);
-        
-        try (Connection conn = DriverManager.getConnection(BASE_URL, username, password);
+
+        // jdbc:mariadb://host:port/dbname?params → jdbc:mariadb://host:port/?params
+        String baseUrl = datasourceUrl
+                .replaceFirst("/(\\w+)(\\?|$)", "/$2")  // DB명 제거
+                .replaceFirst("//([^/]+)$", "//$1/");    // trailing slash 보장
+        // 파라미터가 없는 경우 인코딩 옵션 추가
+        if (!baseUrl.contains("?")) {
+            baseUrl += "?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Seoul";
+        }
+
+        try (Connection conn = DriverManager.getConnection(baseUrl, username, password);
              Statement stmt = conn.createStatement()) {
 
-            // INFORMATION_SCHEMA를 사용하여 데이터베이스 존재 여부 확인 (어떤 DB에 연결해도 접근 가능)
             String checkDbSql = "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '" + DB_NAME + "'";
             ResultSet rs = stmt.executeQuery(checkDbSql);
 
             if (!rs.next()) {
-                // 데이터베이스가 없으면 생성
                 log.info("데이터베이스 '{}'가 없습니다. 생성합니다...", DB_NAME);
                 String createDbSql = "CREATE DATABASE IF NOT EXISTS " + DB_NAME + " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
                 stmt.executeUpdate(createDbSql);
@@ -85,7 +91,6 @@ public class DatabaseInitializer implements ApplicationRunner {
 
         } catch (Exception e) {
             log.error("✗ 데이터베이스 초기화 중 오류 발생: {}", e.getMessage(), e);
-            // 데이터베이스 생성 권한이 없을 수 있으므로, 경고만 출력하고 계속 진행
             log.warn("데이터베이스 생성에 실패했습니다. 이미 존재하거나 권한이 필요할 수 있습니다. 계속 진행합니다...");
         }
     }
