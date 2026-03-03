@@ -87,7 +87,7 @@ if [ ! -f "$ENV_FILE" ]; then
 
     cat > "$ENV_FILE" <<EOF
 # Docker MariaDB 접속 정보 (localhost:33306)
-MEGA_DB_URL=jdbc:mariadb://localhost:33306/ledmega
+MEGA_DB_URL=jdbc:mariadb://localhost:33306/ledmega?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Seoul
 MEGA_DB_USER=ledmega
 MEGA_DB_PASSWORD=${INPUT_PW}
 EOF

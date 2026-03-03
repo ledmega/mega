@@ -3,6 +3,6 @@
 # cp application-local.properties.example application-local.properties
 
 # Docker MariaDB (포트 33306)
-spring.datasource.url=jdbc:mariadb://localhost:33306/ledmega
+spring.datasource.url=jdbc:mariadb://localhost:33306/ledmega?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Seoul
 spring.datasource.username=ledmega
 spring.datasource.password=CHANGE_ME
