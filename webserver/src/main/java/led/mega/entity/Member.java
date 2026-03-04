@@ -1,14 +1,18 @@
 package led.mega.entity;
 
-import jakarta.persistence.*;
+// [REACTIVE] JPA → R2DBC 전환
+// - jakarta.persistence.* → Spring Data R2DBC 어노테이션
+// - @Enumerated 제거: R2DBC는 Enum을 name() 문자열로 자동 변환
+
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "member")
+@Table("member")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,44 +21,26 @@ import java.time.LocalDateTime;
 public class Member {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
 
-    @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
-
-    @Column(name = "password", nullable = false, length = 255)
     private String password;
-
-    @Column(name = "name", nullable = false, length = 50)
     private String name;
-
-    @Column(name = "nickname", length = 50)
     private String nickname;
-
-    @Column(name = "phone", length = 20)
     private String phone;
 
-    @Column(name = "role", nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
     @Builder.Default
     private MemberRole role = MemberRole.ROLE_USER;
 
-    @Column(name = "status", nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
     @Builder.Default
     private MemberStatus status = MemberStatus.ACTIVE;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 }
 

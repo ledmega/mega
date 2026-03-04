@@ -1,39 +1,37 @@
 package led.mega.repository;
 
-import led.mega.entity.Agent;
+// [REACTIVE] JpaRepository → ReactiveCrudRepository
+// - findByAgent(Agent) 제거, findByAgentId(Long) 사용
+// - JPQL (e.agent.id) → 네이티브 SQL (agent_id)
+// - long → Mono<Long>
+
 import led.mega.entity.ExceptionLog;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Repository
-public interface ExceptionLogRepository extends JpaRepository<ExceptionLog, Long> {
-    
-    List<ExceptionLog> findByAgent(Agent agent);
-    
-    List<ExceptionLog> findByAgentId(Long agentId);
-    
-    List<ExceptionLog> findByExceptionType(String exceptionType);
-    
-    @Query("SELECT e FROM ExceptionLog e WHERE e.agent.id = :agentId AND e.occurredAt BETWEEN :startTime AND :endTime ORDER BY e.occurredAt DESC")
-    List<ExceptionLog> findByAgentIdAndOccurredAtBetween(
-            @Param("agentId") Long agentId,
-            @Param("startTime") LocalDateTime startTime,
-            @Param("endTime") LocalDateTime endTime
-    );
-    
-    @Query("SELECT e FROM ExceptionLog e WHERE e.exceptionType = :exceptionType AND e.occurredAt BETWEEN :startTime AND :endTime ORDER BY e.occurredAt DESC")
-    List<ExceptionLog> findByExceptionTypeAndOccurredAtBetween(
-            @Param("exceptionType") String exceptionType,
-            @Param("startTime") LocalDateTime startTime,
-            @Param("endTime") LocalDateTime endTime
-    );
-    
-    @Query("SELECT COUNT(e) FROM ExceptionLog e WHERE e.agent.id = :agentId AND e.occurredAt >= :since")
-    long countByAgentIdSince(@Param("agentId") Long agentId, @Param("since") LocalDateTime since);
+public interface ExceptionLogRepository extends ReactiveCrudRepository<ExceptionLog, Long> {
+
+    // [CHANGED] findByAgent(Agent) 제거
+    Flux<ExceptionLog> findByAgentId(Long agentId);
+
+    Flux<ExceptionLog> findByExceptionType(String exceptionType);
+
+    // [CHANGED] JPQL → 네이티브 SQL
+    @Query("SELECT * FROM exception_log WHERE agent_id = :agentId AND occurred_at BETWEEN :startTime AND :endTime ORDER BY occurred_at DESC")
+    Flux<ExceptionLog> findByAgentIdAndOccurredAtBetween(Long agentId, LocalDateTime startTime, LocalDateTime endTime);
+
+    // [CHANGED] JPQL → 네이티브 SQL
+    @Query("SELECT * FROM exception_log WHERE exception_type = :exceptionType AND occurred_at BETWEEN :startTime AND :endTime ORDER BY occurred_at DESC")
+    Flux<ExceptionLog> findByExceptionTypeAndOccurredAtBetween(String exceptionType, LocalDateTime startTime, LocalDateTime endTime);
+
+    // [CHANGED] long → Mono<Long>
+    @Query("SELECT COUNT(*) FROM exception_log WHERE agent_id = :agentId AND occurred_at >= :since")
+    Mono<Long> countByAgentIdSince(Long agentId, LocalDateTime since);
 }
 

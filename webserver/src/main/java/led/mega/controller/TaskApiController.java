@@ -1,5 +1,11 @@
 package led.mega.controller;
 
+// [REACTIVE] 전환 패턴 정리
+// - ResponseEntity<List<T>> → Flux<T>
+// - ResponseEntity<T>       → Mono<ResponseEntity<T>>
+// - ResponseEntity<Void>    → Mono<ResponseEntity<Void>>
+// - try-catch               → .onErrorReturn(ResponseEntity.badRequest().build())
+
 import jakarta.validation.Valid;
 import led.mega.dto.TaskRequestDto;
 import led.mega.dto.TaskResponseDto;
@@ -9,8 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @RestController
@@ -20,93 +26,61 @@ public class TaskApiController {
 
     private final TaskService taskService;
 
-    /**
-     * 작업 목록 조회
-     */
     @GetMapping
-    public ResponseEntity<List<TaskResponseDto>> getTasks(@PathVariable Long agentId) {
-        List<TaskResponseDto> tasks = taskService.getTasksByAgentId(agentId);
-        return ResponseEntity.ok(tasks);
+    public Flux<TaskResponseDto> getTasks(@PathVariable Long agentId) {
+        return taskService.getTasksByAgentId(agentId);
     }
 
-    /**
-     * 활성화된 작업 목록 조회
-     */
     @GetMapping("/enabled")
-    public ResponseEntity<List<TaskResponseDto>> getEnabledTasks(@PathVariable Long agentId) {
-        List<TaskResponseDto> tasks = taskService.getEnabledTasksByAgentId(agentId);
-        return ResponseEntity.ok(tasks);
+    public Flux<TaskResponseDto> getEnabledTasks(@PathVariable Long agentId) {
+        return taskService.getEnabledTasksByAgentId(agentId);
     }
 
-    /**
-     * 작업 생성
-     */
     @PostMapping
-    public ResponseEntity<TaskResponseDto> createTask(
+    public Mono<ResponseEntity<TaskResponseDto>> createTask(
             @PathVariable Long agentId,
             @Valid @RequestBody TaskRequestDto requestDto) {
-        try {
-            TaskResponseDto response = taskService.createTask(agentId, requestDto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        return taskService.createTask(agentId, requestDto)
+                .map(r -> ResponseEntity.status(HttpStatus.CREATED).body(r))
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
     }
 
-    /**
-     * 작업 조회
-     */
     @GetMapping("/{taskId}")
-    public ResponseEntity<TaskResponseDto> getTask(@PathVariable Long taskId) {
-        try {
-            TaskResponseDto response = taskService.getTask(taskId);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+    public Mono<ResponseEntity<TaskResponseDto>> getTask(@PathVariable Long taskId) {
+        return taskService.getTask(taskId)
+                .map(ResponseEntity::ok)
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
-    /**
-     * 작업 수정
-     */
     @PutMapping("/{taskId}")
-    public ResponseEntity<TaskResponseDto> updateTask(
+    public Mono<ResponseEntity<TaskResponseDto>> updateTask(
             @PathVariable Long taskId,
             @Valid @RequestBody TaskRequestDto requestDto) {
-        try {
-            TaskResponseDto response = taskService.updateTask(taskId, requestDto);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        return taskService.updateTask(taskId, requestDto)
+                .map(ResponseEntity::ok)
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
     }
 
-    /**
-     * 작업 삭제
-     */
+    // [CHANGED] ResponseEntity<Void> → Mono<ResponseEntity<Void>>
     @DeleteMapping("/{taskId}")
-    public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
-        try {
-            taskService.deleteTask(taskId);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+    public Mono<ResponseEntity<Void>> deleteTask(@PathVariable Long taskId) {
+        return taskService.deleteTask(taskId)
+                .thenReturn(ResponseEntity.<Void>noContent().build())
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
-    /**
-     * 작업 활성화/비활성화
-     */
     @PatchMapping("/{taskId}/toggle")
-    public ResponseEntity<TaskResponseDto> toggleTask(
+    public Mono<ResponseEntity<TaskResponseDto>> toggleTask(
             @PathVariable Long taskId,
             @RequestParam Boolean enabled) {
-        try {
-            TaskResponseDto response = taskService.toggleTask(taskId, enabled);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        return taskService.toggleTask(taskId, enabled)
+                .map(ResponseEntity::ok)
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
     }
 }
 

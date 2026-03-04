@@ -1,16 +1,20 @@
 package led.mega.entity;
 
-import jakarta.persistence.*;
+// [REACTIVE] JPA → R2DBC 전환
+// - @Entity, @GeneratedValue, @Column, @Enumerated 제거 (jakarta.persistence.*)
+// - @Table, @Id → Spring Data R2DBC 어노테이션 사용
+// - @CreationTimestamp, @UpdateTimestamp → @CreatedDate, @LastModifiedDate (Spring Data)
+// - @OneToMany 컬렉션 전부 제거 (R2DBC는 관계 매핑 미지원 - 서비스 레이어에서 별도 조회)
+
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
-@Entity
-@Table(name = "agent")
+@Table("agent")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,59 +23,27 @@ import java.util.List;
 public class Agent {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
 
-    @Column(name = "agent_id", nullable = false, unique = true, length = 100)
     private String agentId;
-
-    @Column(name = "name", nullable = false, length = 100)
     private String name;
-
-    @Column(name = "hostname", length = 255)
     private String hostname;
-
-    @Column(name = "ip_address", length = 50)
     private String ipAddress;
-
-    @Column(name = "os_type", length = 50)
     private String osType;
 
-    @Column(name = "status", nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
     @Builder.Default
     private AgentStatus status = AgentStatus.OFFLINE;
 
-    @Column(name = "last_heartbeat")
     private LocalDateTime lastHeartbeat;
-
-    @Column(name = "api_key", length = 255)
     private String apiKey;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    // 연관관계
-    @OneToMany(mappedBy = "agent", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<Task> tasks = new ArrayList<>();
-
-    @OneToMany(mappedBy = "agent", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<MetricData> metricDataList = new ArrayList<>();
-
-    @OneToMany(mappedBy = "agent", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<ExceptionLog> exceptionLogs = new ArrayList<>();
-
-    @OneToMany(mappedBy = "agent", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<AgentHeartbeat> heartbeats = new ArrayList<>();
+    // [REMOVED] @OneToMany tasks, metricDataList, exceptionLogs, heartbeats
+    // R2DBC는 관계 매핑 지원 안 함 → 필요 시 Repository에서 별도 조회
 }
 

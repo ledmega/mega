@@ -367,57 +367,71 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-    <script th:inline="javascript">
-        // WebSocket 연결
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = wsProtocol + '//' + window.location.host + '/ws';
+    <!--
+        [REACTIVE] WebSocket(SockJS + STOMP) → SSE(Server-Sent Events) 교체
         
-        let stompClient = null;
+        기존 (STOMP over SockJS):
+          CDN: sockjs-client, stompjs
+          const socket = new SockJS('/ws');
+          stompClient = Stomp.over(socket);
+          stompClient.subscribe('/topic/metrics', handler);
+        
+        [NEW] SSE (EventSource - JS 표준 API, 라이브러리 불필요):
+          const eventSource = new EventSource('/api/sse/events');
+          eventSource.addEventListener('METRIC', handler);
+          - 자동 재연결 (브라우저 내장)
+          - 단방향(서버→클라이언트)이지만 모니터링에 충분
+          - HTTP/1.1 호환, 방화벽 통과 용이
+    -->
+    <script th:inline="javascript">
+        // [CHANGED] SockJS/STOMP → EventSource
+        let eventSource = null;
         let metrics = [];
         let exceptions = [];
         let agents = [];
 
         function connect() {
-            const socket = new SockJS('/ws');
-            stompClient = Stomp.over(socket);
-            
-            stompClient.connect({}, function(frame) {
-                console.log('WebSocket 연결됨: ' + frame);
-                updateWsStatus(true);
-                
-                // 메트릭 구독
-                stompClient.subscribe('/topic/metrics', function(message) {
-                    const data = JSON.parse(message.body);
-                    handleMetricUpdate(data);
-                });
-                
-                // Exception 구독
-                stompClient.subscribe('/topic/exceptions', function(message) {
-                    const data = JSON.parse(message.body);
-                    handleExceptionUpdate(data);
-                });
-                
-                // 하트비트 구독
-                stompClient.subscribe('/topic/heartbeat', function(message) {
-                    const data = JSON.parse(message.body);
-                    handleHeartbeatUpdate(data);
-                });
-                
-                // 에이전트 상태 구독
-                stompClient.subscribe('/topic/agent-status', function(message) {
-                    const data = JSON.parse(message.body);
-                    handleAgentStatusUpdate(data);
-                });
-                
-                // 초기 데이터 로드
-                loadAgents();
-            }, function(error) {
-                console.error('WebSocket 연결 실패:', error);
-                updateWsStatus(false);
-                setTimeout(connect, 5000); // 5초 후 재연결 시도
+            // [CHANGED] new SockJS('/ws') + Stomp.over()
+            //         → new EventSource('/api/sse/events')
+            eventSource = new EventSource('/api/sse/events');
+
+            // [CHANGED] stompClient.subscribe('/topic/metrics', ...)
+            //         → eventSource.addEventListener('METRIC', ...)
+            //           (서버의 ServerSentEvent.event() 값과 매칭)
+            eventSource.addEventListener('METRIC', function(event) {
+                const data = JSON.parse(event.data);
+                handleMetricUpdate(data);
             });
+
+            eventSource.addEventListener('EXCEPTION', function(event) {
+                const data = JSON.parse(event.data);
+                handleExceptionUpdate(data);
+            });
+
+            eventSource.addEventListener('HEARTBEAT', function(event) {
+                const data = JSON.parse(event.data);
+                handleHeartbeatUpdate(data);
+            });
+
+            eventSource.addEventListener('AGENT_STATUS', function(event) {
+                const data = JSON.parse(event.data);
+                handleAgentStatusUpdate(data);
+            });
+
+            // [CHANGED] stompClient.connect 콜백 → eventSource.onopen
+            eventSource.onopen = function() {
+                console.log('SSE 연결됨');
+                updateWsStatus(true);
+                loadAgents();
+            };
+
+            // [CHANGED] stompClient 오류 콜백 → eventSource.onerror
+            // EventSource는 오류 시 브라우저가 자동 재연결 시도
+            eventSource.onerror = function(error) {
+                console.error('SSE 연결 오류:', error);
+                updateWsStatus(false);
+                // 브라우저가 자동으로 재연결 → setTimeout connect() 불필요
+            };
         }
 
         function updateWsStatus(connected) {
@@ -555,9 +569,10 @@
         });
 
         // 페이지 언로드 시 연결 해제
+        // [CHANGED] stompClient.disconnect() → eventSource.close()
         window.addEventListener('beforeunload', function() {
-            if (stompClient !== null) {
-                stompClient.disconnect();
+            if (eventSource !== null) {
+                eventSource.close();
             }
         });
     </script>

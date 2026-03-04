@@ -1,14 +1,18 @@
 package led.mega.entity;
 
-import jakarta.persistence.*;
+// [REACTIVE] JPA → R2DBC 전환
+// - @ManyToOne Agent agent → Long agentId
+// - @ManyToOne Task task   → Long taskId
+
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "metric_data")
+@Table("metric_data")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,39 +21,21 @@ import java.time.LocalDateTime;
 public class MetricData {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agent_id", nullable = false)
-    private Agent agent;
+    // [CHANGED] @ManyToOne Agent agent → Long agentId
+    private Long agentId;
+    // [CHANGED] @ManyToOne Task task   → Long taskId
+    private Long taskId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "task_id")
-    private Task task;
-
-    @Column(name = "metric_type", nullable = false, length = 50)
-    @Enumerated(EnumType.STRING)
     private MetricType metricType;
-
-    @Column(name = "metric_name", length = 100)
     private String metricName;
-
-    @Column(name = "metric_value", precision = 20, scale = 4)
     private BigDecimal metricValue;
-
-    @Column(name = "unit", length = 20)
     private String unit;
-
-    @Column(name = "raw_data", columnDefinition = "TEXT")
     private String rawData;
-
-    @Column(name = "collected_at", nullable = false)
     private LocalDateTime collectedAt;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
 }
 

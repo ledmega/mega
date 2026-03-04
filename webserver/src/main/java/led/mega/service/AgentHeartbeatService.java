@@ -1,7 +1,12 @@
 package led.mega.service;
 
+// [REACTIVE] 핵심 변경점
+// - AgentHeartbeat → Mono<AgentHeartbeat>
+// - 동기 예외 throw → Mono.error(...)
+// - heartbeat 저장 후 agent 업데이트: flatMap 체이닝
+// - .orElse(null) → .next() (Flux의 첫 번째 요소, 없으면 empty Mono)
+
 import led.mega.dto.HeartbeatRequestDto;
-import led.mega.entity.Agent;
 import led.mega.entity.AgentHeartbeat;
 import led.mega.entity.AgentStatus;
 import led.mega.repository.AgentHeartbeatRepository;
@@ -10,9 +15,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -22,66 +28,52 @@ public class AgentHeartbeatService {
     private final AgentHeartbeatRepository heartbeatRepository;
     private final AgentRepository agentRepository;
 
-    /**
-     * 하트비트 저장
-     */
+    // [CHANGED] AgentHeartbeat → Mono<AgentHeartbeat>
     @Transactional
-    public AgentHeartbeat saveHeartbeat(Long agentId, HeartbeatRequestDto requestDto) {
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() -> new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId));
-
+    public Mono<AgentHeartbeat> saveHeartbeat(Long agentId, HeartbeatRequestDto requestDto) {
         AgentStatus status;
         try {
             status = AgentStatus.valueOf(requestDto.getStatus().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("유효하지 않은 상태입니다: " + requestDto.getStatus());
+            return Mono.error(new IllegalArgumentException("유효하지 않은 상태입니다: " + requestDto.getStatus()));
         }
 
-        // 하트비트 저장
-        AgentHeartbeat heartbeat = AgentHeartbeat.builder()
-                .agent(agent)
-                .status(status)
-                .heartbeatAt(requestDto.getHeartbeatAt() != null ? requestDto.getHeartbeatAt() : LocalDateTime.now())
-                .build();
+        final AgentStatus finalStatus = status;
 
-        AgentHeartbeat savedHeartbeat = heartbeatRepository.save(heartbeat);
+        return agentRepository.findById(agentId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
+                .flatMap(agent -> {
+                    AgentHeartbeat heartbeat = AgentHeartbeat.builder()
+                            .agentId(agentId) // [CHANGED] .agent(agent) → .agentId(agentId)
+                            .status(finalStatus)
+                            .heartbeatAt(requestDto.getHeartbeatAt() != null
+                                    ? requestDto.getHeartbeatAt() : LocalDateTime.now())
+                            .build();
 
-        // 에이전트 상태 및 하트비트 시간 업데이트
-        agent.setStatus(status);
-        agent.setLastHeartbeat(savedHeartbeat.getHeartbeatAt());
-        agentRepository.save(agent);
-
-        log.debug("하트비트 저장 완료: agentId={}, status={}", agentId, status);
-
-        // WebSocket으로 실시간 전송 (WebSocketService가 활성화되면 자동으로 작동)
-        // TODO: WebSocketService 활성화 시 주석 해제
-        // webSocketService.ifPresent(ws -> {
-        //     ws.broadcastHeartbeat(agentId, savedHeartbeat);
-        //     ws.broadcastAgentStatus(agentId, agent);
-        // });
-
-        return savedHeartbeat;
+                    // [CHANGED] 동기 순차 저장 → flatMap으로 비동기 체이닝
+                    return heartbeatRepository.save(heartbeat)
+                            .flatMap(saved -> {
+                                agent.setStatus(finalStatus);
+                                agent.setLastHeartbeat(saved.getHeartbeatAt());
+                                return agentRepository.save(agent).thenReturn(saved);
+                            });
+                })
+                .doOnNext(h -> log.debug("하트비트 저장 완료: agentId={}, status={}", agentId, finalStatus));
     }
 
-    /**
-     * 에이전트별 하트비트 조회
-     */
-    public List<AgentHeartbeat> getHeartbeatsByAgentId(Long agentId) {
+    // [CHANGED] List<AgentHeartbeat> → Flux<AgentHeartbeat>
+    public Flux<AgentHeartbeat> getHeartbeatsByAgentId(Long agentId) {
         return heartbeatRepository.findByAgentId(agentId);
     }
 
-    /**
-     * 최신 하트비트 조회
-     */
-    public AgentHeartbeat getLatestHeartbeat(Long agentId) {
-        return heartbeatRepository.findLatestByAgentId(agentId)
-                .orElse(null);
+    // [CHANGED] AgentHeartbeat → Mono<AgentHeartbeat>
+    // [CHANGED] findLatestByAgentId(default 메서드) → findByAgentIdOrderByHeartbeatAtDesc().next()
+    public Mono<AgentHeartbeat> getLatestHeartbeat(Long agentId) {
+        return heartbeatRepository.findByAgentIdOrderByHeartbeatAtDesc(agentId).next();
     }
 
-    /**
-     * 시간 범위별 하트비트 조회
-     */
-    public List<AgentHeartbeat> getHeartbeatsByAgentIdAndTimeRange(
+    // [CHANGED] List → Flux
+    public Flux<AgentHeartbeat> getHeartbeatsByAgentIdAndTimeRange(
             Long agentId, LocalDateTime startTime, LocalDateTime endTime) {
         return heartbeatRepository.findByAgentIdAndHeartbeatAtBetween(agentId, startTime, endTime);
     }

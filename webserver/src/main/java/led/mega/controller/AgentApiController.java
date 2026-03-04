@@ -1,5 +1,14 @@
 package led.mega.controller;
 
+// [REACTIVE] REST API Controller 전환 핵심 요약
+//
+// MVC (기존):                          WebFlux (reactive):
+// ResponseEntity<T>                 → Mono<ResponseEntity<T>>
+// ResponseEntity<List<T>>           → Flux<T>  (WebFlux가 Flux를 JSON 배열로 직렬화)
+// try-catch + return                → .onErrorReturn(ResponseEntity.badRequest().build())
+// ResponseEntity.ok(service.get())  → service.get().map(ResponseEntity::ok)
+// 동기 인증 확인                      → Mono 체이닝으로 비동기 처리
+
 import jakarta.validation.Valid;
 import led.mega.dto.*;
 import led.mega.entity.Agent;
@@ -10,8 +19,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @RestController
@@ -24,102 +33,71 @@ public class AgentApiController {
     private final ExceptionLogService exceptionLogService;
     private final AgentHeartbeatService heartbeatService;
 
-    /**
-     * 에이전트 목록 조회 (웹 대시보드용)
-     */
+    // [CHANGED] ResponseEntity<List<T>> → Flux<T>
+    // WebFlux는 Flux를 자동으로 JSON 배열로 직렬화
     @GetMapping
-    public ResponseEntity<List<AgentResponseDto>> getAllAgents() {
-        List<AgentResponseDto> agents = agentService.getAllAgents();
-        return ResponseEntity.ok(agents);
+    public Flux<AgentResponseDto> getAllAgents() {
+        return agentService.getAllAgents();
     }
 
-    /**
-     * 에이전트 등록 (공개 API)
-     */
+    // [CHANGED] ResponseEntity<T> → Mono<ResponseEntity<T>>
+    // [CHANGED] try-catch → .onErrorReturn(badRequest)
     @PostMapping("/register")
-    public ResponseEntity<AgentRegisterResponseDto> registerAgent(@Valid @RequestBody AgentRegisterDto registerDto) {
-        try {
-            AgentRegisterResponseDto response = agentService.registerAgent(registerDto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            log.error("에이전트 등록 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+    public Mono<ResponseEntity<AgentRegisterResponseDto>> registerAgent(
+            @Valid @RequestBody AgentRegisterDto registerDto) {
+        return agentService.registerAgent(registerDto)
+                .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
     }
 
-    /**
-     * 하트비트 전송 (인증 필요)
-     */
+    // [CHANGED] void → Mono<ResponseEntity<Void>>
+    // [CHANGED] 동기 에이전트 인증 → Mono 체이닝
     @PostMapping("/{agentId}/heartbeat")
-    public ResponseEntity<Void> sendHeartbeat(
+    public Mono<ResponseEntity<Void>> sendHeartbeat(
             @PathVariable String agentId,
             @Valid @RequestBody HeartbeatRequestDto requestDto,
             Authentication authentication) {
-        
-        try {
-            Agent agent = getAuthenticatedAgent(authentication, agentId);
-            heartbeatService.saveHeartbeat(agent.getId(), requestDto);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            log.error("하트비트 전송 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        return getAuthenticatedAgentMono(authentication, agentId)
+                .flatMap(agent -> heartbeatService.saveHeartbeat(agent.getId(), requestDto))
+                .thenReturn(ResponseEntity.<Void>ok().build())
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
     }
 
-    /**
-     * 메트릭 데이터 전송 (인증 필요)
-     */
     @PostMapping("/{agentId}/metrics")
-    public ResponseEntity<MetricDataResponseDto> sendMetricData(
+    public Mono<ResponseEntity<MetricDataResponseDto>> sendMetricData(
             @PathVariable String agentId,
             @Valid @RequestBody MetricDataRequestDto requestDto,
             Authentication authentication) {
-        
-        try {
-            Agent agent = getAuthenticatedAgent(authentication, agentId);
-            MetricDataResponseDto response = metricDataService.saveMetricData(agent.getId(), requestDto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            log.error("메트릭 데이터 전송 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        return getAuthenticatedAgentMono(authentication, agentId)
+                .flatMap(agent -> metricDataService.saveMetricData(agent.getId(), requestDto))
+                .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
     }
 
-    /**
-     * Exception 로그 전송 (인증 필요)
-     */
     @PostMapping("/{agentId}/exceptions")
-    public ResponseEntity<ExceptionLogResponseDto> sendExceptionLog(
+    public Mono<ResponseEntity<ExceptionLogResponseDto>> sendExceptionLog(
             @PathVariable String agentId,
             @Valid @RequestBody ExceptionLogRequestDto requestDto,
             Authentication authentication) {
-        
-        try {
-            Agent agent = getAuthenticatedAgent(authentication, agentId);
-            ExceptionLogResponseDto response = exceptionLogService.saveExceptionLog(agent.getId(), requestDto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            log.error("Exception 로그 전송 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        return getAuthenticatedAgentMono(authentication, agentId)
+                .flatMap(agent -> exceptionLogService.saveExceptionLog(agent.getId(), requestDto))
+                .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
     }
 
-    /**
-     * 인증된 에이전트 확인
-     */
-    private Agent getAuthenticatedAgent(Authentication authentication, String agentId) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof Agent)) {
-            throw new IllegalArgumentException("인증이 필요합니다.");
+    // [CHANGED] 동기 메서드 → Mono 반환 (에러도 Mono.error로)
+    private Mono<Agent> getAuthenticatedAgentMono(Authentication authentication, String agentId) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof Agent authenticatedAgent)) {
+            return Mono.error(new IllegalArgumentException("인증이 필요합니다."));
         }
-        
-        Agent authenticatedAgent = (Agent) authentication.getPrincipal();
-        
-        // 요청한 agentId와 인증된 에이전트의 agentId가 일치하는지 확인
         if (!authenticatedAgent.getAgentId().equals(agentId)) {
-            throw new IllegalArgumentException("에이전트 ID가 일치하지 않습니다.");
+            return Mono.error(new IllegalArgumentException("에이전트 ID가 일치하지 않습니다."));
         }
-        
-        return authenticatedAgent;
+        return Mono.just(authenticatedAgent);
     }
 }
 

@@ -1,60 +1,52 @@
 package led.mega.service;
 
-import led.mega.entity.Member;
+// [REACTIVE] UserDetailsService → ReactiveUserDetailsService
+// - loadUserByUsername(String) : UserDetails  →  findByUsername(String) : Mono<UserDetails>
+// - orElseThrow → switchIfEmpty(Mono.error(...))
+// - if 체크 → flatMap + Mono.error(...)
+// - @Transactional(readOnly=true) 제거: R2DBC는 논블로킹이므로 트랜잭션 불필요
+
 import led.mega.entity.MemberStatus;
 import led.mega.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
 
 import java.util.Collections;
-import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CustomUserDetailsService implements UserDetailsService {
+public class CustomUserDetailsService implements ReactiveUserDetailsService {
 
     private final MemberRepository memberRepository;
 
+    // [CHANGED] UserDetails → Mono<UserDetails>
     @Override
-    @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    log.warn("로그인 실패: 이메일을 찾을 수 없습니다. email={}", email);
-                    return new UsernameNotFoundException("이메일 또는 비밀번호가 올바르지 않습니다.");
+    public Mono<UserDetails> findByUsername(String email) {
+        return memberRepository.findByEmail(email)
+                .switchIfEmpty(Mono.error(new UsernameNotFoundException("이메일 또는 비밀번호가 올바르지 않습니다.")))
+                .flatMap(member -> {
+                    // [CHANGED] if throw → flatMap + Mono.error
+                    if (member.getStatus() != MemberStatus.ACTIVE) {
+                        log.warn("로그인 실패: 비활성화된 회원. email={}", email);
+                        return Mono.error(new UsernameNotFoundException("비활성화된 계정입니다."));
+                    }
+                    log.info("로그인 시도: email={}, role={}", email, member.getRole());
+                    UserDetails userDetails = User.builder()
+                            .username(member.getEmail())
+                            .password(member.getPassword())
+                            .authorities(Collections.singletonList(
+                                    new SimpleGrantedAuthority(member.getRole().name())))
+                            .build();
+                    return Mono.just(userDetails);
                 });
-
-        // 비활성화된 회원 체크
-        if (member.getStatus() != MemberStatus.ACTIVE) {
-            log.warn("로그인 실패: 비활성화된 회원. email={}, status={}", email, member.getStatus());
-            throw new UsernameNotFoundException("비활성화된 계정입니다.");
-        }
-
-        // 권한 설정
-        List<GrantedAuthority> authorities = Collections.singletonList(
-                new SimpleGrantedAuthority(member.getRole().name())
-        );
-
-        log.info("로그인 시도: email={}, role={}", email, member.getRole());
-
-        return User.builder()
-                .username(member.getEmail())
-                .password(member.getPassword())
-                .authorities(authorities)
-                .accountExpired(false)
-                .accountLocked(false)
-                .credentialsExpired(false)
-                .disabled(member.getStatus() != MemberStatus.ACTIVE)
-                .build();
     }
 }
 

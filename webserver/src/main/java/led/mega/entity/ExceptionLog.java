@@ -1,13 +1,18 @@
 package led.mega.entity;
 
-import jakarta.persistence.*;
+// [REACTIVE] JPA → R2DBC 전환
+// - @ManyToOne Agent agent → Long agentId
+// - @ManyToOne Task task   → Long taskId
+// - 서비스에서 agentId/taskId로 별도 조회하면 됨
+
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "exception_log")
+@Table("exception_log")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,41 +21,22 @@ import java.time.LocalDateTime;
 public class ExceptionLog {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agent_id", nullable = false)
-    private Agent agent;
+    // [CHANGED] @ManyToOne Agent agent → Long agentId
+    private Long agentId;
+    // [CHANGED] @ManyToOne Task task   → Long taskId
+    private Long taskId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "task_id")
-    private Task task;
-
-    @Column(name = "log_file_path", length = 500)
     private String logFilePath;
-
-    @Column(name = "exception_type", length = 200)
     private String exceptionType;
-
-    @Column(name = "exception_message", columnDefinition = "TEXT")
     private String exceptionMessage;
-
-    @Column(name = "context_before", columnDefinition = "TEXT")
     private String contextBefore;
-
-    @Column(name = "context_after", columnDefinition = "TEXT")
     private String contextAfter;
-
-    @Column(name = "full_stack_trace", columnDefinition = "TEXT")
     private String fullStackTrace;
-
-    @Column(name = "occurred_at", nullable = false)
     private LocalDateTime occurredAt;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
 }
 

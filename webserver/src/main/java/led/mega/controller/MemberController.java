@@ -1,28 +1,28 @@
 package led.mega.controller;
 
+// [REACTIVE] Thymeleaf MemberController 전환
+//
+// 주요 변경사항:
+// - RedirectAttributes 사용 불가 (WebFlux 미지원) → URL 파라미터로 대체
+// - Pageable 제거 → Flux 기반 전체 목록
+// - canAccessMember()가 DB 조회 포함 → Mono<Boolean>으로 전환
+// - 반환타입: DB 조회 있는 메서드 → Mono<String>, 없는 메서드 → String
+
 import jakarta.validation.Valid;
 import led.mega.dto.MemberDetailDto;
 import led.mega.dto.MemberUpdateDto;
 import led.mega.dto.SignupDto;
-import led.mega.entity.Member;
 import led.mega.entity.MemberStatus;
 import led.mega.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Controller
@@ -37,132 +37,130 @@ public class MemberController {
         return "signup";
     }
 
+    // [CHANGED] String → Mono<String>
+    // [CHANGED] try-catch → onErrorResume
+    // [REMOVED] RedirectAttributes → URL 파라미터 (?success=true)
     @PostMapping("/signup")
-    public String signup(@Valid @ModelAttribute SignupDto signupDto,
-                        BindingResult bindingResult,
-                        RedirectAttributes redirectAttributes) {
-
+    public Mono<String> signup(@Valid @ModelAttribute SignupDto signupDto,
+                               BindingResult bindingResult,
+                               Model model) {
         if (bindingResult.hasErrors()) {
-            return "signup";
+            return Mono.just("signup");
         }
-
-        try {
-            memberService.signup(signupDto);
-            redirectAttributes.addFlashAttribute("successMessage", "회원가입이 완료되었습니다. 로그인해주세요.");
-            return "redirect:/login";
-        } catch (IllegalArgumentException e) {
-            bindingResult.rejectValue("email", "error.email", e.getMessage());
-            return "signup";
-        } catch (Exception e) {
-            log.error("회원가입 중 오류 발생", e);
-            bindingResult.reject("error.signup", "회원가입 중 오류가 발생했습니다. 다시 시도해주세요.");
-            return "signup";
-        }
+        return memberService.signup(signupDto)
+                .thenReturn("redirect:/login?success=true")
+                .onErrorResume(IllegalArgumentException.class, e -> {
+                    bindingResult.rejectValue("email", "error.email", e.getMessage());
+                    return Mono.just("signup");
+                })
+                .onErrorResume(e -> {
+                    log.error("회원가입 중 오류 발생", e);
+                    model.addAttribute("error", "회원가입 중 오류가 발생했습니다.");
+                    return Mono.just("signup");
+                });
     }
 
-    // ---------- 회원관리 (로그인 필요) ----------
-
-    /** 내 정보로 이동 (현재 로그인 회원 상세) */
+    // [CHANGED] String → Mono<String>
+    // [CHANGED] Member member = findByEmail(...) [블로킹] → findByEmail().map()
     @GetMapping("/members/me")
-    public String myProfile(Authentication auth) {
+    public Mono<String> myProfile(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) {
-            return "redirect:/login";
+            return Mono.just("redirect:/login");
         }
-        Member member = memberService.findByEmail(auth.getName());
-        return "redirect:/members/" + member.getId();
+        return memberService.findByEmail(auth.getName())
+                .map(member -> "redirect:/members/" + member.getId())
+                .onErrorReturn("redirect:/login");
     }
 
-    /** 회원 목록 (관리자만) */
+    // [CHANGED] Page → Flux (Thymeleaf-WebFlux가 Flux를 자동 subscribe)
+    // [REMOVED] Pageable 파라미터
     @GetMapping("/members")
     public String list(@RequestParam(required = false) String search,
-                       @PageableDefault(size = 20, sort = "id") Pageable pageable,
-                       Model model,
-                       Authentication auth) {
-        if (!isAdmin(auth)) {
-            return "redirect:/dashboard";
-        }
-        Page<MemberDetailDto> page = memberService.getMemberPage(search, pageable);
-        model.addAttribute("memberPage", page);
+                       Model model, Authentication auth) {
+        if (!isAdmin(auth)) return "redirect:/dashboard";
+        model.addAttribute("memberPage", memberService.getMemberPage(search)); // Flux
         model.addAttribute("search", search);
         return "members/list";
     }
 
-    /** 회원 상세 (관리자 또는 본인) */
+    // [CHANGED] canAccessMember(Mono) → Mono<String> 반환
     @GetMapping("/members/{id}")
-    public String detail(@PathVariable Long id, Model model, Authentication auth) {
-        if (!canAccessMember(id, auth)) {
-            return "redirect:/dashboard";
-        }
-        MemberDetailDto dto = memberService.getMemberDetail(id);
-        model.addAttribute("member", dto);
-        model.addAttribute("isAdmin", isAdmin(auth));
-        return "members/detail";
+    public Mono<String> detail(@PathVariable Long id, Model model, Authentication auth) {
+        return canAccessMemberMono(id, auth)
+                .flatMap(canAccess -> {
+                    if (!canAccess) return Mono.just("redirect:/dashboard");
+                    return memberService.getMemberDetail(id)
+                            .doOnNext(dto -> {
+                                model.addAttribute("member", dto);
+                                model.addAttribute("isAdmin", isAdmin(auth));
+                            })
+                            .thenReturn("members/detail");
+                })
+                .onErrorReturn("redirect:/dashboard");
     }
 
-    /** 회원 수정 폼 (관리자 또는 본인) */
     @GetMapping("/members/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model, Authentication auth) {
-        if (!canAccessMember(id, auth)) {
-            return "redirect:/dashboard";
-        }
-        MemberDetailDto dto = memberService.getMemberDetail(id);
-        MemberUpdateDto updateDto = new MemberUpdateDto();
-        updateDto.setName(dto.getName());
-        updateDto.setNickname(dto.getNickname());
-        updateDto.setPhone(dto.getPhone());
-        updateDto.setRole(dto.getRole());
-        updateDto.setStatus(dto.getStatus());
-        model.addAttribute("member", dto);
-        model.addAttribute("memberUpdateDto", updateDto);
-        model.addAttribute("isAdmin", isAdmin(auth));
-        return "members/edit";
+    public Mono<String> editForm(@PathVariable Long id, Model model, Authentication auth) {
+        return canAccessMemberMono(id, auth)
+                .flatMap(canAccess -> {
+                    if (!canAccess) return Mono.just("redirect:/dashboard");
+                    return memberService.getMemberDetail(id)
+                            .doOnNext(dto -> {
+                                MemberUpdateDto updateDto = new MemberUpdateDto();
+                                updateDto.setName(dto.getName());
+                                updateDto.setNickname(dto.getNickname());
+                                updateDto.setPhone(dto.getPhone());
+                                updateDto.setRole(dto.getRole());
+                                updateDto.setStatus(dto.getStatus());
+                                model.addAttribute("member", dto);
+                                model.addAttribute("memberUpdateDto", updateDto);
+                                model.addAttribute("isAdmin", isAdmin(auth));
+                            })
+                            .thenReturn("members/edit");
+                })
+                .onErrorReturn("redirect:/dashboard");
     }
 
-    /** 회원 수정 처리 */
     @PostMapping("/members/{id}/edit")
-    public String edit(@PathVariable Long id,
-                       @Valid @ModelAttribute MemberUpdateDto memberUpdateDto,
-                       BindingResult bindingResult,
-                       Model model,
-                       Authentication auth,
-                       RedirectAttributes redirectAttributes) {
-        if (!canAccessMember(id, auth)) {
-            return "redirect:/dashboard";
-        }
-        if (bindingResult.hasErrors()) {
-            model.addAttribute("member", memberService.getMemberDetail(id));
-            model.addAttribute("isAdmin", isAdmin(auth));
-            return "members/edit";
-        }
-        try {
-            boolean admin = isAdmin(auth);
-            memberService.updateMember(id, memberUpdateDto, admin);
-            redirectAttributes.addFlashAttribute("successMessage", "회원 정보가 수정되었습니다.");
-            return "redirect:/members/" + id;
-        } catch (IllegalArgumentException e) {
-            bindingResult.reject("error.member", e.getMessage());
-            model.addAttribute("member", memberService.getMemberDetail(id));
-            model.addAttribute("isAdmin", isAdmin(auth));
-            return "members/edit";
-        }
+    public Mono<String> edit(@PathVariable Long id,
+                             @Valid @ModelAttribute MemberUpdateDto memberUpdateDto,
+                             BindingResult bindingResult,
+                             Model model,
+                             Authentication auth) {
+        return canAccessMemberMono(id, auth)
+                .flatMap(canAccess -> {
+                    if (!canAccess) return Mono.just("redirect:/dashboard");
+                    if (bindingResult.hasErrors()) {
+                        return memberService.getMemberDetail(id)
+                                .doOnNext(dto -> {
+                                    model.addAttribute("member", dto);
+                                    model.addAttribute("isAdmin", isAdmin(auth));
+                                })
+                                .thenReturn("members/edit");
+                    }
+                    return memberService.updateMember(id, memberUpdateDto, isAdmin(auth))
+                            .thenReturn("redirect:/members/" + id)
+                            .onErrorResume(IllegalArgumentException.class, e -> {
+                                bindingResult.reject("error.member", e.getMessage());
+                                return memberService.getMemberDetail(id)
+                                        .doOnNext(dto -> {
+                                            model.addAttribute("member", dto);
+                                            model.addAttribute("isAdmin", isAdmin(auth));
+                                        })
+                                        .thenReturn("members/edit");
+                            });
+                });
     }
 
-    /** 회원 상태 변경 (관리자만) */
+    // [REMOVED] RedirectAttributes → URL 파라미터로 처리
     @PostMapping("/members/{id}/status")
-    public String updateStatus(@PathVariable Long id,
-                               @RequestParam MemberStatus status,
-                               Authentication auth,
-                               RedirectAttributes redirectAttributes) {
-        if (!isAdmin(auth)) {
-            return "redirect:/dashboard";
-        }
-        try {
-            memberService.updateStatus(id, status);
-            redirectAttributes.addFlashAttribute("successMessage", "회원 상태가 변경되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-        }
-        return "redirect:/members/" + id;
+    public Mono<String> updateStatus(@PathVariable Long id,
+                                     @RequestParam MemberStatus status,
+                                     Authentication auth) {
+        if (!isAdmin(auth)) return Mono.just("redirect:/dashboard");
+        return memberService.updateStatus(id, status)
+                .thenReturn("redirect:/members/" + id)
+                .onErrorReturn("redirect:/members/" + id + "?error=true");
     }
 
     private boolean isAdmin(Authentication auth) {
@@ -170,19 +168,13 @@ public class MemberController {
                 && auth.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
     }
 
-    private boolean canAccessMember(Long memberId, Authentication auth) {
-        if (auth == null || !auth.isAuthenticated()) {
-            return false;
-        }
-        if (isAdmin(auth)) {
-            return true;
-        }
-        try {
-            Member current = memberService.findByEmail(auth.getName());
-            return current.getId().equals(memberId);
-        } catch (Exception e) {
-            return false;
-        }
+    // [CHANGED] boolean canAccessMember() → Mono<Boolean> (DB 조회 포함)
+    private Mono<Boolean> canAccessMemberMono(Long memberId, Authentication auth) {
+        if (auth == null || !auth.isAuthenticated()) return Mono.just(false);
+        if (isAdmin(auth)) return Mono.just(true);
+        return memberService.findByEmail(auth.getName())
+                .map(current -> current.getId().equals(memberId))
+                .onErrorReturn(false);
     }
 }
 

@@ -1,14 +1,17 @@
 package led.mega.entity;
 
-import jakarta.persistence.*;
+// [REACTIVE] JPA → R2DBC 전환
+// - @ManyToOne Agent agent → Long agentId
+
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "task")
+@Table("task")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,43 +20,25 @@ import java.time.LocalDateTime;
 public class Task {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agent_id", nullable = false)
-    private Agent agent;
+    // [CHANGED] @ManyToOne Agent agent → Long agentId
+    private Long agentId;
 
-    @Column(name = "task_name", nullable = false, length = 100)
     private String taskName;
-
-    @Column(name = "task_type", nullable = false, length = 50)
-    @Enumerated(EnumType.STRING)
     private TaskType taskType;
-
-    @Column(name = "command", length = 500)
     private String command;
-
-    @Column(name = "log_path", length = 500)
     private String logPath;
-
-    @Column(name = "log_pattern", length = 500)
     private String logPattern;
-
-    @Column(name = "interval_seconds", nullable = false)
     private Integer intervalSeconds;
 
-    @Column(name = "enabled", nullable = false)
     @Builder.Default
     private Boolean enabled = true;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 }
 

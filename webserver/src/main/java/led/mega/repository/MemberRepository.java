@@ -1,27 +1,38 @@
 package led.mega.repository;
 
+// [REACTIVE] JpaRepository → ReactiveCrudRepository
+// - Optional<Member>  → Mono<Member>
+// - boolean           → Mono<Boolean>
+// - long              → Mono<Long>
+// - Page<Member>      → Flux<Member>  (R2DBC는 Page 미지원 → Flux로 전환)
+// - Pageable 파라미터 제거 (무한 스크롤/오프셋 방식으로 처리 가능하나 학습용 단순화)
+
 import led.mega.entity.Member;
 import led.mega.entity.MemberRole;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Repository
-public interface MemberRepository extends JpaRepository<Member, Long> {
-    Optional<Member> findByEmail(String email);
-    boolean existsByEmail(String email);
+public interface MemberRepository extends ReactiveCrudRepository<Member, Long> {
 
-    /** 이메일 또는 이름으로 검색 (페이징) */
-    Page<Member> findByEmailContainingOrNameContaining(String email, String name, Pageable pageable);
+    // [CHANGED] Optional<Member> → Mono<Member>
+    Mono<Member> findByEmail(String email);
 
-    /** 역할별 회원 수 */
-    long countByRole(MemberRole role);
+    // [CHANGED] boolean → Mono<Boolean>
+    Mono<Boolean> existsByEmail(String email);
 
-    /** 역할별 회원 목록 (가입일 내림차순) */
-    Page<Member> findByRoleOrderByCreatedAtDesc(MemberRole role, Pageable pageable);
+    // [CHANGED] Page<Member> → Flux<Member>, Pageable 제거
+    Flux<Member> findByEmailContainingOrNameContaining(String email, String name);
+
+    // [CHANGED] long → Mono<Long>
+    Mono<Long> countByRole(MemberRole role);
+
+    // [CHANGED] Page<Member> → Flux<Member>, Pageable 제거, JPQL→네이티브 SQL
+    @Query("SELECT * FROM member WHERE role = :role ORDER BY created_at DESC")
+    Flux<Member> findByRoleOrderByCreatedAtDesc(String role);
 }
 
 

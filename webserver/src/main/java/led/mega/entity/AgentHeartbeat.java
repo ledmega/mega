@@ -1,13 +1,17 @@
 package led.mega.entity;
 
-import jakarta.persistence.*;
+// [REACTIVE] JPA → R2DBC 전환
+// - @ManyToOne Agent agent → Long agentId (FK를 Long ID로 단순화)
+// - R2DBC에서 관계 엔티티 참조 불가 → 순수 Long FK만 보관
+
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "agent_heartbeat")
+@Table("agent_heartbeat")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,23 +20,15 @@ import java.time.LocalDateTime;
 public class AgentHeartbeat {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agent_id", nullable = false)
-    private Agent agent;
+    // [CHANGED] @ManyToOne Agent agent → Long agentId (FK 컬럼 직접 매핑)
+    private Long agentId;
 
-    @Column(name = "status", nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
     private AgentStatus status;
-
-    @Column(name = "heartbeat_at", nullable = false)
     private LocalDateTime heartbeatAt;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
 }
 

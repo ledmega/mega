@@ -1,8 +1,12 @@
 package led.mega.service;
 
+// [REACTIVE] 핵심 변경점
+// - .agent(agent) → .agentId(agentId)
+// - void deleteTask → Mono<Void>
+// - 모든 단건 반환 T → Mono<T>, 목록 반환 List<T> → Flux<T>
+
 import led.mega.dto.TaskRequestDto;
 import led.mega.dto.TaskResponseDto;
-import led.mega.entity.Agent;
 import led.mega.entity.Task;
 import led.mega.repository.AgentRepository;
 import led.mega.repository.TaskRepository;
@@ -10,9 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Service
@@ -22,117 +25,84 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final AgentRepository agentRepository;
 
-    /**
-     * 작업 생성
-     */
     @Transactional
-    public TaskResponseDto createTask(Long agentId, TaskRequestDto requestDto) {
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() -> new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId));
-
-        Task task = Task.builder()
-                .agent(agent)
-                .taskName(requestDto.getTaskName())
-                .taskType(requestDto.getTaskType())
-                .command(requestDto.getCommand())
-                .logPath(requestDto.getLogPath())
-                .logPattern(requestDto.getLogPattern())
-                .intervalSeconds(requestDto.getIntervalSeconds())
-                .enabled(requestDto.getEnabled() != null ? requestDto.getEnabled() : true)
-                .build();
-
-        Task savedTask = taskRepository.save(task);
-        log.info("작업 생성 완료: taskId={}, taskName={}, agentId={}", 
-                savedTask.getId(), savedTask.getTaskName(), agentId);
-
-        return toResponseDto(savedTask);
-    }
-
-    /**
-     * 작업 조회
-     */
-    public TaskResponseDto getTask(Long id) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id));
-        return toResponseDto(task);
-    }
-
-    /**
-     * 에이전트별 작업 목록 조회
-     */
-    public List<TaskResponseDto> getTasksByAgentId(Long agentId) {
-        return taskRepository.findByAgentId(agentId).stream()
+    public Mono<TaskResponseDto> createTask(Long agentId, TaskRequestDto requestDto) {
+        return agentRepository.findById(agentId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
+                .flatMap(agent -> {
+                    Task task = Task.builder()
+                            .agentId(agentId) // [CHANGED] .agent(agent) → .agentId(agentId)
+                            .taskName(requestDto.getTaskName())
+                            .taskType(requestDto.getTaskType())
+                            .command(requestDto.getCommand())
+                            .logPath(requestDto.getLogPath())
+                            .logPattern(requestDto.getLogPattern())
+                            .intervalSeconds(requestDto.getIntervalSeconds())
+                            .enabled(requestDto.getEnabled() != null ? requestDto.getEnabled() : true)
+                            .build();
+                    return taskRepository.save(task);
+                })
                 .map(this::toResponseDto)
-                .collect(Collectors.toList());
+                .doOnNext(r -> log.info("작업 생성 완료: taskId={}, taskName={}", r.getId(), r.getTaskName()));
     }
 
-    /**
-     * 활성화된 작업 목록 조회
-     */
-    public List<TaskResponseDto> getEnabledTasksByAgentId(Long agentId) {
-        return taskRepository.findByAgentIdAndEnabled(agentId, true).stream()
+    public Mono<TaskResponseDto> getTask(Long id) {
+        return taskRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id)))
+                .map(this::toResponseDto);
+    }
+
+    public Flux<TaskResponseDto> getTasksByAgentId(Long agentId) {
+        return taskRepository.findByAgentId(agentId).map(this::toResponseDto);
+    }
+
+    public Flux<TaskResponseDto> getEnabledTasksByAgentId(Long agentId) {
+        return taskRepository.findByAgentIdAndEnabled(agentId, true).map(this::toResponseDto);
+    }
+
+    @Transactional
+    public Mono<TaskResponseDto> updateTask(Long id, TaskRequestDto requestDto) {
+        return taskRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id)))
+                .flatMap(task -> {
+                    task.setTaskName(requestDto.getTaskName());
+                    task.setTaskType(requestDto.getTaskType());
+                    task.setCommand(requestDto.getCommand());
+                    task.setLogPath(requestDto.getLogPath());
+                    task.setLogPattern(requestDto.getLogPattern());
+                    task.setIntervalSeconds(requestDto.getIntervalSeconds());
+                    if (requestDto.getEnabled() != null) task.setEnabled(requestDto.getEnabled());
+                    return taskRepository.save(task);
+                })
                 .map(this::toResponseDto)
-                .collect(Collectors.toList());
+                .doOnNext(r -> log.info("작업 수정 완료: taskId={}", r.getId()));
     }
 
-    /**
-     * 작업 수정
-     */
+    // [CHANGED] void → Mono<Void>
     @Transactional
-    public TaskResponseDto updateTask(Long id, TaskRequestDto requestDto) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id));
-
-        task.setTaskName(requestDto.getTaskName());
-        task.setTaskType(requestDto.getTaskType());
-        task.setCommand(requestDto.getCommand());
-        task.setLogPath(requestDto.getLogPath());
-        task.setLogPattern(requestDto.getLogPattern());
-        task.setIntervalSeconds(requestDto.getIntervalSeconds());
-        if (requestDto.getEnabled() != null) {
-            task.setEnabled(requestDto.getEnabled());
-        }
-
-        Task updatedTask = taskRepository.save(task);
-        log.info("작업 수정 완료: taskId={}", id);
-
-        return toResponseDto(updatedTask);
+    public Mono<Void> deleteTask(Long id) {
+        return taskRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id)))
+                .flatMap(task -> taskRepository.delete(task))
+                .doOnSuccess(v -> log.info("작업 삭제 완료: taskId={}", id));
     }
 
-    /**
-     * 작업 삭제
-     */
     @Transactional
-    public void deleteTask(Long id) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id));
-        
-        taskRepository.delete(task);
-        log.info("작업 삭제 완료: taskId={}", id);
+    public Mono<TaskResponseDto> toggleTask(Long id, Boolean enabled) {
+        return taskRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id)))
+                .flatMap(task -> {
+                    task.setEnabled(enabled);
+                    return taskRepository.save(task);
+                })
+                .map(this::toResponseDto)
+                .doOnNext(r -> log.info("작업 상태 변경: taskId={}, enabled={}", r.getId(), enabled));
     }
 
-    /**
-     * 작업 활성화/비활성화
-     */
-    @Transactional
-    public TaskResponseDto toggleTask(Long id, Boolean enabled) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id));
-        
-        task.setEnabled(enabled);
-        Task updatedTask = taskRepository.save(task);
-        log.info("작업 상태 변경: taskId={}, enabled={}", id, enabled);
-
-        return toResponseDto(updatedTask);
-    }
-
-    /**
-     * Entity를 DTO로 변환
-     */
     private TaskResponseDto toResponseDto(Task task) {
         return TaskResponseDto.builder()
                 .id(task.getId())
-                .agentId(task.getAgent().getId())
+                .agentId(task.getAgentId())  // [CHANGED] .getAgent().getId() → .getAgentId()
                 .taskName(task.getTaskName())
                 .taskType(task.getTaskType())
                 .command(task.getCommand())

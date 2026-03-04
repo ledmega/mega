@@ -1,68 +1,103 @@
 package led.mega.config;
 
+// [REACTIVE] SecurityConfig 전환 핵심 요약
+//
+// MVC (기존):                          WebFlux (reactive):
+// @EnableWebSecurity                → @EnableWebFluxSecurity
+// HttpSecurity                      → ServerHttpSecurity
+// SecurityFilterChain               → SecurityWebFilterChain
+// authorizeHttpRequests             → authorizeExchange
+// .requestMatchers(...)             → .pathMatchers(...)
+// .anyRequest()                     → .anyExchange()
+// AuthenticationManager             → ReactiveAuthenticationManager
+// UserDetailsService                → ReactiveUserDetailsService (CustomUserDetailsService)
+// OncePerRequestFilter              → WebFilter (ApiKeyAuthenticationFilter)
+// UsernamePasswordAuthenticationFilter → SecurityWebFiltersOrder.AUTHENTICATION
+// .addFilterBefore(filter, Clazz)   → .addFilterBefore(filter, SecurityWebFiltersOrder.X)
+// RedirectServerAuthenticationSuccessHandler (ServerHttpSecurity formLogin용)
+
+import led.mega.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationFailureHandler;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.authentication.logout.RedirectServerLogoutSuccessHandler;
+import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher;
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
+
+import java.net.URI;
 
 @Configuration
-@EnableWebSecurity
+@EnableWebFluxSecurity  // [CHANGED] @EnableWebSecurity → @EnableWebFluxSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // [CHANGED] AuthenticationManager → ReactiveAuthenticationManager
+    // UserDetailsRepositoryReactiveAuthenticationManager: ReactiveUserDetailsService + PasswordEncoder 조합
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-        return authConfig.getAuthenticationManager();
+    public ReactiveAuthenticationManager reactiveAuthenticationManager() {
+        UserDetailsRepositoryReactiveAuthenticationManager manager =
+                new UserDetailsRepositoryReactiveAuthenticationManager(customUserDetailsService);
+        manager.setPasswordEncoder(passwordEncoder());
+        return manager;
     }
 
+    // [CHANGED] SecurityFilterChain → SecurityWebFilterChain
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        RedirectServerLogoutSuccessHandler logoutSuccessHandler = new RedirectServerLogoutSuccessHandler();
+        logoutSuccessHandler.setLogoutSuccessUrl(URI.create("/"));
+
+        return http
+            // [CHANGED] .csrf().ignoringRequestMatchers("/api/**")
+            //         → .csrf().requireCsrfProtectionMatcher(NegatedMatcher("/api/**"))
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/api/**")  // API는 CSRF 비활성화
+                .requireCsrfProtectionMatcher(new NegatedServerWebExchangeMatcher(
+                    ServerWebExchangeMatchers.pathMatchers("/api/**")))
             )
-            .authorizeHttpRequests(auth -> auth
-                // 공개 접근 허용 경로
-                .requestMatchers("/", "/public/**", "/css/**", "/js/**", "/images/**", "/favicon.ico", 
-                               "/signup", "/login", "/dashboard", "/agents").permitAll()
-                // API 에이전트 등록은 공개
-                .requestMatchers("/api/agents/register").permitAll()
-                // 나머지 API는 API 키 인증 필요
-                .requestMatchers("/api/**").authenticated()
-                // 나머지 모든 요청은 웹 로그인 필요
-                .anyRequest().authenticated()
+            // [CHANGED] authorizeHttpRequests → authorizeExchange
+            //           .requestMatchers → .pathMatchers
+            //           .anyRequest → .anyExchange
+            .authorizeExchange(auth -> auth
+                .pathMatchers("/", "/public/**", "/css/**", "/js/**", "/images/**",
+                        "/favicon.ico", "/signup", "/login", "/dashboard", "/agents").permitAll()
+                .pathMatchers("/api/agents/register").permitAll()
+                .pathMatchers("/api/**").authenticated()
+                .anyExchange().authenticated()
             )
-            .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            // [CHANGED] .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
+            //         → .addFilterBefore(filter, SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterBefore(apiKeyAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+            // [CHANGED] .formLogin(form -> form.loginPage(...).defaultSuccessUrl(...).failureUrl(...))
+            //         → ServerHttpSecurity.formLogin + RedirectServerAuthenticationSuccessHandler
             .formLogin(form -> form
                 .loginPage("/login")
-                .loginProcessingUrl("/login")  // 로그인 처리 URL
-                .usernameParameter("username")  // 로그인 폼의 사용자명 필드명 (이메일)
-                .passwordParameter("password")   // 로그인 폼의 비밀번호 필드명
-                .defaultSuccessUrl("/dashboard", true)  // 로그인 성공 시 대시보드로 이동
-                .failureUrl("/login?error=true")  // 로그인 실패 시
-                .permitAll()
+                .authenticationManager(reactiveAuthenticationManager())
+                .authenticationSuccessHandler(new RedirectServerAuthenticationSuccessHandler("/dashboard"))
+                .authenticationFailureHandler(new RedirectServerAuthenticationFailureHandler("/login?error=true"))
             )
             .logout(logout -> logout
                 .logoutUrl("/logout")
-                .logoutSuccessUrl("/")
-                .permitAll()
-            );
-        
-        return http.build();
+                .logoutSuccessHandler(logoutSuccessHandler)
+            )
+            .build();
     }
 }
 

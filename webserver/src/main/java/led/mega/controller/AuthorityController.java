@@ -1,27 +1,21 @@
 package led.mega.controller;
 
+// [REACTIVE] AuthorityController 전환
+// - Pageable 제거 → Flux (전체 목록)
+// - RedirectAttributes 제거 → URL 파라미터
+// - Map<MemberRole,Long> → Mono<Map<MemberRole,Long>>
+// - 반환타입: Mono<String>
+
 import led.mega.entity.MemberRole;
 import led.mega.service.MemberService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
-import java.util.Map;
-
-/**
- * 권한(역할) 관리 - 관리자 전용.
- */
 @Controller
 @RequestMapping("/authority")
 @RequiredArgsConstructor
@@ -29,49 +23,38 @@ public class AuthorityController {
 
     private final MemberService memberService;
 
-    /** 권한관리 메인: 역할별 통계 + 역할별 회원 목록 */
+    // [CHANGED] Mono<String>으로 전환, Pageable 제거, countByRole → Mono<Map>
     @GetMapping
-    public String list(@RequestParam(required = false) String roleFilter,
-                       @PageableDefault(size = 20, sort = "createdAt") Pageable pageable,
-                       Model model,
-                       Authentication auth) {
-        if (!isAdmin(auth)) {
-            return "redirect:/dashboard";
-        }
-        Map<MemberRole, Long> countByRole = memberService.getMemberCountByRole();
-        model.addAttribute("countByRole", countByRole);
+    public Mono<String> list(@RequestParam(required = false) String roleFilter,
+                             Model model,
+                             Authentication auth) {
+        if (!isAdmin(auth)) return Mono.just("redirect:/dashboard");
 
         MemberRole filter = parseRole(roleFilter);
-        if (filter != null) {
-            Page<?> memberPage = memberService.getMembersByRole(filter, pageable);
-            model.addAttribute("memberPage", memberPage);
-            model.addAttribute("roleFilter", filter.name());
-        } else {
-            Page<?> memberPage = memberService.getMemberPage(null, pageable);
-            model.addAttribute("memberPage", memberPage);
-            model.addAttribute("roleFilter", null);
-        }
-        model.addAttribute("allRoles", MemberRole.values());
-        return "authority/list";
+
+        return memberService.getMemberCountByRole()
+                .doOnNext(countByRole -> {
+                    model.addAttribute("countByRole", countByRole);
+                    model.addAttribute("allRoles", MemberRole.values());
+                    model.addAttribute("roleFilter", filter != null ? filter.name() : null);
+                    if (filter != null) {
+                        model.addAttribute("memberPage", memberService.getMembersByRole(filter)); // Flux
+                    } else {
+                        model.addAttribute("memberPage", memberService.getMemberPage(null)); // Flux
+                    }
+                })
+                .thenReturn("authority/list");
     }
 
-    /** 회원 역할 변경 */
+    // [CHANGED] Mono<String>, RedirectAttributes 제거 → URL 파라미터
     @PostMapping("/members/{id}/role")
-    public String updateRole(@PathVariable Long id,
-                             @RequestParam MemberRole role,
-                             Authentication auth,
-                             RedirectAttributes redirectAttributes) {
-        if (!isAdmin(auth)) {
-            return "redirect:/dashboard";
-        }
-        try {
-            memberService.updateRole(id, role);
-            redirectAttributes.addFlashAttribute("successMessage", "역할이 변경되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-        }
-        redirectAttributes.addAttribute("roleFilter", role.name());
-        return "redirect:/authority";
+    public Mono<String> updateRole(@PathVariable Long id,
+                                   @RequestParam MemberRole role,
+                                   Authentication auth) {
+        if (!isAdmin(auth)) return Mono.just("redirect:/dashboard");
+        return memberService.updateRole(id, role)
+                .thenReturn("redirect:/authority?roleFilter=" + role.name())
+                .onErrorReturn("redirect:/authority?error=true");
     }
 
     private boolean isAdmin(Authentication auth) {
@@ -80,9 +63,7 @@ public class AuthorityController {
     }
 
     private MemberRole parseRole(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
+        if (value == null || value.isBlank()) return null;
         try {
             return MemberRole.valueOf(value.trim());
         } catch (IllegalArgumentException e) {

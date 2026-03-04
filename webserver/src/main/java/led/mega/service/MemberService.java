@@ -1,5 +1,11 @@
 package led.mega.service;
 
+// [REACTIVE] 핵심 변경점
+// - Page<T>       → Flux<T>   (R2DBC는 Page 미지원)
+// - Pageable      제거
+// - Map<Role,Long> → Flux<Map.Entry<Role,Long>>  or  Mono<Map<Role,Long>>
+// - Member        → Mono<Member>
+
 import led.mega.dto.MemberDetailDto;
 import led.mega.dto.MemberUpdateDto;
 import led.mega.dto.SignupDto;
@@ -9,11 +15,11 @@ import led.mega.entity.MemberStatus;
 import led.mega.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -26,140 +32,103 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
 
-    /**
-     * 회원가입
-     */
     @Transactional
-    public Member signup(SignupDto signupDto) {
-        // 이메일 중복 확인
-        if (memberRepository.existsByEmail(signupDto.getEmail())) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
-        }
-
-        // 비밀번호 암호화
-        String encodedPassword = passwordEncoder.encode(signupDto.getPassword());
-
-        // 회원 생성
-        Member member = Member.builder()
-                .email(signupDto.getEmail())
-                .password(encodedPassword)
-                .name(signupDto.getName())
-                .nickname(signupDto.getNickname())
-                .phone(signupDto.getPhone())
-                .role(MemberRole.ROLE_USER)
-                .status(MemberStatus.ACTIVE)
-                .build();
-
-        Member savedMember = memberRepository.save(member);
-        log.info("회원가입 완료: {}", savedMember.getEmail());
-
-        return savedMember;
+    public Mono<Member> signup(SignupDto signupDto) {
+        return memberRepository.existsByEmail(signupDto.getEmail())
+                .flatMap(exists -> {
+                    if (exists) return Mono.error(new IllegalArgumentException("이미 사용 중인 이메일입니다."));
+                    Member member = Member.builder()
+                            .email(signupDto.getEmail())
+                            .password(passwordEncoder.encode(signupDto.getPassword()))
+                            .name(signupDto.getName())
+                            .nickname(signupDto.getNickname())
+                            .phone(signupDto.getPhone())
+                            .role(MemberRole.ROLE_USER)
+                            .status(MemberStatus.ACTIVE)
+                            .build();
+                    return memberRepository.save(member);
+                })
+                .doOnNext(m -> log.info("회원가입 완료: {}", m.getEmail()));
     }
 
-    /**
-     * 이메일로 회원 조회
-     */
-    public Member findByEmail(String email) {
+    // [CHANGED] Member → Mono<Member>
+    public Mono<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("회원을 찾을 수 없습니다.")));
     }
 
-    /**
-     * ID로 회원 조회
-     */
-    public Member findById(Long id) {
+    public Mono<Member> findById(Long id) {
         return memberRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다. id: " + id));
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("회원을 찾을 수 없습니다. id: " + id)));
     }
 
-    /**
-     * 회원 목록 (페이징, 검색: 이메일/이름)
-     */
-    public Page<MemberDetailDto> getMemberPage(String search, Pageable pageable) {
+    // [CHANGED] Page<MemberDetailDto> → Flux<MemberDetailDto>, Pageable 제거
+    public Flux<MemberDetailDto> getMemberPage(String search) {
         if (search != null && !search.isBlank()) {
             String term = search.trim();
-            return memberRepository.findByEmailContainingOrNameContaining(term, term, pageable)
+            return memberRepository.findByEmailContainingOrNameContaining(term, term)
                     .map(MemberDetailDto::from);
         }
-        return memberRepository.findAll(pageable).map(MemberDetailDto::from);
+        return memberRepository.findAll().map(MemberDetailDto::from);
     }
 
-    /**
-     * 회원 상세 DTO
-     */
-    public MemberDetailDto getMemberDetail(Long id) {
-        return MemberDetailDto.from(findById(id));
+    public Mono<MemberDetailDto> getMemberDetail(Long id) {
+        return findById(id).map(MemberDetailDto::from);
     }
 
-    /**
-     * 회원 정보 수정 (이름, 닉네임, 전화번호; 관리자는 역할/상태 포함)
-     */
     @Transactional
-    public MemberDetailDto updateMember(Long id, MemberUpdateDto dto, boolean isAdmin) {
-        Member member = findById(id);
-        if (dto.getName() != null) {
-            member.setName(dto.getName());
-        }
-        if (dto.getNickname() != null) {
-            member.setNickname(dto.getNickname());
-        }
-        if (dto.getPhone() != null) {
-            member.setPhone(dto.getPhone());
-        }
-        if (isAdmin) {
-            if (dto.getRole() != null) {
-                member.setRole(dto.getRole());
-            }
-            if (dto.getStatus() != null) {
-                member.setStatus(dto.getStatus());
-            }
-        }
-        memberRepository.save(member);
-        log.info("회원 정보 수정: id={}, email={}", member.getId(), member.getEmail());
-        return MemberDetailDto.from(member);
+    public Mono<MemberDetailDto> updateMember(Long id, MemberUpdateDto dto, boolean isAdmin) {
+        return findById(id)
+                .flatMap(member -> {
+                    if (dto.getName() != null) member.setName(dto.getName());
+                    if (dto.getNickname() != null) member.setNickname(dto.getNickname());
+                    if (dto.getPhone() != null) member.setPhone(dto.getPhone());
+                    if (isAdmin) {
+                        if (dto.getRole() != null) member.setRole(dto.getRole());
+                        if (dto.getStatus() != null) member.setStatus(dto.getStatus());
+                    }
+                    return memberRepository.save(member);
+                })
+                .map(MemberDetailDto::from)
+                .doOnNext(m -> log.info("회원 정보 수정: id={}", m.getId()));
     }
 
-    /**
-     * 회원 상태 변경 (관리자 전용)
-     */
     @Transactional
-    public MemberDetailDto updateStatus(Long id, MemberStatus status) {
-        Member member = findById(id);
-        member.setStatus(status);
-        memberRepository.save(member);
-        log.info("회원 상태 변경: id={}, status={}", id, status);
-        return MemberDetailDto.from(member);
+    public Mono<MemberDetailDto> updateStatus(Long id, MemberStatus status) {
+        return findById(id)
+                .flatMap(member -> {
+                    member.setStatus(status);
+                    return memberRepository.save(member);
+                })
+                .map(MemberDetailDto::from)
+                .doOnNext(m -> log.info("회원 상태 변경: id={}, status={}", m.getId(), status));
     }
 
-    /**
-     * 역할별 회원 수 (권한관리용)
-     */
-    public Map<MemberRole, Long> getMemberCountByRole() {
-        Map<MemberRole, Long> map = new EnumMap<>(MemberRole.class);
-        for (MemberRole role : MemberRole.values()) {
-            map.put(role, memberRepository.countByRole(role));
-        }
-        return map;
+    // [CHANGED] Map<MemberRole,Long> → Mono<Map<MemberRole,Long>>
+    // collectMap: Flux<Map.Entry> → Mono<Map>
+    public Mono<Map<MemberRole, Long>> getMemberCountByRole() {
+        return Flux.fromArray(MemberRole.values())
+                .flatMap(role -> memberRepository.countByRole(role)
+                        .map(count -> Map.entry(role, count)))
+                .collectMap(Map.Entry::getKey, Map.Entry::getValue,
+                        () -> new EnumMap<>(MemberRole.class));
     }
 
-    /**
-     * 역할별 회원 목록 (페이징)
-     */
-    public Page<MemberDetailDto> getMembersByRole(MemberRole role, Pageable pageable) {
-        return memberRepository.findByRoleOrderByCreatedAtDesc(role, pageable)
+    // [CHANGED] Page<MemberDetailDto> → Flux<MemberDetailDto>
+    public Flux<MemberDetailDto> getMembersByRole(MemberRole role) {
+        return memberRepository.findByRoleOrderByCreatedAtDesc(role.name())
                 .map(MemberDetailDto::from);
     }
 
-    /**
-     * 회원 역할 변경 (관리자 전용)
-     */
     @Transactional
-    public MemberDetailDto updateRole(Long id, MemberRole role) {
-        Member member = findById(id);
-        member.setRole(role);
-        memberRepository.save(member);
-        log.info("회원 역할 변경: id={}, role={}", id, role);
-        return MemberDetailDto.from(member);
+    public Mono<MemberDetailDto> updateRole(Long id, MemberRole role) {
+        return findById(id)
+                .flatMap(member -> {
+                    member.setRole(role);
+                    return memberRepository.save(member);
+                })
+                .map(MemberDetailDto::from)
+                .doOnNext(m -> log.info("회원 역할 변경: id={}, role={}", m.getId(), role));
     }
 }
 

@@ -1,5 +1,14 @@
 package led.mega.service;
 
+// [REACTIVE] 블로킹 → 논블로킹 전환 핵심 패턴
+// - T           → Mono<T>      : 단건 결과
+// - List<T>     → Flux<T>      : 다건 결과
+// - void        → Mono<Void>   : 반환값 없는 비동기
+// - orElseThrow → switchIfEmpty(Mono.error(...))
+// - if 체크     → flatMap 내부 Mono.error(...)
+// - .stream()   → .map()  (Flux는 스트림 연산 내장)
+// - @Transactional: R2dbcTransactionManager 통해 반응형 트랜잭션 적용
+
 import led.mega.dto.AgentRegisterDto;
 import led.mega.dto.AgentRegisterResponseDto;
 import led.mega.dto.AgentResponseDto;
@@ -10,11 +19,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -23,123 +32,98 @@ public class AgentService {
 
     private final AgentRepository agentRepository;
 
-    /**
-     * 에이전트 등록
-     */
     @Transactional
-    public AgentRegisterResponseDto registerAgent(AgentRegisterDto registerDto) {
-        // 에이전트 ID 중복 확인
-        if (agentRepository.existsByAgentId(registerDto.getAgentId())) {
-            throw new IllegalArgumentException("이미 등록된 에이전트 ID입니다: " + registerDto.getAgentId());
-        }
-
-        // API 키 생성
-        String apiKey = generateApiKey();
-
-        // 에이전트 생성
-        Agent agent = Agent.builder()
-                .agentId(registerDto.getAgentId())
-                .name(registerDto.getName())
-                .hostname(registerDto.getHostname())
-                .ipAddress(registerDto.getIpAddress())
-                .osType(registerDto.getOsType())
-                .status(AgentStatus.ONLINE)
-                .apiKey(apiKey)
-                .lastHeartbeat(LocalDateTime.now())
-                .build();
-
-        Agent savedAgent = agentRepository.save(agent);
-        log.info("에이전트 등록 완료: agentId={}, name={}", savedAgent.getAgentId(), savedAgent.getName());
-
-        return AgentRegisterResponseDto.builder()
-                .id(savedAgent.getId())
-                .agentId(savedAgent.getAgentId())
-                .status(savedAgent.getStatus())
-                .apiKey(savedAgent.getApiKey())
-                .build();
+    public Mono<AgentRegisterResponseDto> registerAgent(AgentRegisterDto registerDto) {
+        // [CHANGED] if(exists) throw → existsBy().flatMap(exists -> Mono.error or save)
+        return agentRepository.existsByAgentId(registerDto.getAgentId())
+                .flatMap(exists -> {
+                    if (exists) {
+                        return Mono.error(new IllegalArgumentException(
+                                "이미 등록된 에이전트 ID입니다: " + registerDto.getAgentId()));
+                    }
+                    Agent agent = Agent.builder()
+                            .agentId(registerDto.getAgentId())
+                            .name(registerDto.getName())
+                            .hostname(registerDto.getHostname())
+                            .ipAddress(registerDto.getIpAddress())
+                            .osType(registerDto.getOsType())
+                            .status(AgentStatus.ONLINE)
+                            .apiKey(generateApiKey())
+                            .lastHeartbeat(LocalDateTime.now())
+                            .build();
+                    return agentRepository.save(agent);
+                })
+                .map(saved -> AgentRegisterResponseDto.builder()
+                        .id(saved.getId())
+                        .agentId(saved.getAgentId())
+                        .status(saved.getStatus())
+                        .apiKey(saved.getApiKey())
+                        .build())
+                .doOnNext(r -> log.info("에이전트 등록 완료: agentId={}", r.getAgentId()));
     }
 
-    /**
-     * 에이전트 조회
-     */
-    public AgentResponseDto getAgent(Long id) {
-        Agent agent = agentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + id));
-        return toResponseDto(agent);
+    // [CHANGED] AgentResponseDto → Mono<AgentResponseDto>
+    // [CHANGED] orElseThrow → switchIfEmpty(Mono.error(...))
+    public Mono<AgentResponseDto> getAgent(Long id) {
+        return agentRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + id)))
+                .map(this::toResponseDto);
     }
 
-    /**
-     * 에이전트 ID로 조회
-     */
-    public AgentResponseDto getAgentByAgentId(String agentId) {
-        Agent agent = agentRepository.findByAgentId(agentId)
-                .orElseThrow(() -> new IllegalArgumentException("에이전트를 찾을 수 없습니다. agentId: " + agentId));
-        return toResponseDto(agent);
+    public Mono<AgentResponseDto> getAgentByAgentId(String agentId) {
+        return agentRepository.findByAgentId(agentId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. agentId: " + agentId)))
+                .map(this::toResponseDto);
     }
 
-    /**
-     * 모든 에이전트 조회
-     */
-    public List<AgentResponseDto> getAllAgents() {
-        return agentRepository.findAll().stream()
-                .map(this::toResponseDto)
-                .collect(Collectors.toList());
+    // [CHANGED] List<AgentResponseDto> → Flux<AgentResponseDto>
+    // [CHANGED] .stream().map().collect() → .map() (Flux는 스트림 연산 내장)
+    public Flux<AgentResponseDto> getAllAgents() {
+        return agentRepository.findAll().map(this::toResponseDto);
     }
 
-    /**
-     * 상태별 에이전트 조회
-     */
-    public List<AgentResponseDto> getAgentsByStatus(AgentStatus status) {
-        return agentRepository.findByStatus(status).stream()
-                .map(this::toResponseDto)
-                .collect(Collectors.toList());
+    public Flux<AgentResponseDto> getAgentsByStatus(AgentStatus status) {
+        return agentRepository.findByStatus(status).map(this::toResponseDto);
     }
 
-    /**
-     * API 키로 에이전트 조회 (인증용)
-     */
-    public Agent findByApiKey(String apiKey) {
-        return agentRepository.findAll().stream()
+    // [CHANGED] Agent → Mono<Agent>
+    // [CHANGED] .stream().filter().findFirst().orElseThrow → .filter().next().switchIfEmpty
+    public Mono<Agent> findByApiKey(String apiKey) {
+        return agentRepository.findAll()
                 .filter(agent -> apiKey.equals(agent.getApiKey()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 API 키입니다."));
+                .next()
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("유효하지 않은 API 키입니다.")));
     }
 
-    /**
-     * 하트비트 업데이트
-     */
+    // [CHANGED] void → Mono<Void>
+    // [CHANGED] 동기 orElseThrow → flatMap 체이닝
     @Transactional
-    public void updateHeartbeat(Long agentId, LocalDateTime heartbeatAt) {
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() -> new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId));
-        
-        agent.setLastHeartbeat(heartbeatAt);
-        agent.setStatus(AgentStatus.ONLINE);
-        agentRepository.save(agent);
+    public Mono<Void> updateHeartbeat(Long agentId, LocalDateTime heartbeatAt) {
+        return agentRepository.findById(agentId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
+                .flatMap(agent -> {
+                    agent.setLastHeartbeat(heartbeatAt);
+                    agent.setStatus(AgentStatus.ONLINE);
+                    return agentRepository.save(agent);
+                })
+                .then(); // [CHANGED] save 결과 버리고 Mono<Void> 반환
     }
 
-    /**
-     * 에이전트 상태 업데이트
-     */
     @Transactional
-    public void updateStatus(Long agentId, AgentStatus status) {
-        Agent agent = agentRepository.findById(agentId)
-                .orElseThrow(() -> new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId));
-        
-        agent.setStatus(status);
-        agentRepository.save(agent);
+    public Mono<Void> updateStatus(Long agentId, AgentStatus status) {
+        return agentRepository.findById(agentId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
+                .flatMap(agent -> {
+                    agent.setStatus(status);
+                    return agentRepository.save(agent);
+                })
+                .then();
     }
 
-    /**
-     * API 키 생성
-     */
     private String generateApiKey() {
         return "mega-" + UUID.randomUUID().toString().replace("-", "");
     }
 
-    /**
-     * Entity를 DTO로 변환
-     */
     private AgentResponseDto toResponseDto(Agent agent) {
         return AgentResponseDto.builder()
                 .id(agent.getId())
