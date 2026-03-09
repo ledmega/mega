@@ -9,6 +9,7 @@ import led.mega.entity.MetricType;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
@@ -36,5 +37,8 @@ public interface MetricDataRepository extends ReactiveCrudRepository<MetricData,
 
     @Query("SELECT * FROM metric_data ORDER BY collected_at DESC LIMIT 500")
     Flux<MetricData> findTop500ByOrderByCollectedAtDesc();
+
+    @Query("SELECT COUNT(*) FROM metric_data WHERE collected_at >= :startOfDay")
+    Mono<Long> countByCollectedAtAfter(LocalDateTime startOfDay);
 }
 

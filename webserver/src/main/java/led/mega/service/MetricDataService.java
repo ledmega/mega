@@ -97,9 +97,18 @@ public class MetricDataService {
                 .createdAt(metricData.getCreatedAt())
                 .build();
     }
+
     public Flux<MetricDataResponseDto> getRecentMetrics() {
         return metricDataRepository.findTop500ByOrderByCollectedAtDesc()
                 .map(this::toResponseDto);
+    }
+
+    /**
+     * 오늘 00:00 이후 수집된 메트릭 개수 반환.
+     */
+    public Mono<Long> getTodayMetricCount() {
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        return metricDataRepository.countByCollectedAtAfter(startOfDay);
     }
 }
 
