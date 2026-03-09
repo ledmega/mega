@@ -373,9 +373,9 @@
                     <div class="panel-title">최근 메트릭 (실시간 차트 & 목록)</div>
                 </div>
 
-                <!-- [NEW] 동적 실시간 차트 영역 (수집되는 모든 메트릭 자동 생성) -->
+                <!-- [NEW] 동적 실시간 차트 영역 (수집되는 모든 메트릭 자동 생성, 큰 화면 모드) -->
                 <div class="chart-container" id="dynamicChartContainer"
-                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; border-bottom: none; height: auto;">
+                    style="display: flex; flex-direction: column; gap: 30px; border-bottom: none; height: auto;">
                     <!-- JS에서 수집 항목(metricName)이 추가될 때마다 canvas를 자동 생성합니다 -->
                 </div>
                 <!-- 하단 경계선 -->
@@ -426,23 +426,23 @@
         let chartsMap = {};
 
         function getChartColor(idx) {
-            // 다양한 메트릭을 그리기 위한 컬러 팔레트
             const colors = ['#667eea', '#48bb78', '#ed8936', '#f56565', '#4fd1c5', '#9f7aea', '#ecc94b', '#f687b3', '#4299e1', '#a0aec0'];
             return colors[idx % colors.length];
         }
 
-        // [NEW] 동적 공통 차트 생성 함수 (단위에 따른 Y축 스케일 조정)
-        function createDynamicLineChart(canvasCtx, color, unit) {
+        // 일반 단일 차트 생성 (CPU, Disk 등)
+        function createDynamicLineChart(canvasCtx, color, unit, title) {
             return new Chart(canvasCtx, {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [{
+                        label: title,
                         data: [],
                         borderColor: color,
-                        backgroundColor: color + '33', // 투명도 약 20%
+                        backgroundColor: color + '33',
                         borderWidth: 2,
-                        pointRadius: 2,
+                        pointRadius: 1, // 데이터가 많아질 테니 점 크기를 줄임
                         pointBackgroundColor: color,
                         fill: true,
                         tension: 0.4
@@ -451,75 +451,141 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: { duration: 0 }, // 깜빡임 없애기
+                    animation: { duration: 0 },
+                    interaction: { mode: 'index', intersect: false },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            max: unit === '%' ? 100 : undefined, // 퍼센트일 때만 100 고정
+                            max: unit === '%' ? 100 : undefined,
                             grid: { color: '#f0f0f0' },
                             ticks: { font: { size: 10 } }
                         },
                         x: {
                             grid: { display: false },
-                            ticks: { maxTicksLimit: 7, font: { size: 10 } }
+                            ticks: { maxTicksLimit: 15, font: { size: 10 } } // 넓은 화면을 위해 틱 개수 증가
                         }
                     },
                     plugins: {
-                        legend: { display: false }
+                        legend: { display: true, position: 'top' }
                     }
                 }
             });
         }
 
-        // [NEW] 수집된 모든 메트릭(metricName 기준)에 대해 차트를 동적 갱신/생성
+        // 메모리 전용 듀얼 Y축 차트 생성
+        function createCombinedMemoryChart(canvasCtx) {
+            return new Chart(canvasCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Used (%)',
+                            yAxisID: 'y_pct',
+                            borderColor: '#48bb78',
+                            backgroundColor: '#48bb7833',
+                            borderWidth: 2, pointRadius: 1, fill: true, tension: 0.4
+                        },
+                        {
+                            label: 'Available (MB)',
+                            yAxisID: 'y_mb',
+                            borderColor: '#a0aec0',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2, pointRadius: 1, fill: false, tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 0 },
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 15, font: { size: 10 } } },
+                        y_pct: { type: 'linear', position: 'left', min: 0, max: 100, ticks: { font: { size: 10 } } },
+                        y_mb: { type: 'linear', position: 'right', min: 0, grid: { drawOnChartArea: false }, ticks: { font: { size: 10 } } }
+                    },
+                    plugins: { legend: { display: true, position: 'top' } }
+                }
+            });
+        }
+
+        // [NEW] 수집된 모든 메트릭에 대해 차트를 동적 갱신/생성 (Memory는 통합)
         function updateChartDisplay() {
-            // 현재 수집된 고유 메트릭 이름 목록 추출
-            const metricNames = [...new Set(metrics.map(m => m.metricName))];
             const container = document.getElementById('dynamicChartContainer');
 
-            metricNames.forEach((mName, idx) => {
-                // 한 번도 그려진 적 없는 신규 메트릭이면 차트 뼈대(Canvas) 동적 삽입
-                if (!chartsMap[mName]) {
+            // 1. Memory 통합 차트 처리
+            const memMetrics = metrics.filter(m => m.metricType === 'MEMORY');
+            if (memMetrics.length > 0) {
+                if (!chartsMap['MEMORY_COMBINED']) {
                     const wrapper = document.createElement('div');
-                    wrapper.style.height = '180px';
+                    wrapper.style.height = '250px'; // 큰 화면 적용
                     wrapper.style.position = 'relative';
 
                     const canvas = document.createElement('canvas');
                     wrapper.appendChild(canvas);
 
                     const titleDiv = document.createElement('div');
-                    titleDiv.style.textAlign = 'center';
-                    titleDiv.style.fontSize = '12px';
-                    titleDiv.style.color = '#666';
-                    titleDiv.style.fontWeight = 'bold';
-                    titleDiv.style.marginTop = '5px';
+                    titleDiv.style.textAlign = 'center'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.margin = '10px 0';
+                    titleDiv.textContent = 'Memory Usage (Combined)';
+                    wrapper.insertBefore(titleDiv, wrapper.firstChild);
 
-                    // 메트릭의 단위(%, MB 등) 찾기
-                    const sample = metrics.find(m => m.metricName === mName);
-                    const unitLabel = sample && sample.unit ? ` (${sample.unit})` : '';
-                    titleDiv.textContent = mName + unitLabel;
-
-                    wrapper.appendChild(titleDiv);
                     container.appendChild(wrapper);
-
-                    const color = getChartColor(idx);
-                    chartsMap[mName] = createDynamicLineChart(canvas.getContext('2d'), color, sample ? sample.unit : '');
+                    chartsMap['MEMORY_COMBINED'] = createCombinedMemoryChart(canvas.getContext('2d'));
                 }
 
-                // 기존 메트릭 데이터 업데이트
+                const memChart = chartsMap['MEMORY_COMBINED'];
+                // 시간축 스케일을 맞추기 위해 가장 풍부한 배열 하나를 잡음
+                let usedPctData = memMetrics.filter(m => m.metricName === 'memory_usage_percent').slice(0, 250).reverse();
+                let availMbData = memMetrics.filter(m => m.metricName === 'available_memory').slice(0, 250).reverse();
+
+                // X축 데이터 세팅
+                const baseData = usedPctData.length > availMbData.length ? usedPctData : availMbData;
+                memChart.data.labels = baseData.map(m => {
+                    const d = new Date(m.collectedAt);
+                    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                });
+
+                memChart.data.datasets[0].data = usedPctData.map(m => m.metricValue ?? 0);
+                memChart.data.datasets[1].data = availMbData.map(m => m.metricValue ?? 0);
+                memChart.update();
+            }
+
+            // 2. 나머지 차트 처리 (CPU, DISK 등)
+            const otherNames = [...new Set(metrics.filter(m => m.metricType !== 'MEMORY').map(m => m.metricName))];
+
+            otherNames.forEach((mName, idx) => {
+                if (!chartsMap[mName]) {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.height = '250px'; // 큰 화면 적용
+                    wrapper.style.position = 'relative';
+
+                    const canvas = document.createElement('canvas');
+                    wrapper.appendChild(canvas);
+
+                    const sample = metrics.find(m => m.metricName === mName);
+                    const unitLabel = sample && sample.unit ? ` (${sample.unit})` : '';
+
+                    const titleDiv = document.createElement('div');
+                    titleDiv.style.textAlign = 'center'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.margin = '10px 0';
+                    titleDiv.textContent = mName + unitLabel;
+                    wrapper.insertBefore(titleDiv, wrapper.firstChild);
+
+                    container.appendChild(wrapper);
+                    const color = getChartColor(idx);
+                    chartsMap[mName] = createDynamicLineChart(canvas.getContext('2d'), color, sample ? sample.unit : '', mName);
+                }
+
                 const chartObj = chartsMap[mName];
                 let filtered = [...metrics].filter(m => m.metricName === mName);
-                if (filtered.length === 0) return;
-
-                // 최신 데이터가 인덱스 0이므로 시간순(왼->오른쪽)으로 그리기 위해 배열 뒤집기
                 filtered.reverse();
 
-                // 그래프당 최대 최근 20개 포인트만 표시
-                const displayData = filtered.slice(-20);
+                // 최근 250개 (에이전트 수집 주기에 따라 1~2시간 분량 표시)
+                const displayData = filtered.slice(-250);
 
                 chartObj.data.labels = displayData.map(m => {
                     const d = new Date(m.collectedAt);
-                    return d.getMinutes().toString().padStart(2, '0') + ':' + d.getSeconds().toString().padStart(2, '0');
+                    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                 });
                 chartObj.data.datasets[0].data = displayData.map(m => m.metricValue ?? 0);
                 chartObj.update();
@@ -609,8 +675,8 @@
         function handleMetricUpdate(data) {
             if (data.data) {
                 metrics.unshift(data.data);
-                // [CHANGED] 매우 다양한 항목이 한꺼번에 수집되므로 이들을 모두 차트로 보관하려면 넉넉한 공간 필요 (최대 500개 유지)
-                if (metrics.length > 500) metrics.pop();
+                // [CHANGED] 긴 시간대의 이력을 보관하기 위해 넉넉한 공간 필요 (최대 2000개 유지)
+                if (metrics.length > 2000) metrics.pop();
                 updateMetricsDisplay();
                 updateTodayMetrics();
                 updateChartDisplay(); // [NEW] 실시간 항목별 동적 차트 갱신

@@ -98,7 +98,7 @@ public class MetricDataService {
                 .build();
     }
     public Flux<MetricDataResponseDto> getRecentMetrics() {
-        return metricDataRepository.findTop10ByOrderByCollectedAtDesc()
+        return metricDataRepository.findTop500ByOrderByCollectedAtDesc()
                 .map(this::toResponseDto);
     }
 }

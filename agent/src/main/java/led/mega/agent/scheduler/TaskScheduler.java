@@ -88,7 +88,7 @@ public class TaskScheduler {
             } catch (Exception e) {
                 log.error("메모리 메트릭 수집 실패", e);
             }
-        }, 1, TimeUnit.MINUTES);
+        }, 30, TimeUnit.SECONDS);
         
         // 10분마다 df -h 실행
         scheduleTask("disk-usage", () -> {
@@ -114,7 +114,7 @@ public class TaskScheduler {
             } catch (Exception e) {
                 log.error("디스크 메트릭 수집 실패", e);
             }
-        }, 10, TimeUnit.MINUTES);
+        }, 1, TimeUnit.MINUTES);
         
         // 30초마다 CPU 사용률 수집
         scheduleTask("cpu-usage", () -> {
