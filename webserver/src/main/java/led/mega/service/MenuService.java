@@ -1,0 +1,69 @@
+package led.mega.service;
+
+import led.mega.entity.Menu;
+import led.mega.repository.MenuRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class MenuService {
+
+    private final MenuRepository menuRepository;
+
+    /**
+     * 앱 시작 시 메뉴 테이블이 비어있으면 초기 메뉴 데이터를 삽입
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void initMenus() {
+        menuRepository.count()
+                .filter(count -> count == 0)
+                .flatMapMany(count -> {
+                    log.info("메뉴 테이블이 비어있습니다. 초기 메뉴 데이터를 생성합니다.");
+                    List<Menu> defaultMenus = new ArrayList<>();
+                    defaultMenus.add(Menu.builder().name("홈").url("/dashboard").icon("fa-home").sortOrder(1).build());
+                    defaultMenus.add(Menu.builder().name("에이전트").url("/agents").icon("fa-server").sortOrder(2).build());
+                    defaultMenus.add(Menu.builder().name("작업 현황").url("/tasks").icon("fa-tasks").sortOrder(3).build());
+                    defaultMenus.add(Menu.builder().name("사용자 관리").url("/members").icon("fa-users").sortOrder(4).requiredRole("ROLE_ADMIN").build());
+                    defaultMenus.add(Menu.builder().name("권한 관리").url("/authority").icon("fa-user-shield").sortOrder(5).requiredRole("ROLE_ADMIN").build());
+                    defaultMenus.add(Menu.builder().name("메뉴 관리").url("/menu").icon("fa-bars").sortOrder(6).requiredRole("ROLE_ADMIN").build());
+                    
+                    return menuRepository.saveAll(defaultMenus);
+                })
+                .doOnComplete(() -> log.info("초기 메뉴 데이터 생성 완료"))
+                .subscribe();
+    }
+
+    public Flux<Menu> getAllMenus() {
+        return menuRepository.findAllByOrderBySortOrder();
+    }
+
+    public Flux<Menu> getEnabledMenus() {
+        return menuRepository.findAllByEnabledOrderBySortOrder();
+    }
+
+    @Transactional
+    public Mono<Menu> saveMenu(Menu menu) {
+        return menuRepository.save(menu);
+    }
+
+    @Transactional
+    public Mono<Void> deleteMenu(Long id) {
+        return menuRepository.deleteById(id);
+    }
+
+    public Mono<Menu> getMenu(Long id) {
+        return menuRepository.findById(id);
+    }
+}

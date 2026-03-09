@@ -159,10 +159,10 @@
         <div class="header-content">
             <div class="logo">MEGA</div>
             <div class="user-info" th:if="${isLoggedIn}">
-                <a href="/dashboard" class="logout-button" style="text-decoration: none;">대시보드</a>
-                <a href="/members/me" class="logout-button" style="text-decoration: none;">내 정보</a>
-                <a href="/members" class="logout-button" style="text-decoration: none;" th:if="${isAdmin}">사용자 관리</a>
-                <a href="/authority" class="logout-button" style="text-decoration: none;" th:if="${isAdmin}">권한관리</a>
+                <!-- Dynamic Menus -->
+                <a th:each="menu : ${menus}" th:href="${menu.url}" class="logout-button" style="text-decoration: none;"
+                    th:text="${menu.name}">Menu Name</a>
+
                 <span class="user-name" th:text="${username}">사용자</span>
                 <form th:action="@{/logout}" method="post" style="display: inline;">
                     <button type="submit" class="logout-button">로그아웃</button>

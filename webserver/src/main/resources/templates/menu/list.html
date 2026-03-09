@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메뉴 관리 - MEGA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            text-decoration: none;
+            color: white;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 5px;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 24px auto;
+            padding: 0 20px;
+        }
+
+        .page-title {
+            margin-bottom: 20px;
+            font-size: 28px;
+            color: #333;
+        }
+
+        .form-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .btn-add {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            align-self: flex-end;
+        }
+
+        .btn-add:hover {
+            background: #5568d3;
+        }
+
+        .table-wrap {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .btn-delete {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn-delete:hover {
+            background: #e60000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">MEGA</a>
+            <div class="nav-links">
+                <a th:each="menu : ${menus}" th:href="${menu.url}" class="nav-link" th:text="${menu.name}">Menu Name</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="page-title">메뉴 관리</h1>
+
+        <!-- 메뉴 추가 폼 -->
+        <div class="form-panel">
+            <h3 style="margin-bottom: 15px;">신규 메뉴 등록</h3>
+            <form th:action="@{/menu/add}" method="post">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>메뉴명</label>
+                        <input type="text" name="name" required placeholder="예: 대시보드">
+                    </div>
+                    <div class="form-group">
+                        <label>URL</label>
+                        <input type="text" name="url" required placeholder="예: /dashboard">
+                    </div>
+                    <div class="form-group">
+                        <label>아이콘 (FontAwesome)</label>
+                        <input type="text" name="icon" placeholder="예: fa-home">
+                    </div>
+                    <div class="form-group">
+                        <label>정렬 순서</label>
+                        <input type="number" name="sortOrder" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>필요 권한</label>
+                        <select name="requiredRole">
+                            <option value="">전체 (제한없음)</option>
+                            <option value="ROLE_USER">일반 사용자 (ROLE_USER)</option>
+                            <option value="ROLE_ADMIN">관리자 (ROLE_ADMIN)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-add">추가하기</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 메뉴 목록 테이블 -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>정렬</th>
+                        <th>이름</th>
+                        <th>URL</th>
+                        <th>아이콘</th>
+                        <th>권한 제한</th>
+                        <th>상태</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="m : ${menuList}">
+                        <td th:text="${m.id}"></td>
+                        <td th:text="${m.sortOrder}"></td>
+                        <td th:text="${m.name}" style="font-weight: bold;"></td>
+                        <td th:text="${m.url}"></td>
+                        <td><i th:if="${m.icon}" th:class="'fas ' + ${m.icon}"></i> <span th:text="${m.icon}"></span>
+                        </td>
+                        <td th:text="${m.requiredRole} ?: '-'"></td>
+                        <td th:text="${m.isEnabled ? '활성' : '비활성'}"></td>
+                        <td>
+                            <form th:action="@{/menu/delete/{id}(id=${m.id})}" method="post"
+                                onsubmit="return confirm('정말 삭제하시겠습니까?');">
+                                <button type="submit" class="btn-delete">삭제</button>
+                            </form>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

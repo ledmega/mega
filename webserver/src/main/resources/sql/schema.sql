@@ -113,3 +113,20 @@ CREATE TABLE IF NOT EXISTS agent_heartbeat (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='에이전트 하트비트 테이블';
 
+-- 메뉴 테이블 생성
+CREATE TABLE IF NOT EXISTS menu (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '메뉴 ID',
+    name VARCHAR(100) NOT NULL COMMENT '메뉴 이름',
+    url VARCHAR(255) NOT NULL COMMENT '메뉴 URL',
+    icon VARCHAR(100) COMMENT '아이콘 (FontAwesome 클래스명)',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '정렬 순서',
+    parent_id BIGINT COMMENT '부모 메뉴 ID',
+    required_role VARCHAR(50) COMMENT '필요 권한 (null이면 전체)',
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE COMMENT '활성화 여부',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
+    FOREIGN KEY (parent_id) REFERENCES menu(id) ON DELETE SET NULL,
+    INDEX idx_sort_order (sort_order),
+    INDEX idx_is_enabled (is_enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='메뉴 관리 테이블';
+
