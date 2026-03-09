@@ -12,6 +12,8 @@ import okhttp3.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -247,6 +249,59 @@ public class ApiClient {
             this.fullStackTrace = fullStackTrace;
             this.occurredAt = occurredAt;
         }
+    }
+
+    /**
+     * 활성화된 서비스 모니터링 설정 목록 조회 (Agent → WebServer Pull)
+     */
+    public List<MonitoringConfigDto> fetchActiveMonitoringConfigs(Long agentDbId, String apiKey) throws IOException {
+        String url = baseUrl + "/api/configs/agent/" + agentDbId + "/active";
+
+        Request httpRequest = new Request.Builder()
+                .url(url)
+                .get()
+                .addHeader("Authorization", "Bearer " + apiKey)
+                .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            if (!response.isSuccessful()) {
+                String errorBody = response.body() != null ? response.body().string() : "Unknown error";
+                log.error("모니터링 설정 조회 실패: HTTP {} - {}", response.code(), errorBody);
+                throw new IOException("모니터링 설정 조회 실패: HTTP " + response.code());
+            }
+
+            String responseBody = response.body().string();
+            MonitoringConfigDto[] arr = gson.fromJson(responseBody, MonitoringConfigDto[].class);
+            return Arrays.asList(arr != null ? arr : new MonitoringConfigDto[0]);
+        }
+    }
+
+    /**
+     * 에이전트가 사용하는 서비스 모니터링 설정 DTO
+     * (webserver MonitoringConfigDto와 필드명을 맞춰서 사용)
+     */
+    public static class MonitoringConfigDto {
+        private Long   id;
+        private Long   agentId;
+        private String serviceName;
+        private String servicePath;
+        private String logPath;
+        private String collectItems;   // CSV: CPU,MEMORY,DISK,LOG
+        private String logKeywords;    // CSV: Error,404,Exception
+        private Integer intervalSeconds;
+        private Boolean enabled;
+        private String description;
+
+        public Long getId() { return id; }
+        public Long getAgentId() { return agentId; }
+        public String getServiceName() { return serviceName; }
+        public String getServicePath() { return servicePath; }
+        public String getLogPath() { return logPath; }
+        public String getCollectItems() { return collectItems; }
+        public String getLogKeywords() { return logKeywords; }
+        public Integer getIntervalSeconds() { return intervalSeconds; }
+        public Boolean getEnabled() { return enabled; }
+        public String getDescription() { return description; }
     }
 }
 

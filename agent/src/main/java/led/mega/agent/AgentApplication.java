@@ -30,6 +30,7 @@ public class AgentApplication {
     
     private String agentId;
     private String apiKey;
+    private Long   agentDbId;
     private boolean running = false;
     private static final String ID_FILE = ".agent_id";
     
@@ -90,7 +91,7 @@ public class AgentApplication {
             }
             
             // 4. 작업 스케줄러 시작
-            taskScheduler.setAgentCredentials(agentId, apiKey);
+            taskScheduler.setAgentCredentials(agentId, agentDbId, apiKey);
             taskScheduler.startAllTasks();
             
             // 5. 하트비트 전송 시작
@@ -119,6 +120,13 @@ public class AgentApplication {
             }
             this.agentId = props.getProperty("agentId");
             this.apiKey = props.getProperty("apiKey");
+            String idStr = props.getProperty("agentDbId");
+            if (idStr != null) {
+                try {
+                    this.agentDbId = Long.parseLong(idStr);
+                } catch (NumberFormatException ignored) {
+                }
+            }
             
             return agentId != null && apiKey != null;
         } catch (Exception e) {
@@ -135,6 +143,9 @@ public class AgentApplication {
             java.util.Properties props = new java.util.Properties();
             props.setProperty("agentId", agentId);
             props.setProperty("apiKey", apiKey);
+            if (agentDbId != null) {
+                props.setProperty("agentDbId", Long.toString(agentDbId));
+            }
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(ID_FILE)) {
                 props.store(fos, "Mega Agent Credentials");
             }
@@ -165,6 +176,7 @@ public class AgentApplication {
             
             this.agentId = response.getAgentId();
             this.apiKey = response.getApiKey();
+            this.agentDbId = response.getId();
             
             log.info("에이전트 등록 성공: agentId={}", agentId);
             

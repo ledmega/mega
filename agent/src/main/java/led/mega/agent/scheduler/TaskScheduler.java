@@ -33,6 +33,7 @@ public class TaskScheduler {
     private final AgentConfig config;
     
     private String agentId;
+    private Long   agentDbId;
     private String apiKey;
     
     // 스케줄된 작업들
@@ -51,8 +52,9 @@ public class TaskScheduler {
     /**
      * 에이전트 ID와 API 키 설정
      */
-    public void setAgentCredentials(String agentId, String apiKey) {
+    public void setAgentCredentials(String agentId, Long agentDbId, String apiKey) {
         this.agentId = agentId;
+        this.agentDbId = agentDbId;
         this.apiKey = apiKey;
     }
     
@@ -61,7 +63,10 @@ public class TaskScheduler {
      */
     public void startAllTasks() {
         log.info("작업 스케줄러 시작");
-        
+        // 1. 서비스 모니터링 설정 기반 동적 로그 수집(TaskScheduler 확장)
+        startServiceLogMonitoringTasks();
+
+        // 2. 기존 고정 시스템 메트릭/로그 수집
         // 1분마다 free -m 실행
         scheduleTask("free-memory", () -> {
             try {
@@ -178,6 +183,66 @@ public class TaskScheduler {
         }, 10, TimeUnit.MINUTES);
         
         log.info("모든 작업 스케줄 완료");
+    }
+
+    /**
+     * 웹서버에 등록된 MonitoringConfig 중 LOG 수집이 활성화된 항목들을 읽어와
+     * 서비스별 로그 모니터링 작업을 동적으로 등록한다.
+     *
+     * - collectItems 에 LOG 가 포함된 설정만 대상
+     * - logPath 가 비어 있으면 무시
+     */
+    private void startServiceLogMonitoringTasks() {
+        if (agentDbId == null) {
+            log.warn("agentDbId 가 설정되지 않아 서비스 모니터링 설정을 조회할 수 없습니다.");
+            return;
+        }
+
+        try {
+            java.util.List<ApiClient.MonitoringConfigDto> configs =
+                    apiClient.fetchActiveMonitoringConfigs(agentDbId, apiKey);
+
+            for (ApiClient.MonitoringConfigDto cfg : configs) {
+                String collectItems = cfg.getCollectItems() != null ? cfg.getCollectItems() : "";
+                boolean logEnabled = collectItems.toUpperCase().contains("LOG");
+                String logPath = cfg.getLogPath();
+
+                if (!logEnabled || logPath == null || logPath.isBlank()) {
+                    continue;
+                }
+
+                int interval = cfg.getIntervalSeconds() != null ? cfg.getIntervalSeconds() : 600;
+                String taskName = "service-log-" + cfg.getId();
+
+                scheduleTask(taskName, () -> {
+                    try {
+                        java.util.List<LogParser.ExceptionInfo> exceptions =
+                                logParser.parseExceptions(logPath);
+
+                        for (LogParser.ExceptionInfo exceptionInfo : exceptions) {
+                            apiClient.sendExceptionLog(agentId, apiKey, new ApiClient.ExceptionRequest(
+                                    cfg.getId(),  // taskId 대신 monitoring_config id 연동
+                                    exceptionInfo.getLogFilePath(),
+                                    exceptionInfo.getExceptionType(),
+                                    exceptionInfo.getExceptionMessage(),
+                                    exceptionInfo.getContextBefore(),
+                                    exceptionInfo.getContextAfter(),
+                                    exceptionInfo.getFullStackTrace(),
+                                    LocalDateTime.now()
+                            ));
+                        }
+
+                        log.debug("서비스 로그 메트릭 전송 완료: serviceName={}, logPath={}",
+                                cfg.getServiceName(), logPath);
+                    } catch (Exception e) {
+                        log.error("서비스 로그 메트릭 수집 실패: serviceName={}, logPath={}",
+                                cfg.getServiceName(), logPath, e);
+                    }
+                }, interval, TimeUnit.SECONDS);
+            }
+        } catch (Exception e) {
+            log.error("모니터링 설정을 불러오는 데 실패했습니다. 서비스 로그 모니터링은 일시적으로 비활성화됩니다.", e);
+        }
     }
     
     /**
