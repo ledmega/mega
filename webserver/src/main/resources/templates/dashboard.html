@@ -144,15 +144,10 @@
 
         .content-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
+            /* [CHANGED] 1fr 1fr -> 1fr로 변경하여 에이전트 목록 위, 메트릭 아래로 넓게 배치 */
             gap: 20px;
             margin-bottom: 30px;
-        }
-
-        @media (max-width: 1024px) {
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
         }
 
         .panel {
