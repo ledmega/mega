@@ -77,7 +77,7 @@ public class SecurityConfig {
             //           .anyRequest → .anyExchange
             .authorizeExchange(auth -> auth
                 .pathMatchers("/", "/public/**", "/css/**", "/js/**", "/images/**",
-                        "/favicon.ico", "/signup", "/login", "/dashboard", "/agents").permitAll()
+                        "/favicon.ico", "/signup", "/login", "/dashboard", "/agents", "/error").permitAll()
                 .pathMatchers("/api/agents/register").permitAll()
                 .pathMatchers("/api/**").authenticated()
                 .anyExchange().authenticated()

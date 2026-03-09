@@ -27,5 +27,13 @@
     
     // Java 관련 설정
     "java.compile.nullAnalysis.mode": "automatic",
-    "java.configuration.updateBuildConfiguration": "automatic"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.jdt.ls.java.home": "e:\\ws\\mega\\java-17-openjdk-17.0.18.0.8-1.win.jdk.x86_64",
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-17",
+            "path": "e:\\ws\\mega\\java-17-openjdk-17.0.18.0.8-1.win.jdk.x86_64",
+            "default": true
+        }
+    ]
 }

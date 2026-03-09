@@ -41,17 +41,17 @@ public class TaskApiController {
             @PathVariable Long agentId,
             @Valid @RequestBody TaskRequestDto requestDto) {
         return taskService.createTask(agentId, requestDto)
-                .map(r -> ResponseEntity.status(HttpStatus.CREATED).body(r))
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
+                .<ResponseEntity<TaskResponseDto>>map(r -> ResponseEntity.status(HttpStatus.CREATED).body(r))
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<TaskResponseDto>build()));
     }
 
     @GetMapping("/{taskId}")
     public Mono<ResponseEntity<TaskResponseDto>> getTask(@PathVariable Long taskId) {
         return taskService.getTask(taskId)
-                .map(ResponseEntity::ok)
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .<ResponseEntity<TaskResponseDto>>map(ResponseEntity::ok)
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).<TaskResponseDto>build()));
     }
 
     @PutMapping("/{taskId}")
@@ -59,18 +59,18 @@ public class TaskApiController {
             @PathVariable Long taskId,
             @Valid @RequestBody TaskRequestDto requestDto) {
         return taskService.updateTask(taskId, requestDto)
-                .map(ResponseEntity::ok)
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
+                .<ResponseEntity<TaskResponseDto>>map(ResponseEntity::ok)
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<TaskResponseDto>build()));
     }
 
     // [CHANGED] ResponseEntity<Void> → Mono<ResponseEntity<Void>>
     @DeleteMapping("/{taskId}")
     public Mono<ResponseEntity<Void>> deleteTask(@PathVariable Long taskId) {
         return taskService.deleteTask(taskId)
-                .thenReturn(ResponseEntity.<Void>noContent().build())
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .<ResponseEntity<Void>>thenReturn(ResponseEntity.<Void>noContent().build())
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).<Void>build()));
     }
 
     @PatchMapping("/{taskId}/toggle")
@@ -78,9 +78,8 @@ public class TaskApiController {
             @PathVariable Long taskId,
             @RequestParam Boolean enabled) {
         return taskService.toggleTask(taskId, enabled)
-                .map(ResponseEntity::ok)
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
+                .<ResponseEntity<TaskResponseDto>>map(ResponseEntity::ok)
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<TaskResponseDto>build()));
     }
 }
-

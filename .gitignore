@@ -1,56 +1,35 @@
-HELP.md
-.gradle
+# 1. 빌드 결과물 및 임시 파일
+.gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
 bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
+.temp/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# 2. 로컬 환경 설정 및 보안 (꼭 제외!)
+.env
+.env.local
+gradle.properties
+# ※ 위 파일은 로컬 JDK 경로가 포함되어 있으므로 제외하는 것이 좋습니다.
+# 팀 프로젝트라면 gradle.properties 대신 local.properties를 사용하기도 합니다.
 
-### VS Code ###
-# .vscode/  # 주석 처리 - 프로젝트 설정 파일 포함
-.vscode/launch.json
-.vscode/tasks.json
+# 3. 개발 도구(IDE) 설정
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
 
-### Logs ###
+# 4. 프로젝트 내에 설치한 JDK 및 실행 파일 (용량이 큼)
+jdk/
+java-17-openjdk-*/
+run.ps1
+mega.pid
 logs/
 *.log
 
-### Application Properties (보안) ###
-**/src/main/resources/application-local.properties
-**/src/main/resources/application-prod.properties
-**/src/main/resources/application-dev.properties
-**/src/main/resources/application-staging.properties
+# 5. OS 생성 파일
+.DS_Store
+Thumbs.db
 
-### 로컬 환경변수 (비밀번호 포함) ###
-.env
-
-### 프로젝트 내 JDK (setup.sh로 다운로드) ###
-jdk/
-mega.pid
+# 6. Gradle Wrapper (이건 보통 포함시킵니다)
+!gradle/wrapper/gradle-wrapper.jar

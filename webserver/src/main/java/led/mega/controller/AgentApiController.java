@@ -46,9 +46,9 @@ public class AgentApiController {
     public Mono<ResponseEntity<AgentRegisterResponseDto>> registerAgent(
             @Valid @RequestBody AgentRegisterDto registerDto) {
         return agentService.registerAgent(registerDto)
-                .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
+                .<ResponseEntity<AgentRegisterResponseDto>>map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<AgentRegisterResponseDto>build()));
     }
 
     // [CHANGED] void → Mono<ResponseEntity<Void>>
@@ -60,9 +60,9 @@ public class AgentApiController {
             Authentication authentication) {
         return getAuthenticatedAgentMono(authentication, agentId)
                 .flatMap(agent -> heartbeatService.saveHeartbeat(agent.getId(), requestDto))
-                .thenReturn(ResponseEntity.<Void>ok().build())
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
+                .<ResponseEntity<Void>>thenReturn(ResponseEntity.<Void>ok().build())
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<Void>build()));
     }
 
     @PostMapping("/{agentId}/metrics")
@@ -72,9 +72,9 @@ public class AgentApiController {
             Authentication authentication) {
         return getAuthenticatedAgentMono(authentication, agentId)
                 .flatMap(agent -> metricDataService.saveMetricData(agent.getId(), requestDto))
-                .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
+                .<ResponseEntity<MetricDataResponseDto>>map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<MetricDataResponseDto>build()));
     }
 
     @PostMapping("/{agentId}/exceptions")
@@ -84,9 +84,9 @@ public class AgentApiController {
             Authentication authentication) {
         return getAuthenticatedAgentMono(authentication, agentId)
                 .flatMap(agent -> exceptionLogService.saveExceptionLog(agent.getId(), requestDto))
-                .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.status(HttpStatus.BAD_REQUEST).build());
+                .<ResponseEntity<ExceptionLogResponseDto>>map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<ExceptionLogResponseDto>build()));
     }
 
     // [CHANGED] 동기 메서드 → Mono 반환 (에러도 Mono.error로)
@@ -100,4 +100,3 @@ public class AgentApiController {
         return Mono.just(authenticatedAgent);
     }
 }
-
