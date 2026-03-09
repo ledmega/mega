@@ -583,7 +583,7 @@
                         <div style="font-size: 12px; color: #999;">${new Date(metric.collectedAt).toLocaleString()}</div>
                     </div>
                     <div class="metric-value">
-                        ${metric.metricValue || 'N/A'} ${metric.unit || ''}
+                        ${metric.metricValue ?? 'N/A'} ${metric.unit || ''}
                     </div>
                 </div>
             `).join('');
