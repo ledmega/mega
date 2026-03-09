@@ -1,0 +1,30 @@
+---
+description: General instructions and knowledge for MEGA (Monitoring & Error Gathering Agent) development.
+globs: *.java, *.html, *.sh, *.properties, *.js
+---
+
+# MEGA Project Development Rules & Context
+
+## 1. System Architecture
+MEGA operates through a one-way REST Pull & Push dynamic:
+- **Agents** pull data from the OS (via Linux tools) and push HTTP API requests to the Web Server.
+- **Web Server** intercepts payloads and pushes generic `ServerSentEvent<T>` generic messages explicitly to UI dashboard views to be graphed dynamically with Chart.js.
+
+## 2. Framework Guidelines & Best Practices
+
+### Spring WebFlux (Reactive Stack)
+* **Non-Blocking Principle**: Never block the underlying Netty threads (e.g., calling `.block()` on `Mono` or `Flux` inside web requests unless you're starting up an orchestration thread).
+* **SSE (Server-Sent Events) Handling**: WebFlux has native support for returning `Flux<ServerSentEvent<T>>`. Ensure that responses mapped to `EventSource` connections inject HTTP headers overriding buffering (`Cache-Control: no-cache` and `X-Accel-Buffering: no`).
+
+### Spring Data R2DBC (Database)
+* Use native `@Query` over strictly relational query methods when dealing with complex time-series lookups (e.g., retrieving the last 500 history items). Remember to call `.name()` on ENUM types dynamically when supplying queries to R2DBC parameter bindings.
+
+### Front-End (Dashboard)
+* **Vanilla JavaScript Only**: Do not propose or include modern SPAs like React/Angular. Maintain Event-Driven updates via `EventSource`.
+* **Chart.js Management**: Ensure logic maintains independent scopes per dynamic chart instance. Avoid hardcoding references (i.e., iterate gracefully as unknown disk or metric labels might manifest from an agent). 
+* **Combined Metric Sets**: When visualizing memory or disk spaces dynamically, prefer grouping elements logically (e.g., 'Free Space' vs 'Used Space') via multi-line array mapping.
+* **Dual Y-Axes**: Configure percent values strictly against `0 - 100` ranges and raw volumes loosely depending on scaling bounds to prevent visual skewing.
+
+### Linux Integration (Agent)
+* **Bash Data Extraction**: Keep java footprint light. Favor processing through `Runtime.getRuntime().exec` with common system tools like `top -bn1 -d1`, `df -h`, and `free -m`.
+* Use specific bash-based wrappers (`agent.sh`) for execution lifecycle (pulling github changes over `rebuild`) instead of raw compilation scripts.
