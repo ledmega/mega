@@ -26,6 +26,7 @@ run.ps1
 mega.pid
 logs/
 *.log
+.agent_id
 
 # 5. OS 생성 파일
 .DS_Store

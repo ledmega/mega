@@ -31,6 +31,7 @@ public class AgentApplication {
     private String agentId;
     private String apiKey;
     private boolean running = false;
+    private static final String ID_FILE = ".agent_id";
     
     public static void main(String[] args) {
         AgentApplication app = new AgentApplication();
@@ -77,10 +78,15 @@ public class AgentApplication {
             logParser = new LogParser();
             taskScheduler = new TaskScheduler(config, apiClient, commandExecutor, metricParser, logParser);
             
-            // 3. 에이전트 등록
-            if (!registerAgent()) {
-                log.error("에이전트 등록 실패, 애플리케이션 종료");
-                System.exit(1);
+            // 3. 에이전트 정보 로드 또는 등록
+            if (!loadCredentials()) {
+                log.info("기존 에이전트 정보가 없습니다. 새로 등록합니다.");
+                if (!registerAgent()) {
+                    log.error("에이전트 등록 실패, 애플리케이션 종료");
+                    System.exit(1);
+                }
+            } else {
+                log.info("기존 에이전트 정보를 로드했습니다: agentId={}", agentId);
             }
             
             // 4. 작업 스케줄러 시작
@@ -96,6 +102,45 @@ public class AgentApplication {
         } catch (Exception e) {
             log.error("에이전트 시작 실패", e);
             System.exit(1);
+        }
+    }
+    
+    /**
+     * 로컬 파일에서 에이전트 정보 로드
+     */
+    private boolean loadCredentials() {
+        java.io.File file = new java.io.File(ID_FILE);
+        if (!file.exists()) return false;
+
+        try {
+            java.util.Properties props = new java.util.Properties();
+            try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+                props.load(fis);
+            }
+            this.agentId = props.getProperty("agentId");
+            this.apiKey = props.getProperty("apiKey");
+            
+            return agentId != null && apiKey != null;
+        } catch (Exception e) {
+            log.warn("인증 정보 로드 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 에이전트 정보를 로컬 파일에 저장
+     */
+    private void saveCredentials() {
+        try {
+            java.util.Properties props = new java.util.Properties();
+            props.setProperty("agentId", agentId);
+            props.setProperty("apiKey", apiKey);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(ID_FILE)) {
+                props.store(fos, "Mega Agent Credentials");
+            }
+            log.info("에이전트 정보를 {}에 저장했습니다.", ID_FILE);
+        } catch (Exception e) {
+            log.error("인증 정보 저장 실패", e);
         }
     }
     
@@ -122,6 +167,10 @@ public class AgentApplication {
             this.apiKey = response.getApiKey();
             
             log.info("에이전트 등록 성공: agentId={}", agentId);
+            
+            // 등록 성공 후 파일에 저장
+            saveCredentials();
+            
             return true;
             
         } catch (Exception e) {
