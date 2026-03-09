@@ -445,6 +445,20 @@
                 updateWsStatus(true);
             };
 
+            // 이름 없는 기본 메시지를 받을 때의 처리 및 연결 상태 갱신 보장
+            eventSource.onmessage = function (event) {
+                updateWsStatus(true);
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'METRIC') handleMetricUpdate(data);
+                    else if (data.type === 'EXCEPTION') handleExceptionUpdate(data);
+                    else if (data.type === 'HEARTBEAT') handleHeartbeatUpdate(data);
+                    else if (data.type === 'AGENT_STATUS') handleAgentStatusUpdate(data);
+                } catch (e) {
+                    // PING이나 무의미한 텍스트
+                }
+            };
+
             // [CHANGED] stompClient 오류 콜백 → eventSource.onerror
             eventSource.onerror = function (error) {
                 console.error('SSE 연결 오류:', error);
