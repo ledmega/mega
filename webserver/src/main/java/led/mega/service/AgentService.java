@@ -34,13 +34,19 @@ public class AgentService {
 
     @Transactional
     public Mono<AgentRegisterResponseDto> registerAgent(AgentRegisterDto registerDto) {
-        // [CHANGED] if(exists) throw → existsBy().flatMap(exists -> Mono.error or save)
-        return agentRepository.existsByAgentId(registerDto.getAgentId())
-                .flatMap(exists -> {
-                    if (exists) {
-                        return Mono.error(new IllegalArgumentException(
-                                "이미 등록된 에이전트 ID입니다: " + registerDto.getAgentId()));
-                    }
+        return agentRepository.findByAgentId(registerDto.getAgentId())
+                .flatMap(existingAgent -> {
+                    // 이미 존재하면 정보 업데이트
+                    existingAgent.setName(registerDto.getName());
+                    existingAgent.setHostname(registerDto.getHostname());
+                    existingAgent.setIpAddress(registerDto.getIpAddress());
+                    existingAgent.setOsType(registerDto.getOsType());
+                    existingAgent.setStatus(AgentStatus.ONLINE);
+                    existingAgent.setLastHeartbeat(LocalDateTime.now());
+                    return agentRepository.save(existingAgent);
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    // 존재하지 않으면 신규 생성
                     Agent agent = Agent.builder()
                             .agentId(registerDto.getAgentId())
                             .name(registerDto.getName())
@@ -52,14 +58,14 @@ public class AgentService {
                             .lastHeartbeat(LocalDateTime.now())
                             .build();
                     return agentRepository.save(agent);
-                })
+                }))
                 .map(saved -> AgentRegisterResponseDto.builder()
                         .id(saved.getId())
                         .agentId(saved.getAgentId())
                         .status(saved.getStatus())
                         .apiKey(saved.getApiKey())
                         .build())
-                .doOnNext(r -> log.info("에이전트 등록 완료: agentId={}", r.getAgentId()));
+                .doOnNext(r -> log.info("에이전트 등록/업데이트 완료: agentId={}", r.getAgentId()));
     }
 
     // [CHANGED] AgentResponseDto → Mono<AgentResponseDto>

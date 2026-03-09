@@ -31,9 +31,9 @@ public class AgentController {
     // [CHANGED] model.addAttribute("agents", list) → model.addAttribute("agents", flux)
     // Thymeleaf-WebFlux: 모델에 Flux를 넣으면 렌더링 시 자동 subscribe
     @GetMapping
-    public String agentList(Model model) {
+    public Mono<String> agentList(Model model) {
         model.addAttribute("agents", agentService.getAllAgents()); // Flux<AgentResponseDto>
-        return "agents/list";
+        return Mono.just("agents/list");
     }
 
     // [CHANGED] try-catch return "redirect" → Mono 체이닝 + .onErrorReturn("redirect")

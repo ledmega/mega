@@ -434,15 +434,15 @@
             eventSource.onopen = function () {
                 console.log('SSE 연결됨');
                 updateWsStatus(true);
-                loadAgents();
             };
 
             // [CHANGED] stompClient 오류 콜백 → eventSource.onerror
-            // EventSource는 오류 시 브라우저가 자동 재연결 시도
             eventSource.onerror = function (error) {
                 console.error('SSE 연결 오류:', error);
                 updateWsStatus(false);
-                // 브라우저가 자동으로 재연결 → setTimeout connect() 불필요
+                eventSource.close();
+                // 5초 후 재연결 시도
+                setTimeout(connect, 5000);
             };
         }
 
@@ -577,7 +577,8 @@
 
         // 페이지 로드 시 연결
         window.addEventListener('load', function () {
-            connect();
+            loadAgents(); // 목록부터 즉시 로드
+            connect();    // 그 다음 실시간 연결 시도
         });
 
         // 페이지 언로드 시 연결 해제

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>MEGA - 에이전트 관리</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --status-online: #22c55e;
+            --status-offline: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 네비게이션 바는 dashboard.html과 동일하게 유지 */
+        .navbar {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            padding: 1rem 2rem;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .nav-link:hover {
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        .agent-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .agent-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .agent-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .agent-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .agent-name-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .agent-icon {
+            width: 40px;
+            height: 40px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        .agent-id {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-main);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-online {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-offline {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .agent-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .detail-label {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .detail-value {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            background: white;
+            border-radius: 12px;
+            border: 2px dashed var(--border);
+            grid-column: 1 / -1;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            color: var(--border);
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">MEGA Dashboard</a>
+        <div class="nav-links">
+            <!-- GlobalControllerAdvice의 menus 사용 -->
+            <th:block th:each="menu : ${menus}">
+                <a th:href="${menu.url}" class="nav-link">
+                    <i th:if="${menu.icon}" th:class="'fas ' + ${menu.icon}"></i>
+                    [[${menu.name}]]
+                </a>
+            </th:block>
+            <span style="margin-left: 20px; opacity: 0.8; font-size: 0.9rem;" th:text="${#authentication.name}"></span>
+            <form th:action="@{/logout}" method="post" style="display: inline;">
+                <button type="submit" class="nav-link"
+                    style="background:none; border:none; cursor:pointer;">로그아웃</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header-section">
+            <h1 class="page-title">에이전트 현황</h1>
+        </div>
+
+        <div class="agent-grid">
+            <th:block th:each="agent : ${agents}">
+                <div class="agent-card" th:onclick="'location.href=\'/agents/' + ${agent.id} + '\''">
+                    <div class="agent-card-header">
+                        <div class="agent-name-group">
+                            <div class="agent-icon">
+                                <i class="fas fa-server"></i>
+                            </div>
+                            <div>
+                                <div class="agent-id" th:text="${agent.name ?: agent.agentId}">My-Server-01</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);" th:text="${agent.ipAddress}">
+                                    192.168.0.1</div>
+                            </div>
+                        </div>
+                        <span
+                            th:class="'status-badge ' + (${agent.status.name() == 'ONLINE'} ? 'status-online' : 'status-offline')"
+                            th:text="${agent.status}">ONLINE</span>
+                    </div>
+
+                    <div class="agent-details">
+                        <div class="detail-item">
+                            <span class="detail-label">OS</span>
+                            <span class="detail-value" th:text="${agent.osType}">Linux</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">호스트명</span>
+                            <span class="detail-value" th:text="${agent.hostname}">node-01</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">마지막 하트비트</span>
+                            <span class="detail-value"
+                                th:text="${#temporals.format(agent.lastHeartbeat, 'yyyy-MM-dd HH:mm:ss')}">-</span>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
+
+            <div th:if="${#lists.isEmpty(agents)}" class="empty-state">
+                <i class="fas fa-hdd empty-icon"></i>
+                <h3>등록된 에이전트가 없습니다.</h3>
+                <p style="color: var(--text-muted)">에이전트를 실행하여 자동으로 등록되도록 하세요.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
