@@ -1,41 +1,146 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>회원 수정 - MEGA</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; min-height: 100vh; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px 0;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        .header-content { max-width: 600px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 24px; font-weight: bold; }
-        .nav-links { display: flex; gap: 16px; }
-        .nav-link { color: white; text-decoration: none; padding: 8px 14px; border-radius: 5px; }
-        .nav-link:hover { background: rgba(255,255,255,0.2); }
-        .container { max-width: 600px; margin: 24px auto; padding: 0 20px; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 28px; }
-        .page-title { margin-bottom: 24px; font-size: 24px; color: #333; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; color: #333; font-weight: 500; }
-        .form-group input, .form-group select {
-            width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+
+        .header-content {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .form-group .error { color: #dc3545; font-size: 13px; margin-top: 4px; }
-        .actions { margin-top: 28px; display: flex; gap: 12px; }
-        .btn { padding: 12px 24px; border-radius: 8px; font-size: 14px; border: none; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn-primary { background: #667eea; color: white; }
-        .btn-primary:hover { background: #5568d3; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-secondary:hover { background: #5a6268; }
-        .readonly { background: #f5f5f5; color: #666; }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 16px;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 5px;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 24px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            padding: 28px;
+        }
+
+        .page-title {
+            margin-bottom: 24px;
+            font-size: 24px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group .error {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .actions {
+            margin-top: 28px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .readonly {
+            background: #f5f5f5;
+            color: #666;
+        }
     </style>
 </head>
+
 <body>
     <div class="header">
         <div class="header-content">
@@ -45,11 +150,12 @@
                 <a href="/dashboard" class="nav-link">대시보드</a>
                 <a href="/agents" class="nav-link">에이전트</a>
                 <a href="/members" class="nav-link" style="background: rgba(255,255,255,0.25);">회원관리</a>
-                <a href="/authority" class="nav-link" sec:authorize="hasRole('ADMIN')">권한관리</a>
+                <a href="/authority" class="nav-link" th:if="${isAdmin}">권한관리</a>
                 <span sec:authorize="isAuthenticated()">
                     <span sec:authentication="name"></span>
                     <form th:action="@{/logout}" method="post" style="display: inline;">
-                        <button type="submit" class="nav-link" style="background: none; border: none; cursor: pointer;">로그아웃</button>
+                        <button type="submit" class="nav-link"
+                            style="background: none; border: none; cursor: pointer;">로그아웃</button>
                     </form>
                 </span>
             </div>
@@ -99,4 +205,5 @@
         </div>
     </div>
 </body>
+
 </html>

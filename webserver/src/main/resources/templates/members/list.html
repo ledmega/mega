@@ -1,53 +1,215 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>회원 목록 - MEGA</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; min-height: 100vh; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px 0;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 24px; font-weight: bold; }
-        .nav-links { display: flex; gap: 16px; align-items: center; }
-        .nav-link { color: white; text-decoration: none; padding: 8px 14px; border-radius: 5px; }
-        .nav-link:hover { background: rgba(255,255,255,0.2); }
-        .container { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
-        .page-title { margin-bottom: 20px; font-size: 28px; color: #333; }
-        .search-form { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
-        .search-form input { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; width: 260px; }
-        .search-form button { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        .search-form button:hover { background: #5568d3; }
-        .alert { padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; }
-        .alert-success { background: #d4edda; color: #155724; }
-        .table-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #f8f9fa; font-weight: 600; color: #333; }
-        tr:hover { background: #f8f9fa; }
-        .status-active { color: #28a745; font-weight: 500; }
-        .status-inactive { color: #ffc107; }
-        .status-deleted { color: #dc3545; }
-        .role-admin { color: #764ba2; font-weight: 500; }
-        .role-user { color: #666; }
-        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
-        .pagination a, .pagination span {
-            padding: 8px 14px; border-radius: 6px; text-decoration: none; color: #333; background: #fff; border: 1px solid #ddd;
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .pagination a:hover { background: #667eea; color: white; border-color: #667eea; }
-        .pagination .current { background: #667eea; color: white; border-color: #667eea; }
-        .pagination .disabled { color: #999; cursor: not-allowed; }
-        .link-detail { color: #667eea; text-decoration: none; font-weight: 500; }
-        .link-detail:hover { text-decoration: underline; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 5px;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 24px auto;
+            padding: 0 20px;
+        }
+
+        .page-title {
+            margin-bottom: 20px;
+            font-size: 28px;
+            color: #333;
+        }
+
+        .search-form {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .search-form input {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 260px;
+        }
+
+        .search-form button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .search-form button:hover {
+            background: #5568d3;
+        }
+
+        .alert {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .table-wrap {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-active {
+            color: #28a745;
+            font-weight: 500;
+        }
+
+        .status-inactive {
+            color: #ffc107;
+        }
+
+        .status-deleted {
+            color: #dc3545;
+        }
+
+        .role-admin {
+            color: #764ba2;
+            font-weight: 500;
+        }
+
+        .role-user {
+            color: #666;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .pagination a,
+        .pagination span {
+            padding: 8px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #333;
+            background: #fff;
+            border: 1px solid #ddd;
+        }
+
+        .pagination a:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination .current {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination .disabled {
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .link-detail {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .link-detail:hover {
+            text-decoration: underline;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
     </style>
 </head>
+
 <body>
     <div class="header">
         <div class="header-content">
@@ -57,11 +219,12 @@
                 <a href="/dashboard" class="nav-link">대시보드</a>
                 <a href="/agents" class="nav-link">에이전트</a>
                 <a href="/members" class="nav-link" style="background: rgba(255,255,255,0.25);">회원관리</a>
-                <a href="/authority" class="nav-link" sec:authorize="hasRole('ADMIN')">권한관리</a>
+                <a href="/authority" class="nav-link" th:if="${isAdmin}">권한관리</a>
                 <span sec:authorize="isAuthenticated()">
                     <span sec:authentication="name"></span>
                     <form th:action="@{/logout}" method="post" style="display: inline;">
-                        <button type="submit" class="nav-link" style="background: none; border: none; cursor: pointer;">로그아웃</button>
+                        <button type="submit" class="nav-link"
+                            style="background: none; border: none; cursor: pointer;">로그아웃</button>
                     </form>
                 </span>
             </div>
@@ -91,16 +254,17 @@
                 <tbody>
                     <tr th:each="m : ${memberPage.content}" th:if="${!#lists.isEmpty(memberPage.content)}">
                         <td th:text="${m.id}"></td>
-                        <td><a th:href="@{/members/{id}(id=${m.id})}" class="link-detail" th:text="${m.email}">email</a></td>
+                        <td><a th:href="@{/members/{id}(id=${m.id})}" class="link-detail" th:text="${m.email}">email</a>
+                        </td>
                         <td th:text="${m.name}"></td>
                         <td th:text="${m.nickname} ?: '-'"></td>
                         <td>
                             <span th:class="${m.role.name() == 'ROLE_ADMIN' ? 'role-admin' : 'role-user'}"
-                                  th:text="${m.role.name() == 'ROLE_ADMIN' ? '관리자' : '일반'}"></span>
+                                th:text="${m.role.name() == 'ROLE_ADMIN' ? '관리자' : '일반'}"></span>
                         </td>
                         <td>
                             <span th:class="'status-' + ${m.status.name().toLowerCase()}"
-                                  th:text="${m.status.name() == 'ACTIVE' ? '활성' : (m.status.name() == 'INACTIVE' ? '비활성' : '탈퇴')}"></span>
+                                th:text="${m.status.name() == 'ACTIVE' ? '활성' : (m.status.name() == 'INACTIVE' ? '비활성' : '탈퇴')}"></span>
                         </td>
                         <td th:text="${#temporals.format(m.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
                         <td><a th:href="@{/members/{id}(id=${m.id})}" class="link-detail">상세</a></td>
@@ -110,13 +274,17 @@
             <div th:if="${#lists.isEmpty(memberPage.content)}" class="empty-state">등록된 회원이 없습니다.</div>
         </div>
         <div th:if="${memberPage.totalPages > 1}" class="pagination">
-            <a th:if="${memberPage.hasPrevious()}" th:href="@{/members(search=${search}, page=${memberPage.number - 1})}">이전</a>
+            <a th:if="${memberPage.hasPrevious()}"
+                th:href="@{/members(search=${search}, page=${memberPage.number - 1})}">이전</a>
             <span th:each="i : ${#numbers.sequence(0, memberPage.totalPages - 1)}">
-                <a th:if="${i != memberPage.number}" th:href="@{/members(search=${search}, page=${i})}" th:text="${i + 1}">1</a>
+                <a th:if="${i != memberPage.number}" th:href="@{/members(search=${search}, page=${i})}"
+                    th:text="${i + 1}">1</a>
                 <span th:if="${i == memberPage.number}" class="current" th:text="${i + 1}">1</span>
             </span>
-            <a th:if="${memberPage.hasNext()}" th:href="@{/members(search=${search}, page=${memberPage.number + 1})}">다음</a>
+            <a th:if="${memberPage.hasNext()}"
+                th:href="@{/members(search=${search}, page=${memberPage.number + 1})}">다음</a>
         </div>
     </div>
 </body>
+
 </html>
