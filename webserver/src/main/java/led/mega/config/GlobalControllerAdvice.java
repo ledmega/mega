@@ -12,15 +12,8 @@ public class GlobalControllerAdvice {
     @ModelAttribute("isAdmin")
     public Mono<Boolean> isAdmin(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) return Mono.just(false);
-        
-        // [OVERRIDE] ledmega@gmail.com 계정은 무조건 관리자 권한 부여
-        if ("ledmega@gmail.com".equalsIgnoreCase(auth.getName())) {
-            return Mono.just(true);
-        }
-
         boolean admin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN") 
-                            || a.getAuthority().equalsIgnoreCase("ADMIN"));
+                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN"));
         return Mono.just(admin);
     }
 

