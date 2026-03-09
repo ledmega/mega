@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서비스 관리 - MEGA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f8;
+            min-height: 100vh;
+        }
+
+        /* ── Header ─────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: background .2s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, .18);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-name {
+            font-weight: 600;
+        }
+
+        /* ── Container ───────────────────────────────────── */
+        .container {
+            max-width: 1400px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+
+        /* ── Page header ─────────────────────────────────── */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: #718096;
+            margin-top: 4px;
+        }
+
+        /* ── 등록 버튼 ───────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all .2s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, .4);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #cbd5e0;
+            color: #4a5568;
+        }
+
+        .btn-ghost:hover {
+            background: #edf2f7;
+        }
+
+        /* ── 통계 카드 ───────────────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, .07);
+        }
+
+        .stat-card h3 {
+            font-size: 13px;
+            color: #718096;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .stat-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .badge-green {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .badge-gray {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        /* ── 목록 패널 ───────────────────────────────────── */
+        .panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, .07);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 16px 24px;
+            border-bottom: 1px solid #f0f2f8;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar input,
+        .filter-bar select {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #2d3748;
+            background: #f7fafc;
+            outline: none;
+            transition: border .2s;
+        }
+
+        .filter-bar input:focus,
+        .filter-bar select:focus {
+            border-color: #667eea;
+            background: white;
+        }
+
+        .filter-bar input {
+            min-width: 220px;
+        }
+
+        /* ── Table ───────────────────────────────────────── */
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            background: #f7fafc;
+            color: #718096;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding: 12px 16px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e2e8f0;
+            transition: background .15s;
+        }
+
+        tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        tbody td {
+            padding: 14px 16px;
+            font-size: 14px;
+            color: #2d3748;
+            vertical-align: middle;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        /* badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .status-on {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-off {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 1px;
+        }
+
+        .tag-cpu {
+            background: #ebf4ff;
+            color: #2b6cb0;
+        }
+
+        .tag-mem {
+            background: #f0fff4;
+            color: #276749;
+        }
+
+        .tag-disk {
+            background: #fffaf0;
+            color: #744210;
+        }
+
+        .tag-log {
+            background: #fff5f5;
+            color: #742a2a;
+        }
+
+        .actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .interval-badge {
+            background: #e9d8fd;
+            color: #553c9a;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .path-cell {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #4a5568;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #a0aec0;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        /* ── Modal ───────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            width: 560px;
+            max-width: 95vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+            position: relative;
+        }
+
+        .modal h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 24px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+
+        .modal-close:hover {
+            color: #4a5568;
+        }
+
+        /* ── Form ────────────────────────────────────────── */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 6px;
+        }
+
+        .form-label .required {
+            color: #f56565;
+            margin-left: 2px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #2d3748;
+            background: #f7fafc;
+            outline: none;
+            transition: border .2s, background .2s;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, .15);
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 4px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* checkbox group */
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .checkbox-item:has(input:checked) {
+            border-color: #667eea;
+            background: #ebf4ff;
+        }
+
+        .checkbox-item label {
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 28px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+        }
+
+        /* 알림 toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #2d3748;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+            transform: translateY(60px);
+            opacity: 0;
+            transition: all .3s;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: #276749;
+        }
+
+        .toast.error {
+            background: #742a2a;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── 헤더 ───────────────────────────────────────────────────── -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">MEGA Dashboard</div>
+            <div class="nav-links">
+                <a th:each="menu : ${menus}" th:href="${menu.url}" class="nav-link" th:text="${menu.name}">Menu</a>
+                <div class="user-info" th:if="${isLoggedIn}">
+                    <span class="user-name" th:text="${username}">사용자</span>
+                    <form th:action="@{/logout}" method="post" style="display:inline;">
+                        <button type="submit" class="nav-link"
+                            style="background:none;border:none;cursor:pointer;">로그아웃</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 본문 ───────────────────────────────────────────────────── -->
+    <div class="container">
+
+        <!-- 페이지 헤더 -->
+        <div class="page-header">
+            <div>
+                <div class="page-title">⚙️ 서비스 관리</div>
+                <div class="page-subtitle">에이전트 별 모니터링 대상 서비스를 등록하고 수집 항목을 설정합니다.</div>
+            </div>
+            <button class="btn btn-primary" onclick="openCreateModal()">
+                ＋ 서비스 등록
+            </button>
+        </div>
+
+        <!-- 통계 카드 -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <h3>전체 설정</h3>
+                <div class="stat-value" id="statTotal">-</div>
+                <span class="stat-badge badge-gray" style="margin-top:4px;">서비스 수</span>
+            </div>
+            <div class="stat-card">
+                <h3>활성 설정</h3>
+                <div class="stat-value" id="statActive" style="color:#38a169;">-</div>
+                <span class="stat-badge badge-green">모니터링 중</span>
+            </div>
+            <div class="stat-card">
+                <h3>비활성 설정</h3>
+                <div class="stat-value" id="statInactive" style="color:#e53e3e;">-</div>
+                <span class="stat-badge badge-gray">일시 정지</span>
+            </div>
+        </div>
+
+        <!-- 목록 패널 -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">서비스 목록</div>
+            </div>
+            <div class="filter-bar">
+                <input type="text" id="searchInput" placeholder="🔍 서비스명 / 경로 검색..." oninput="filterTable()">
+                <select id="filterAgent" onchange="filterTable()">
+                    <option value="">모든 에이전트</option>
+                </select>
+                <select id="filterStatus" onchange="filterTable()">
+                    <option value="">전체 상태</option>
+                    <option value="true">활성</option>
+                    <option value="false">비활성</option>
+                </select>
+            </div>
+            <div class="table-wrap">
+                <table id="configTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>서비스명</th>
+                            <th>에이전트</th>
+                            <th>서비스 경로</th>
+                            <th>로그 경로</th>
+                            <th>수집 항목</th>
+                            <th>수집 주기</th>
+                            <th>상태</th>
+                            <th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="configTableBody">
+                        <tr>
+                            <td colspan="9" class="empty-state">
+                                <div class="icon">⏳</div>
+                                데이터를 불러오는 중...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 등록/수정 모달 ───────────────────────────────────────────── -->
+    <div class="modal-overlay" id="configModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <h2 id="modalTitle">✨ 서비스 등록</h2>
+
+            <form id="configForm" onsubmit="submitForm(event)">
+                <input type="hidden" id="editId">
+
+                <div class="form-group">
+                    <label class="form-label">에이전트 <span class="required">*</span></label>
+                    <select class="form-control" id="f_agentId" required>
+                        <option value="">에이전트를 선택하세요</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">서비스명 <span class="required">*</span></label>
+                    <input id="f_serviceName" class="form-control" type="text" placeholder="예: Nginx-Docker, Spring-App"
+                        required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">서비스 경로</label>
+                        <input id="f_servicePath" class="form-control" type="text"
+                            placeholder="/home/user/apps/mega-api">
+                        <div class="form-hint">서비스가 설치된 디렉토리 경로</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">로그 파일 경로</label>
+                        <input id="f_logPath" class="form-control" type="text" placeholder="/var/log/nginx/access.log">
+                        <div class="form-hint">모니터링할 로그 파일 절대 경로</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">수집 항목 <span class="required">*</span></label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="item_CPU" value="CPU" checked>
+                            <label for="item_CPU">CPU</label>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="item_MEMORY" value="MEMORY" checked>
+                            <label for="item_MEMORY">Memory</label>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="item_DISK" value="DISK" checked>
+                            <label for="item_DISK">Disk</label>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="item_LOG" value="LOG">
+                            <label for="item_LOG">Log Keyword</label>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group" id="logKeywordsGroup" style="display:none;">
+                    <label class="form-label">로그 감시 키워드</label>
+                    <input id="f_logKeywords" class="form-control" type="text" placeholder="Error,404,Exception,WARN">
+                    <div class="form-hint">쉼표(,)로 구분하여 입력. 해당 문자열이 로그에 포함되면 알림 발생</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">수집 주기 (초) <span class="required">*</span></label>
+                        <select id="f_intervalSeconds" class="form-control" required>
+                            <option value="5">5초</option>
+                            <option value="10">10초</option>
+                            <option value="30" selected>30초 (기본)</option>
+                            <option value="60">1분</option>
+                            <option value="300">5분</option>
+                            <option value="600">10분</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">활성화 여부</label>
+                        <select id="f_enabled" class="form-control">
+                            <option value="true" selected>활성</option>
+                            <option value="false">비활성</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">설명 / 비고</label>
+                    <input id="f_description" class="form-control" type="text" placeholder="서비스에 대한 간단한 메모를 입력하세요">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="closeModal()">취소</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">등록하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── 알림 Toast ─────────────────────────────────────────────── -->
+    <div class="toast" id="toast"></div>
+
+    <script th:inline="javascript">
+        let allConfigs = [];
+        let allAgents = [];
+        let agentMap = {};   // id → name
+
+        // ── 초기화 ──────────────────────────────────────────────────── //
+        window.addEventListener('load', () => {
+            loadAgents().then(() => loadConfigs());
+
+            // LOG 체크박스 연동
+            document.getElementById('item_LOG').addEventListener('change', function () {
+                document.getElementById('logKeywordsGroup').style.display = this.checked ? 'block' : 'none';
+            });
+        });
+
+        // ── 에이전트 목록 로드 ─────────────────────────────────────── //
+        async function loadAgents() {
+            const res = await fetch('/api/agents');
+            allAgents = await res.json();
+            agentMap = {};
+            allAgents.forEach(a => { agentMap[a.id] = a.name || a.agentId; });
+
+            // 필터 셀렉트
+            const filterSel = document.getElementById('filterAgent');
+            allAgents.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id;
+                opt.textContent = a.name || a.agentId;
+                filterSel.appendChild(opt);
+            });
+
+            // 모달 셀렉트
+            const modalSel = document.getElementById('f_agentId');
+            allAgents.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id;
+                opt.textContent = (a.name || a.agentId) + (a.hostname ? ` (${a.hostname})` : '');
+                modalSel.appendChild(opt);
+            });
+        }
+
+        // ── 설정 목록 로드 ─────────────────────────────────────────── //
+        async function loadConfigs() {
+            const res = await fetch('/api/configs');
+            allConfigs = await res.json();
+            renderStats(allConfigs);
+            renderTable(allConfigs);
+        }
+
+        // ── 통계 ──────────────────────────────────────────────────── //
+        function renderStats(data) {
+            document.getElementById('statTotal').textContent = data.length;
+            document.getElementById('statActive').textContent = data.filter(c => c.enabled).length;
+            document.getElementById('statInactive').textContent = data.filter(c => !c.enabled).length;
+        }
+
+        // ── 테이블 렌더링 ─────────────────────────────────────────── //
+        function renderTable(data) {
+            const tbody = document.getElementById('configTableBody');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="empty-state">
+                <div class="icon">📋</div>등록된 서비스가 없습니다.<br>
+                <button class="btn btn-primary" style="margin-top:16px;" onclick="openCreateModal()">첫 서비스 등록하기</button>
+            </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map((c, i) => {
+                const items = (c.collectItems || '').split(',').filter(Boolean);
+                const tags = items.map(it => `<span class="tag tag-${it.toLowerCase()}">${it}</span>`).join('');
+                return `
+            <tr data-id="${c.id}" data-agent="${c.agentId}" data-enabled="${c.enabled}"
+                data-search="${(c.serviceName || '').toLowerCase()} ${(c.servicePath || '').toLowerCase()}">
+                <td style="color:#a0aec0; font-size:12px;">${i + 1}</td>
+                <td>
+                    <div style="font-weight:700;">${c.serviceName}</div>
+                    ${c.description ? `<div style="font-size:12px;color:#a0aec0;">${c.description}</div>` : ''}
+                </td>
+                <td><span style="font-weight:600;color:#553c9a;">${c.agentName || agentMap[c.agentId] || '-'}</span></td>
+                <td><div class="path-cell" title="${c.servicePath || ''}">${c.servicePath || '<span style="color:#a0aec0">-</span>'}</div></td>
+                <td><div class="path-cell" title="${c.logPath || ''}">${c.logPath || '<span style="color:#a0aec0">-</span>'}</div></td>
+                <td>${tags}</td>
+                <td><span class="interval-badge">${c.intervalSeconds}s</span></td>
+                <td>
+                    <span class="status-badge ${c.enabled ? 'status-on' : 'status-off'}">
+                        ${c.enabled ? '● 활성' : '○ 비활성'}
+                    </span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <button class="btn btn-sm btn-ghost" onclick="openEditModal(${c.id})">수정</button>
+                        <button class="btn btn-sm ${c.enabled ? 'btn-warning' : 'btn-success'}"
+                                onclick="toggleEnabled(${c.id})">
+                            ${c.enabled ? '일시정지' : '활성화'}
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteConfig(${c.id})">삭제</button>
+                    </div>
+                </td>
+            </tr>`;
+            }).join('');
+        }
+
+        // ── 검색/필터 ─────────────────────────────────────────────── //
+        function filterTable() {
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const agentId = document.getElementById('filterAgent').value;
+            const status = document.getElementById('filterStatus').value;
+
+            const filtered = allConfigs.filter(c => {
+                const matchSearch = !keyword ||
+                    (c.serviceName || '').toLowerCase().includes(keyword) ||
+                    (c.servicePath || '').toLowerCase().includes(keyword);
+                const matchAgent = !agentId || String(c.agentId) === agentId;
+                const matchStatus = status === '' ? true : String(c.enabled) === status;
+                return matchSearch && matchAgent && matchStatus;
+            });
+            renderTable(filtered);
+        }
+
+        // ── 등록 모달 열기 ─────────────────────────────────────────── //
+        function openCreateModal() {
+            document.getElementById('modalTitle').textContent = '✨ 서비스 등록';
+            document.getElementById('submitBtn').textContent = '등록하기';
+            document.getElementById('editId').value = '';
+            document.getElementById('configForm').reset();
+            document.getElementById('logKeywordsGroup').style.display = 'none';
+            // 기본 체크박스 상태 복원
+            ['CPU', 'MEMORY', 'DISK'].forEach(k => document.getElementById('item_' + k).checked = true);
+            document.getElementById('item_LOG').checked = false;
+            openModal();
+        }
+
+        // ── 수정 모달 열기 ─────────────────────────────────────────── //
+        async function openEditModal(id) {
+            const res = await fetch(`/api/configs/${id}`);
+            const c = await res.json();
+
+            document.getElementById('modalTitle').textContent = '✏️ 서비스 수정';
+            document.getElementById('submitBtn').textContent = '저장하기';
+            document.getElementById('editId').value = c.id;
+
+            document.getElementById('f_agentId').value = c.agentId;
+            document.getElementById('f_serviceName').value = c.serviceName || '';
+            document.getElementById('f_servicePath').value = c.servicePath || '';
+            document.getElementById('f_logPath').value = c.logPath || '';
+            document.getElementById('f_logKeywords').value = c.logKeywords || '';
+            document.getElementById('f_intervalSeconds').value = c.intervalSeconds || 30;
+            document.getElementById('f_enabled').value = c.enabled ? 'true' : 'false';
+            document.getElementById('f_description').value = c.description || '';
+
+            // 수집 항목 체크박스 복원
+            const items = (c.collectItems || '').split(',').filter(Boolean);
+            ['CPU', 'MEMORY', 'DISK', 'LOG'].forEach(k => {
+                document.getElementById('item_' + k).checked = items.includes(k);
+            });
+            document.getElementById('logKeywordsGroup').style.display =
+                items.includes('LOG') ? 'block' : 'none';
+
+            openModal();
+        }
+
+        function openModal() { document.getElementById('configModal').classList.add('open'); }
+        function closeModal() { document.getElementById('configModal').classList.remove('open'); }
+
+        // ── 등록/수정 제출 ─────────────────────────────────────────── //
+        async function submitForm(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('editId').value;
+
+            // 수집 항목 CSV 생성
+            const items = ['CPU', 'MEMORY', 'DISK', 'LOG']
+                .filter(k => document.getElementById('item_' + k).checked);
+            if (items.length === 0) { showToast('수집 항목을 하나 이상 선택하세요.', 'error'); return; }
+
+            const payload = {
+                agentId: Number(document.getElementById('f_agentId').value),
+                serviceName: document.getElementById('f_serviceName').value,
+                servicePath: document.getElementById('f_servicePath').value,
+                logPath: document.getElementById('f_logPath').value,
+                collectItems: items.join(','),
+                logKeywords: document.getElementById('f_logKeywords').value,
+                intervalSeconds: Number(document.getElementById('f_intervalSeconds').value),
+                enabled: document.getElementById('f_enabled').value === 'true',
+                description: document.getElementById('f_description').value,
+            };
+
+            const url = id ? `/api/configs/${id}` : '/api/configs';
+            const method = id ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeModal();
+                showToast(id ? '서비스 설정이 수정되었습니다.' : '서비스가 등록되었습니다.', 'success');
+                loadConfigs();
+            } else {
+                showToast('저장 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // ── 활성화 토글 ────────────────────────────────────────────── //
+        async function toggleEnabled(id) {
+            const res = await fetch(`/api/configs/${id}/toggle`, { method: 'PATCH' });
+            if (res.ok) {
+                showToast('상태가 변경되었습니다.', 'success');
+                loadConfigs();
+            }
+        }
+
+        // ── 삭제 ─────────────────────────────────────────────────── //
+        async function deleteConfig(id) {
+            if (!confirm('이 서비스 설정을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.')) return;
+            const res = await fetch(`/api/configs/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('삭제되었습니다.', 'success');
+                loadConfigs();
+            }
+        }
+
+        // ── Toast 알림 ──────────────────────────────────────────── //
+        function showToast(msg, type = '') {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = `toast ${type} show`;
+            setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        // ── 모달 외부 클릭 시 닫기 ─────────────────────────────────── //
+        document.getElementById('configModal').addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
+        });
+    </script>
+</body>
+
+</html>
