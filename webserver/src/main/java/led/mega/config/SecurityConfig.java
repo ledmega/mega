@@ -70,7 +70,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())  // [DEBUG] CSRF 잠시 완전 비활성화
             .authorizeExchange(auth -> auth
                 .pathMatchers("/", "/public/**", "/css/**", "/js/**", "/images/**",
-                        "/favicon.ico", "/signup", "/login", "/dashboard", "/agents", "/error").permitAll()
+                        "/favicon.ico", "/signup", "/login", "/error").permitAll()
                 .pathMatchers("/api/agents/register").permitAll()
                 .pathMatchers("/api/**").authenticated()
                 .anyExchange().authenticated()
