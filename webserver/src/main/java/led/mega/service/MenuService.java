@@ -26,8 +26,8 @@ public class MenuService {
      */
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
-    public void initMenus() {
-        menuRepository.count()
+    public Mono<Void> initMenus() {
+        return menuRepository.count()
                 .filter(count -> count == 0)
                 .flatMapMany(count -> {
                     log.info("메뉴 테이블이 비어있습니다. 초기 메뉴 데이터를 생성합니다.");
@@ -41,8 +41,8 @@ public class MenuService {
                     
                     return menuRepository.saveAll(defaultMenus);
                 })
-                .doOnComplete(() -> log.info("초기 메뉴 데이터 생성 완료"))
-                .subscribe();
+                .then()
+                .doOnSuccess(v -> log.info("초기 메뉴 데이터 생성 완료"));
     }
 
     public Flux<Menu> getAllMenus() {
