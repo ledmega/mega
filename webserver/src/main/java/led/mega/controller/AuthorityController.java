@@ -58,8 +58,9 @@ public class AuthorityController {
     }
 
     private boolean isAdmin(Authentication auth) {
-        return auth != null && auth.getAuthorities() != null
-                && auth.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        if (auth == null) return false;
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN"));
     }
 
     private MemberRole parseRole(String value) {

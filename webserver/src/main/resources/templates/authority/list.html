@@ -306,7 +306,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr th:each="m : ${memberPage.content}" th:if="${!#lists.isEmpty(memberPage.content)}">
+                    <tr th:each="m : ${memberPage}" th:if="${memberPage != null}">
                         <td th:text="${m.id}"></td>
                         <td><a th:href="@{/members/{id}(id=${m.id})}" class="link-detail" th:text="${m.email}">email</a>
                         </td>
@@ -332,21 +332,11 @@
                     </tr>
                 </tbody>
             </table>
-            <div th:if="${#lists.isEmpty(memberPage.content)}" class="empty-state">해당 역할의 회원이 없습니다.</div>
+            <div th:if="${memberPage == null}" class="empty-state">해당 역할의 회원이 없습니다.</div>
         </div>
         <div th:if="${memberPage == null}" class="empty-state">위에서 역할을 선택하면 해당 회원 목록이 표시됩니다.</div>
 
-        <div th:if="${memberPage != null && memberPage.totalPages > 1}" class="pagination">
-            <a th:if="${memberPage.hasPrevious()}"
-                th:href="@{/authority(roleFilter=${roleFilter}, page=${memberPage.number - 1})}">이전</a>
-            <span th:each="i : ${#numbers.sequence(0, memberPage.totalPages - 1)}">
-                <a th:if="${i != memberPage.number}" th:href="@{/authority(roleFilter=${roleFilter}, page=${i})}"
-                    th:text="${i + 1}">1</a>
-                <span th:if="${i == memberPage.number}" class="current" th:text="${i + 1}">1</span>
-            </span>
-            <a th:if="${memberPage.hasNext()}"
-                th:href="@{/authority(roleFilter=${roleFilter}, page=${memberPage.number + 1})}">다음</a>
-        </div>
+        <!-- Pagination removed in reactive adaptation -->
     </div>
 </body>
 

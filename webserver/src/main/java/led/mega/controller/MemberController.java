@@ -75,12 +75,12 @@ public class MemberController {
     // [CHANGED] Page → Flux (Thymeleaf-WebFlux가 Flux를 자동 subscribe)
     // [REMOVED] Pageable 파라미터
     @GetMapping("/members")
-    public String list(@RequestParam(required = false) String search,
-                       Model model, Authentication auth) {
-        if (!isAdmin(auth)) return "redirect:/dashboard";
+    public Mono<String> list(@RequestParam(required = false) String search,
+                             Model model, Authentication auth) {
+        if (!isAdmin(auth)) return Mono.just("redirect:/dashboard");
         model.addAttribute("memberPage", memberService.getMemberPage(search)); // Flux
         model.addAttribute("search", search);
-        return "members/list";
+        return Mono.just("members/list");
     }
 
     // [CHANGED] canAccessMember(Mono) → Mono<String> 반환
