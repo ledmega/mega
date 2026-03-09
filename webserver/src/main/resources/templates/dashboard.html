@@ -373,21 +373,10 @@
                     <div class="panel-title">최근 메트릭 (실시간 차트 & 목록)</div>
                 </div>
 
-                <!-- [NEW] 실시간 차트 영역 (CPU, RAM, DISK) -->
-                <div class="chart-container"
+                <!-- [NEW] 동적 실시간 차트 영역 (수집되는 모든 메트릭 자동 생성) -->
+                <div class="chart-container" id="dynamicChartContainer"
                     style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; border-bottom: none; height: auto;">
-                    <div style="height: 180px;"><canvas id="cpuChart"></canvas>
-                        <div style="text-align:center; font-size:12px; color:#666; font-weight:bold; margin-top:5px;">
-                            CPU (%)</div>
-                    </div>
-                    <div style="height: 180px;"><canvas id="memChart"></canvas>
-                        <div style="text-align:center; font-size:12px; color:#666; font-weight:bold; margin-top:5px;">
-                            Memory (%)</div>
-                    </div>
-                    <div style="height: 180px;"><canvas id="diskChart"></canvas>
-                        <div style="text-align:center; font-size:12px; color:#666; font-weight:bold; margin-top:5px;">
-                            Disk (Root, %)</div>
-                    </div>
+                    <!-- JS에서 수집 항목(metricName)이 추가될 때마다 canvas를 자동 생성합니다 -->
                 </div>
                 <!-- 하단 경계선 -->
                 <div style="border-bottom: 1px solid #f0f0f0; margin-bottom: 20px;"></div>
@@ -433,15 +422,18 @@
         let exceptions = [];
         let agents = [];
 
-        // [NEW] Chart.js 전역 변수
-        let cpuChart = null;
-        let memChart = null;
-        let diskChart = null;
+        // [NEW] Chart.js 전역 변수: 수집되는 메트릭 이름(metricName)을 키값으로 하여 차트를 동적 관리
+        let chartsMap = {};
 
-        // [NEW] 공통 차트 생성 함수
-        function createLineChart(canvasId, color) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            return new Chart(ctx, {
+        function getChartColor(idx) {
+            // 다양한 메트릭을 그리기 위한 컬러 팔레트
+            const colors = ['#667eea', '#48bb78', '#ed8936', '#f56565', '#4fd1c5', '#9f7aea', '#ecc94b', '#f687b3', '#4299e1', '#a0aec0'];
+            return colors[idx % colors.length];
+        }
+
+        // [NEW] 동적 공통 차트 생성 함수 (단위에 따른 Y축 스케일 조정)
+        function createDynamicLineChart(canvasCtx, color, unit) {
+            return new Chart(canvasCtx, {
                 type: 'line',
                 data: {
                     labels: [],
@@ -463,7 +455,7 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            max: 100, // % 기준
+                            max: unit === '%' ? 100 : undefined, // 퍼센트일 때만 100 고정
                             grid: { color: '#f0f0f0' },
                             ticks: { font: { size: 10 } }
                         },
@@ -479,44 +471,59 @@
             });
         }
 
-        // [NEW] 차트 초기화 함수
-        function initChart() {
-            cpuChart = createLineChart('cpuChart', '#667eea'); // 보라/파랑
-            memChart = createLineChart('memChart', '#48bb78'); // 초록
-            diskChart = createLineChart('diskChart', '#ed8936'); // 주황
-        }
-
-        // [NEW] 단일 차트 데이터 업데이트 스크립트
-        function updateSingleChart(chartObj, metricType, metricNameFilter = null) {
-            if (!chartObj) return;
-
-            let filtered = [...metrics].filter(m => m.metricType === metricType);
-            if (metricNameFilter) {
-                filtered = filtered.filter(m => m.metricName.includes(metricNameFilter));
-            }
-            // 최신 1개가 없으면 무시
-            if (filtered.length === 0) return;
-
-            // 최신이 앞이므로 뒤집기
-            filtered.reverse();
-
-            // 너무 많으면 자르기 (그래프당 최대 20포인트 정도)
-            const displayData = filtered.slice(-20);
-
-            chartObj.data.labels = displayData.map(m => {
-                const d = new Date(m.collectedAt);
-                return d.getMinutes().toString().padStart(2, '0') + ':' + d.getSeconds().toString().padStart(2, '0');
-            });
-            chartObj.data.datasets[0].data = displayData.map(m => m.metricValue ?? 0);
-            chartObj.update();
-        }
-
-        // [NEW] 차트 데이터 업데이트 렌더링 함수
+        // [NEW] 수집된 모든 메트릭(metricName 기준)에 대해 차트를 동적 갱신/생성
         function updateChartDisplay() {
-            updateSingleChart(cpuChart, 'CPU');
-            updateSingleChart(memChart, 'MEMORY', 'memory_usage_percent');
-            // root(/) 마운트 디스크는 disk_usage__ 형태로 저장됨 (디렉토리 / 가 _ 로 치환됨)
-            updateSingleChart(diskChart, 'DISK', 'disk_usage__');
+            // 현재 수집된 고유 메트릭 이름 목록 추출
+            const metricNames = [...new Set(metrics.map(m => m.metricName))];
+            const container = document.getElementById('dynamicChartContainer');
+
+            metricNames.forEach((mName, idx) => {
+                // 한 번도 그려진 적 없는 신규 메트릭이면 차트 뼈대(Canvas) 동적 삽입
+                if (!chartsMap[mName]) {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.height = '180px';
+                    wrapper.style.position = 'relative';
+
+                    const canvas = document.createElement('canvas');
+                    wrapper.appendChild(canvas);
+
+                    const titleDiv = document.createElement('div');
+                    titleDiv.style.textAlign = 'center';
+                    titleDiv.style.fontSize = '12px';
+                    titleDiv.style.color = '#666';
+                    titleDiv.style.fontWeight = 'bold';
+                    titleDiv.style.marginTop = '5px';
+
+                    // 메트릭의 단위(%, MB 등) 찾기
+                    const sample = metrics.find(m => m.metricName === mName);
+                    const unitLabel = sample && sample.unit ? ` (${sample.unit})` : '';
+                    titleDiv.textContent = mName + unitLabel;
+
+                    wrapper.appendChild(titleDiv);
+                    container.appendChild(wrapper);
+
+                    const color = getChartColor(idx);
+                    chartsMap[mName] = createDynamicLineChart(canvas.getContext('2d'), color, sample ? sample.unit : '');
+                }
+
+                // 기존 메트릭 데이터 업데이트
+                const chartObj = chartsMap[mName];
+                let filtered = [...metrics].filter(m => m.metricName === mName);
+                if (filtered.length === 0) return;
+
+                // 최신 데이터가 인덱스 0이므로 시간순(왼->오른쪽)으로 그리기 위해 배열 뒤집기
+                filtered.reverse();
+
+                // 그래프당 최대 최근 20개 포인트만 표시
+                const displayData = filtered.slice(-20);
+
+                chartObj.data.labels = displayData.map(m => {
+                    const d = new Date(m.collectedAt);
+                    return d.getMinutes().toString().padStart(2, '0') + ':' + d.getSeconds().toString().padStart(2, '0');
+                });
+                chartObj.data.datasets[0].data = displayData.map(m => m.metricValue ?? 0);
+                chartObj.update();
+            });
         }
 
         function connect() {
@@ -602,11 +609,11 @@
         function handleMetricUpdate(data) {
             if (data.data) {
                 metrics.unshift(data.data);
-                // [CHANGED] 차트의 풍부한 데이터를 위해 보관 개수를 10 -> 30개로 늘림
-                if (metrics.length > 30) metrics.pop();
+                // [CHANGED] 매우 다양한 항목이 한꺼번에 수집되므로 이들을 모두 차트로 보관하려면 넉넉한 공간 필요 (최대 500개 유지)
+                if (metrics.length > 500) metrics.pop();
                 updateMetricsDisplay();
                 updateTodayMetrics();
-                updateChartDisplay(); // [NEW] 실시간 차트 갱신
+                updateChartDisplay(); // [NEW] 실시간 항목별 동적 차트 갱신
             }
         }
 
@@ -742,9 +749,8 @@
 
         // 페이지 로드 시 연결
         window.addEventListener('load', function () {
-            initChart();            // [NEW] 차트 컴포넌트 먼저 초기화
             loadAgents();           // 에이전트 목록 로드
-            loadRecentMetrics();    // 최근 메트릭 로드
+            loadRecentMetrics();    // 최근 메트릭 로드 (여기서 차트 자동 생성)
             loadRecentExceptions(); // 최근 Exception 로그 로드
             connect();              // 실시간 연결 시도
         });
