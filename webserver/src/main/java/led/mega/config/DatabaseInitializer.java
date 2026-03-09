@@ -42,7 +42,7 @@ public class DatabaseInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        log.info("=== 데이터베이스 초기화 데몬 시작 ===");
+        log.info("=== 데이터베이스 초기화 데모 시작 ===");
         
         try {
             // 1. 데이터베이스 존재 여부 확인 및 생성
@@ -51,7 +51,10 @@ public class DatabaseInitializer implements ApplicationRunner {
             // 2. 테이블 존재 여부 확인 및 생성
             initializeTables();
             
-            log.info("=== 데이터베이스 초기화 데몬 완료 ===");
+            // 3. 기본 메뉴 데이터 초기화 (없으면 INSERT)
+            initializeDefaultMenus();
+            
+            log.info("=== 데이터베이스 초기화 데모 완료 ===");
         } catch (Exception e) {
             log.error("데이터베이스 초기화 실패: {}", e.getMessage(), e);
             throw e;
@@ -92,6 +95,51 @@ public class DatabaseInitializer implements ApplicationRunner {
         } catch (Exception e) {
             log.error("✗ 데이터베이스 초기화 중 오류 발생: {}", e.getMessage(), e);
             log.warn("데이터베이스 생성에 실패했습니다. 이미 존재하거나 권한이 필요할 수 있습니다. 계속 진행합니다...");
+        }
+    }
+
+    /**
+     * 기본 네비게이션 메뉴 데이터 시딩
+     * menu 테이블이 비어 있으면 기본 메뉴를 자동 INSERT
+     */
+    private void initializeDefaultMenus() {
+        log.info("기본 메뉴 데이터 확인 중...");
+        String dbUrl = datasourceUrl.split("\\?")[0];
+
+        try (Connection conn = DriverManager.getConnection(dbUrl, username, password);
+             Statement stmt = conn.createStatement()) {
+
+            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM menu");
+            rs.next();
+            int menuCount = rs.getInt("cnt");
+
+            if (menuCount == 0) {
+                log.info("메뉴가 없습니다. 기본 메뉴를 생성합니다...");
+                String[] inserts = {
+                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('대시보드', '/dashboard', 'chart-bar', 1, NULL, TRUE)",
+                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('에이전트', '/agents', 'server', 2, NULL, TRUE)",
+                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('서비스 관리', '/services', 'cog', 3, NULL, TRUE)",
+                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('회원 관리', '/members', 'users', 4, 'ROLE_ADMIN', TRUE)",
+                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('메뉴 관리', '/menu', 'list', 5, 'ROLE_ADMIN', TRUE)"
+                };
+                for (String sql : inserts) {
+                    stmt.executeUpdate(sql);
+                }
+                log.info("✓ 기본 메뉴 {}개 생성 완료!", inserts.length);
+            } else {
+                // 서비스 관리 메뉴가 없으면 추가
+                ResultSet rs2 = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM menu WHERE url = '/services'");
+                rs2.next();
+                if (rs2.getInt("cnt") == 0) {
+                    stmt.executeUpdate("INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('서비스 관리', '/services', 'cog', 3, NULL, TRUE)");
+                    log.info("✓ '서비스 관리' 메뉴 생성 완료!");
+                } else {
+                    log.info("✓ 메뉴 데이터가 이미 존재합니다.");
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("✗ 기본 메뉴 초기화 중 오류: {}", e.getMessage(), e);
         }
     }
 
