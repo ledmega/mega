@@ -267,6 +267,66 @@
             color: #666;
         }
 
+        /* 비로그인 사용자용 안내 배너 */
+        .anon-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .anon-banner-text {
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .anon-banner-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .anon-banner-actions {
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .anon-btn {
+            display: inline-block;
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+        }
+
+        .anon-btn-primary {
+            background: #ffffff;
+            color: #4a4ae6;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .anon-btn-secondary {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .anon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 18px rgba(0, 0, 0, 0.25);
+        }
+
         .exception-time {
             font-size: 12px;
             color: #999;
@@ -321,6 +381,17 @@
     </div>
 
     <div class="container">
+        <!-- 비로그인 접속 시 안내 배너 -->
+        <div class="anon-banner" sec:authorize="isAnonymous()">
+            <div class="anon-banner-text">
+                <div class="anon-banner-title">로그인 없이 데모 대시보드를 보고 있습니다.</div>
+                <div>실제 에이전트 등록, 사용자 관리 등 모든 기능을 사용하려면 로그인하거나 회원가입해 주세요.</div>
+            </div>
+            <div class="anon-banner-actions">
+                <a href="/login" class="anon-btn anon-btn-primary">로그인하기</a>
+                <a href="/signup" class="anon-btn anon-btn-secondary">회원가입</a>
+            </div>
+        </div>
         <!-- 통계 카드 -->
         <div class="stats-grid">
             <div class="stat-card">
