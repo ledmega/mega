@@ -3,6 +3,7 @@ package led.mega.service;
 import led.mega.dto.MonitoringConfigDto;
 import led.mega.entity.MonitoringConfig;
 import led.mega.repository.AgentRepository;
+import led.mega.repository.ExceptionLogRepository;
 import led.mega.repository.MonitoringConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ public class MonitoringConfigService {
 
     private final MonitoringConfigRepository configRepository;
     private final AgentRepository agentRepository;
+    private final ExceptionLogRepository exceptionLogRepository;
 
     /** 전체 설정 목록 + 에이전트 이름 채움 */
     public Flux<MonitoringConfigDto> getAll() {
@@ -94,7 +96,10 @@ public class MonitoringConfigService {
     // Private helper
     // ------------------------------------------------------------------
     private Mono<MonitoringConfigDto> toDto(MonitoringConfig entity) {
-        return agentRepository.findById(entity.getAgentId())
+        // 최근 24시간 예외 건수
+        java.time.LocalDateTime since = java.time.LocalDateTime.now().minusDays(1);
+
+        Mono<MonitoringConfigDto> baseDto = agentRepository.findById(entity.getAgentId())
                 .map(agent -> MonitoringConfigDto.builder()
                         .id(entity.getId())
                         .agentId(entity.getAgentId())
@@ -125,5 +130,16 @@ public class MonitoringConfigService {
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build());
+
+        Mono<Long> recentCount = exceptionLogRepository
+                .countByTaskIdSince(entity.getId(), since)
+                .defaultIfEmpty(0L);
+
+        return baseDto.zipWith(recentCount)
+                .map(tuple -> {
+                    MonitoringConfigDto dto = tuple.getT1();
+                    dto.setRecentExceptionCount(tuple.getT2());
+                    return dto;
+                });
     }
 }

@@ -24,6 +24,9 @@ public class MonitoringConfigDto {
     private Boolean enabled;
     private String description;
 
+    // 최근 24시간 기준 서비스 예외 건수 (서비스 목록 화면용)
+    private Long   recentExceptionCount;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

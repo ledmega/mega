@@ -641,6 +641,7 @@
                             <th>서비스 경로</th>
                             <th>로그 경로</th>
                             <th>수집 항목</th>
+                            <th>최근 24h 예외</th>
                             <th>수집 주기</th>
                             <th>상태</th>
                             <th>관리</th>
@@ -648,7 +649,7 @@
                     </thead>
                     <tbody id="configTableBody">
                         <tr>
-                            <td colspan="9" class="empty-state">
+                            <td colspan="10" class="empty-state">
                                 <div class="icon">⏳</div>
                                 데이터를 불러오는 중...
                             </td>
@@ -830,6 +831,7 @@
             tbody.innerHTML = data.map((c, i) => {
                 const items = (c.collectItems || '').split(',').filter(Boolean);
                 const tags = items.map(it => `<span class="tag tag-${it.toLowerCase()}">${it}</span>`).join('');
+                const exCount = (c.recentExceptionCount != null ? c.recentExceptionCount : 0);
                 return `
             <tr data-id="${c.id}" data-agent="${c.agentId}" data-enabled="${c.enabled}"
                 data-search="${(c.serviceName || '').toLowerCase()} ${(c.servicePath || '').toLowerCase()}">
@@ -842,6 +844,11 @@
                 <td><div class="path-cell" title="${c.servicePath || ''}">${c.servicePath || '<span style="color:#a0aec0">-</span>'}</div></td>
                 <td><div class="path-cell" title="${c.logPath || ''}">${c.logPath || '<span style="color:#a0aec0">-</span>'}</div></td>
                 <td>${tags}</td>
+                <td>
+                    ${exCount > 0
+                        ? `<span class="status-badge status-on">${exCount}건</span>`
+                        : `<span class="status-badge status-off">0건</span>`}
+                </td>
                 <td><span class="interval-badge">${c.intervalSeconds}s</span></td>
                 <td>
                     <span class="status-badge ${c.enabled ? 'status-on' : 'status-off'}">
