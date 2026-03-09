@@ -300,15 +300,15 @@
                 <a href="/" class="nav-link">홈</a>
                 <a href="/dashboard" class="nav-link active">대시보드</a>
                 <a href="/agents" class="nav-link">에이전트</a>
-                <a href="/members/me" class="nav-link" sec:authorize="isAuthenticated()">내 정보</a>
+                <a href="/members/me" class="nav-link" th:if="${isLoggedIn}">내 정보</a>
                 <a href="/members" class="nav-link" th:if="${isAdmin}">사용자 관리</a>
                 <a href="/authority" class="nav-link" th:if="${isAdmin}">권한관리</a>
-                <div class="user-info" sec:authorize="isAuthenticated()">
+                <div class="user-info" th:if="${isLoggedIn}">
                     <div class="ws-status">
                         <div class="ws-indicator" id="wsIndicator"></div>
                         <span id="wsStatus">연결 중...</span>
                     </div>
-                    <span class="user-name" sec:authentication="name">사용자</span>
+                    <span class="user-name" th:text="${username}">사용자</span>
                     <form th:action="@{/logout}" method="post" style="display: inline;">
                         <button type="submit" class="nav-link"
                             style="background: none; border: none; cursor: pointer;">로그아웃</button>

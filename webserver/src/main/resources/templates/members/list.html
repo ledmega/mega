@@ -220,8 +220,8 @@
                 <a href="/agents" class="nav-link">에이전트</a>
                 <a href="/members" class="nav-link" style="background: rgba(255,255,255,0.25);">회원관리</a>
                 <a href="/authority" class="nav-link" th:if="${isAdmin}">권한관리</a>
-                <span sec:authorize="isAuthenticated()">
-                    <span sec:authentication="name"></span>
+                <span th:if="${isLoggedIn}">
+                    <span th:text="${username}"></span>
                     <form th:action="@{/logout}" method="post" style="display: inline;">
                         <button type="submit" class="nav-link"
                             style="background: none; border: none; cursor: pointer;">로그아웃</button>

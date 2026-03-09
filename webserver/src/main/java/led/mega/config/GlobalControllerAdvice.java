@@ -10,16 +10,20 @@ import reactor.core.publisher.Mono;
 public class GlobalControllerAdvice {
 
     @ModelAttribute("isAdmin")
-    public Mono<Boolean> isAdmin(Mono<Authentication> authMono) {
-        return authMono
-                .map(auth -> auth.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN")))
-                .defaultIfEmpty(false);
+    public Mono<Boolean> isAdmin(Authentication auth) {
+        if (auth == null || !auth.isAuthenticated()) return Mono.just(false);
+        return Mono.just(auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
     }
 
     @ModelAttribute("isLoggedIn")
-    public Mono<Boolean> isLoggedIn(Mono<Authentication> authMono) {
-        return authMono
-                .map(Authentication::isAuthenticated)
-                .defaultIfEmpty(false);
+    public Mono<Boolean> isLoggedIn(Authentication auth) {
+        return Mono.just(auth != null && auth.isAuthenticated());
+    }
+
+    @ModelAttribute("username")
+    public Mono<String> username(Authentication auth) {
+        if (auth == null || !auth.isAuthenticated()) return Mono.just("");
+        return Mono.just(auth.getName());
     }
 }

@@ -11,8 +11,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class HomeController {
 
     @GetMapping("/")
-    public String home() {
-        return "index";
+    public Mono<String> home(Authentication auth) {
+        if (auth != null && auth.isAuthenticated()) {
+            return Mono.just("redirect:/dashboard");
+        }
+        return Mono.just("index");
     }
 
     @GetMapping("/login")
