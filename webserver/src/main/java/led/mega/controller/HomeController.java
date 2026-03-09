@@ -4,8 +4,10 @@ package led.mega.controller;
 // - WebFlux에서 String 반환도 동작하지만, Mono<String>으로 통일하면 명시적으로 비동기임을 표현
 // - DB 조회 없는 단순 뷰 반환은 String 그대로도 무방
 
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import reactor.core.publisher.Mono;
 
 @Controller
 public class HomeController {
