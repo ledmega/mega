@@ -66,15 +66,7 @@ public class SecurityConfig {
         logoutSuccessHandler.setLogoutSuccessUrl(URI.create("/"));
 
         return http
-            // [CHANGED] .csrf().ignoringRequestMatchers("/api/**")
-            //         → .csrf().requireCsrfProtectionMatcher(NegatedMatcher("/api/**"))
-            .csrf(csrf -> csrf
-                .requireCsrfProtectionMatcher(new NegatedServerWebExchangeMatcher(
-                    ServerWebExchangeMatchers.pathMatchers("/api/**")))
-            )
-            // [CHANGED] authorizeHttpRequests → authorizeExchange
-            //           .requestMatchers → .pathMatchers
-            //           .anyRequest → .anyExchange
+            .csrf(csrf -> csrf.disable())  // [DEBUG] CSRF 잠시 완전 비활성화
             .authorizeExchange(auth -> auth
                 .anyExchange().permitAll()
             )
