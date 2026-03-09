@@ -20,6 +20,8 @@ import led.mega.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
@@ -28,13 +30,10 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationFailureHandler;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.authentication.logout.RedirectServerLogoutSuccessHandler;
-import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher;
-import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
-import org.springframework.security.web.server.authentication.RedirectServerAuthenticationEntryPoint;
-import org.springframework.http.HttpStatus;
 import java.net.URI;
 
 @Configuration
@@ -67,10 +66,17 @@ public class SecurityConfig {
         logoutSuccessHandler.setLogoutSuccessUrl(URI.create("/"));
 
         return http
-            .csrf(csrf -> csrf.disable())  // [DEBUG] CSRF 잠시 완전 비활성화
+            .csrf(csrf -> csrf.disable())  // 개발/포트폴리오 용도로 CSRF 비활성화
             .authorizeExchange(auth -> auth
+                // 정적 리소스 및 공개 페이지
                 .pathMatchers("/", "/public/**", "/css/**", "/js/**", "/images/**",
-                        "/favicon.ico", "/signup", "/login", "/error").permitAll()
+                        "/favicon.ico", "/signup", "/login", "/error", "/dashboard").permitAll()
+                // 포트폴리오용 대시보드 조회 API(SSE/최근 메트릭/최근 예외/에이전트 목록)는 읽기 전용으로 공개
+                .pathMatchers(HttpMethod.GET,
+                        "/api/sse/events",
+                        "/api/metrics/recent",
+                        "/api/exceptions/recent",
+                        "/api/agents").permitAll()
                 .pathMatchers("/api/agents/register").permitAll()
                 .pathMatchers("/api/**").authenticated()
                 .anyExchange().authenticated()
