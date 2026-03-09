@@ -1,9 +1,11 @@
 package led.mega.service;
 
 import led.mega.dto.MonitoringConfigDto;
+import led.mega.entity.MetricData;
 import led.mega.entity.MonitoringConfig;
 import led.mega.repository.AgentRepository;
 import led.mega.repository.ExceptionLogRepository;
+import led.mega.repository.MetricDataRepository;
 import led.mega.repository.MonitoringConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,7 @@ public class MonitoringConfigService {
     private final MonitoringConfigRepository configRepository;
     private final AgentRepository agentRepository;
     private final ExceptionLogRepository exceptionLogRepository;
+    private final MetricDataRepository metricDataRepository;
 
     /** 전체 설정 목록 + 에이전트 이름 채움 */
     public Flux<MonitoringConfigDto> getAll() {
@@ -132,13 +135,23 @@ public class MonitoringConfigService {
                         .build());
 
         Mono<Long> recentCount = exceptionLogRepository
-                .countByTaskIdSince(entity.getId(), since)
+                .countByMonitoringConfigIdSince(entity.getId(), since)
                 .defaultIfEmpty(0L);
 
-        return baseDto.zipWith(recentCount)
+        Mono<MetricData> cpuMetric = metricDataRepository
+                .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "CPU").next().defaultIfEmpty(null);
+        Mono<MetricData> memMetric = metricDataRepository
+                .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "MEMORY").next().defaultIfEmpty(null);
+        Mono<MetricData> diskMetric = metricDataRepository
+                .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "DISK").next().defaultIfEmpty(null);
+
+        return Mono.zip(baseDto, recentCount, cpuMetric, memMetric, diskMetric)
                 .map(tuple -> {
                     MonitoringConfigDto dto = tuple.getT1();
                     dto.setRecentExceptionCount(tuple.getT2());
+                    dto.setRecentCpu(tuple.getT3() != null ? tuple.getT3().getMetricValue() : null);
+                    dto.setRecentMemory(tuple.getT4() != null ? tuple.getT4().getMetricValue() : null);
+                    dto.setRecentDisk(tuple.getT5() != null ? tuple.getT5().getMetricValue() : null);
                     return dto;
                 });
     }

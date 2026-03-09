@@ -26,6 +26,10 @@ public class MonitoringConfigDto {
 
     // 최근 24시간 기준 서비스 예외 건수 (서비스 목록 화면용)
     private Long   recentExceptionCount;
+    // 서비스별 최근 메트릭 (목록/상세 표시용)
+    private java.math.BigDecimal recentCpu;     // %
+    private java.math.BigDecimal recentMemory; // MB 또는 %
+    private java.math.BigDecimal recentDisk;   // % 또는 GB
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

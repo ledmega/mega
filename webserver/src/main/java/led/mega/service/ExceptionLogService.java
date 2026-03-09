@@ -35,9 +35,13 @@ public class ExceptionLogService {
         return agentRepository.findById(agentId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
                 .flatMap(agent -> {
+                    // 서비스별 예외는 monitoring_config_id에 저장, task_id는 FK 위반 방지로 null
+                    Long configId = requestDto.getMonitoringConfigId() != null
+                            ? requestDto.getMonitoringConfigId() : requestDto.getTaskId();
                     ExceptionLog exceptionLog = ExceptionLog.builder()
-                            .agentId(agentId)                          // [CHANGED] .agent(agent) → .agentId
-                            .taskId(requestDto.getTaskId())            // [CHANGED] .task(task)   → .taskId
+                            .agentId(agentId)
+                            .taskId(null)
+                            .monitoringConfigId(configId)
                             .logFilePath(requestDto.getLogFilePath())
                             .exceptionType(requestDto.getExceptionType())
                             .exceptionMessage(requestDto.getExceptionMessage())

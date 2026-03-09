@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS metric_data (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '메트릭 ID',
     agent_id BIGINT NOT NULL COMMENT '에이전트 ID',
     task_id BIGINT COMMENT '작업 ID',
+    monitoring_config_id BIGINT COMMENT '서비스 모니터링 설정 ID (서비스별 메트릭 시 사용)',
     metric_type VARCHAR(50) NOT NULL COMMENT '메트릭 타입 (CPU, MEMORY, DISK, NETWORK)',
     metric_name VARCHAR(100) COMMENT '메트릭 이름',
     metric_value DECIMAL(20, 4) COMMENT '메트릭 값',
@@ -76,7 +77,8 @@ CREATE TABLE IF NOT EXISTS metric_data (
     INDEX idx_agent_collected (agent_id, collected_at),
     INDEX idx_metric_type (metric_type),
     INDEX idx_collected_at (collected_at),
-    INDEX idx_task_id (task_id)
+    INDEX idx_task_id (task_id),
+    INDEX idx_monitoring_config_id (monitoring_config_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='통계 데이터 테이블';
 
 -- Exception 로그 테이블 생성
@@ -84,6 +86,7 @@ CREATE TABLE IF NOT EXISTS exception_log (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Exception 로그 ID',
     agent_id BIGINT NOT NULL COMMENT '에이전트 ID',
     task_id BIGINT COMMENT '작업 ID',
+    monitoring_config_id BIGINT COMMENT '서비스 모니터링 설정 ID (서비스별 예외 시 사용)',
     log_file_path VARCHAR(500) COMMENT '로그 파일 경로',
     exception_type VARCHAR(200) COMMENT 'Exception 타입',
     exception_message TEXT COMMENT 'Exception 메시지',
@@ -97,7 +100,8 @@ CREATE TABLE IF NOT EXISTS exception_log (
     INDEX idx_agent_occurred (agent_id, occurred_at),
     INDEX idx_exception_type (exception_type),
     INDEX idx_occurred_at (occurred_at),
-    INDEX idx_task_id (task_id)
+    INDEX idx_task_id (task_id),
+    INDEX idx_monitoring_config_id (monitoring_config_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Exception 로그 테이블';
 
 -- 에이전트 하트비트 테이블 생성

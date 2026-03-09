@@ -40,5 +40,9 @@ public interface MetricDataRepository extends ReactiveCrudRepository<MetricData,
 
     @Query("SELECT COUNT(*) FROM metric_data WHERE collected_at >= :startOfDay")
     Mono<Long> countByCollectedAtAfter(LocalDateTime startOfDay);
+
+    /** 서비스(monitoring_config)별 최근 메트릭 1건 조회 */
+    @Query("SELECT * FROM metric_data WHERE monitoring_config_id = :configId AND metric_type = :metricType ORDER BY collected_at DESC LIMIT 1")
+    Flux<MetricData> findLatestByMonitoringConfigIdAndMetricType(Long configId, String metricType);
 }
 

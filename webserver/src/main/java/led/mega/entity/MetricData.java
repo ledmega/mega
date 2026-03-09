@@ -27,6 +27,8 @@ public class MetricData {
     private Long agentId;
     // [CHANGED] @ManyToOne Task task   → Long taskId
     private Long taskId;
+    /** 서비스 모니터링 설정 ID (서비스별 메트릭 시 사용) */
+    private Long monitoringConfigId;
 
     private MetricType metricType;
     private String metricName;

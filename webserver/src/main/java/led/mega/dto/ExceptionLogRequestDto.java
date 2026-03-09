@@ -8,8 +8,10 @@ import java.time.LocalDateTime;
 
 @Data
 public class ExceptionLogRequestDto {
-    
+
     private Long taskId;
+    /** 서비스 모니터링 설정 ID (서비스별 예외 시 사용, 없으면 taskId를 config id로 간주) */
+    private Long monitoringConfigId;
     
     @Size(max = 500, message = "로그 파일 경로는 500자 이하여야 합니다")
     private String logFilePath;

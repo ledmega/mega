@@ -207,23 +207,33 @@ public class ApiClient {
     
     public static class MetricRequest {
         private Long taskId;
+        private Long monitoringConfigId;
         private String metricType;
         private String metricName;
         private java.math.BigDecimal metricValue;
         private String unit;
         private String rawData;
         private LocalDateTime collectedAt;
-        
-        public MetricRequest(Long taskId, String metricType, String metricName, 
-                            java.math.BigDecimal metricValue, String unit, 
+
+        /** 서비스별 메트릭 시 monitoringConfigId 사용, 기존 taskId는 null 가능 */
+        public MetricRequest(Long taskId, Long monitoringConfigId, String metricType, String metricName,
+                            java.math.BigDecimal metricValue, String unit,
                             String rawData, LocalDateTime collectedAt) {
             this.taskId = taskId;
+            this.monitoringConfigId = monitoringConfigId;
             this.metricType = metricType;
             this.metricName = metricName;
             this.metricValue = metricValue;
             this.unit = unit;
             this.rawData = rawData;
             this.collectedAt = collectedAt;
+        }
+
+        /** 기존 호환: taskId만 있고 monitoringConfigId 없음 */
+        public MetricRequest(Long taskId, String metricType, String metricName,
+                            java.math.BigDecimal metricValue, String unit,
+                            String rawData, LocalDateTime collectedAt) {
+            this(taskId, null, metricType, metricName, metricValue, unit, rawData, collectedAt);
         }
     }
     

@@ -47,6 +47,7 @@ public class MetricDataService {
                     MetricData metricData = MetricData.builder()
                             .agentId(agentId)
                             .taskId(requestDto.getTaskId())
+                            .monitoringConfigId(requestDto.getMonitoringConfigId())
                             .metricType(finalMetricType)
                             .metricName(requestDto.getMetricName())
                             .metricValue(requestDto.getMetricValue())

@@ -63,10 +63,12 @@ public class TaskScheduler {
      */
     public void startAllTasks() {
         log.info("작업 스케줄러 시작");
-        // 1. 서비스 모니터링 설정 기반 동적 로그 수집(TaskScheduler 확장)
+        // 1. 서비스 모니터링 설정 기반 동적 로그 수집
         startServiceLogMonitoringTasks();
+        // 2. 서비스별 CPU/MEMORY/DISK 메트릭 수집
+        startServiceMetricMonitoringTasks();
 
-        // 2. 기존 고정 시스템 메트릭/로그 수집
+        // 3. 기존 고정 시스템 메트릭/로그 수집
         // 1분마다 free -m 실행
         scheduleTask("free-memory", () -> {
             try {
@@ -244,7 +246,87 @@ public class TaskScheduler {
             log.error("모니터링 설정을 불러오는 데 실패했습니다. 서비스 로그 모니터링은 일시적으로 비활성화됩니다.", e);
         }
     }
-    
+
+    /**
+     * 웹서버에 등록된 MonitoringConfig 중 CPU/MEMORY/DISK 수집이 활성화된 항목마다
+     * 서비스별 메트릭 수집 스케줄을 등록한다. 수집한 메트릭은 monitoringConfigId 로 전송한다.
+     */
+    private void startServiceMetricMonitoringTasks() {
+        if (agentDbId == null) {
+            log.warn("agentDbId 가 설정되지 않아 서비스 메트릭 수집을 등록할 수 없습니다.");
+            return;
+        }
+
+        try {
+            List<ApiClient.MonitoringConfigDto> configs =
+                    apiClient.fetchActiveMonitoringConfigs(agentDbId, apiKey);
+
+            for (ApiClient.MonitoringConfigDto cfg : configs) {
+                String collectItems = cfg.getCollectItems() != null ? cfg.getCollectItems().toUpperCase() : "";
+                boolean needCpu = collectItems.contains("CPU");
+                boolean needMem = collectItems.contains("MEMORY");
+                boolean needDisk = collectItems.contains("DISK");
+                if (!needCpu && !needMem && !needDisk) {
+                    continue;
+                }
+
+                int interval = cfg.getIntervalSeconds() != null ? cfg.getIntervalSeconds() : 30;
+                Long configId = cfg.getId();
+                String taskName = "service-metric-" + configId;
+
+                scheduleTask(taskName, () -> collectAndSendServiceMetrics(configId, needCpu, needMem, needDisk), interval, TimeUnit.SECONDS);
+            }
+        } catch (Exception e) {
+            log.error("모니터링 설정을 불러오는 데 실패했습니다. 서비스 메트릭 수집은 일시적으로 비활성화됩니다.", e);
+        }
+    }
+
+    private void collectAndSendServiceMetrics(Long monitoringConfigId, boolean needCpu, boolean needMem, boolean needDisk) {
+        LocalDateTime now = LocalDateTime.now();
+        Gson gson = new Gson();
+
+        if (needCpu) {
+            try {
+                CommandExecutor.CommandResult result = commandExecutor.execute(new String[]{"top", "-bn1", "-d1"});
+                if (result.isSuccess()) {
+                    BigDecimal cpuUsage = metricParser.parseCpuUsage(result.getOutputAsString());
+                    Map<String, Object> raw = new HashMap<>();
+                    raw.put("cpuUsage", cpuUsage);
+                    apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
+                            null, monitoringConfigId, "CPU", "cpu_usage_percent", cpuUsage, "%", gson.toJson(raw), now));
+                }
+            } catch (Exception e) {
+                log.debug("서비스 CPU 메트릭 수집 실패: configId={}", monitoringConfigId, e);
+            }
+        }
+        if (needMem) {
+            try {
+                String output = commandExecutor.executeToString("free -m");
+                Map<String, Object> metrics = metricParser.parseFreeMemory(output);
+                BigDecimal usedPercent = new BigDecimal(metrics.get("usedPercent").toString());
+                apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
+                        null, monitoringConfigId, "MEMORY", "memory_usage_percent", usedPercent, "%", gson.toJson(metrics), now));
+            } catch (Exception e) {
+                log.debug("서비스 MEMORY 메트릭 수집 실패: configId={}", monitoringConfigId, e);
+            }
+        }
+        if (needDisk) {
+            try {
+                String output = commandExecutor.executeToString("df -h");
+                Map<String, Map<String, Object>> diskMetrics = metricParser.parseDiskUsage(output);
+                for (Map.Entry<String, Map<String, Object>> entry : diskMetrics.entrySet()) {
+                    String mountPoint = entry.getKey();
+                    Map<String, Object> diskInfo = entry.getValue();
+                    BigDecimal usePercent = new BigDecimal(diskInfo.get("usePercent").toString());
+                    apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
+                            null, monitoringConfigId, "DISK", "disk_usage_" + mountPoint.replace("/", "_"), usePercent, "%", gson.toJson(diskInfo), now));
+                }
+            } catch (Exception e) {
+                log.debug("서비스 DISK 메트릭 수집 실패: configId={}", monitoringConfigId, e);
+            }
+        }
+    }
+
     /**
      * 작업 스케줄
      */

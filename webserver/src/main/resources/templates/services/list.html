@@ -642,6 +642,7 @@
                             <th>로그 경로</th>
                             <th>수집 항목</th>
                             <th>최근 24h 예외</th>
+                            <th>최근 메트릭 (CPU / MEM / DISK)</th>
                             <th>수집 주기</th>
                             <th>상태</th>
                             <th>관리</th>
@@ -649,7 +650,7 @@
                     </thead>
                     <tbody id="configTableBody">
                         <tr>
-                            <td colspan="10" class="empty-state">
+                            <td colspan="11" class="empty-state">
                                 <div class="icon">⏳</div>
                                 데이터를 불러오는 중...
                             </td>
@@ -821,7 +822,7 @@
         function renderTable(data) {
             const tbody = document.getElementById('configTableBody');
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="empty-state">
+                tbody.innerHTML = `<tr><td colspan="11" class="empty-state">
                 <div class="icon">📋</div>등록된 서비스가 없습니다.<br>
                 <button class="btn btn-primary" style="margin-top:16px;" onclick="openCreateModal()">첫 서비스 등록하기</button>
             </td></tr>`;
@@ -848,6 +849,11 @@
                     ${exCount > 0
                         ? `<span class="status-badge status-on">${exCount}건</span>`
                         : `<span class="status-badge status-off">0건</span>`}
+                </td>
+                <td>
+                    <span class="tag tag-cpu" title="CPU 사용률">${c.recentCpu != null ? (Number(c.recentCpu).toFixed(1) + '%') : '-'}</span>
+                    <span class="tag tag-mem" title="메모리 사용률">${c.recentMemory != null ? (Number(c.recentMemory).toFixed(1) + '%') : '-'}</span>
+                    <span class="tag tag-disk" title="디스크 사용률">${c.recentDisk != null ? (Number(c.recentDisk).toFixed(1) + '%') : '-'}</span>
                 </td>
                 <td><span class="interval-badge">${c.intervalSeconds}s</span></td>
                 <td>

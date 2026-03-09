@@ -27,6 +27,8 @@ public class ExceptionLog {
     private Long agentId;
     // [CHANGED] @ManyToOne Task task   → Long taskId
     private Long taskId;
+    /** 서비스 모니터링 설정 ID (서비스별 예외 시 사용) */
+    private Long monitoringConfigId;
 
     private String logFilePath;
     private String exceptionType;
