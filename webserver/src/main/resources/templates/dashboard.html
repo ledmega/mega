@@ -289,7 +289,17 @@
             padding: 40px;
             color: #667eea;
         }
+
+        .chart-container {
+            width: 100%;
+            height: 250px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
     </style>
+    <!-- [NEW] Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -360,9 +370,16 @@
             <!-- 최근 메트릭 -->
             <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title">최근 메트릭</div>
+                    <div class="panel-title">최근 메트릭 (실시간 차트 & 목록)</div>
                 </div>
-                <div id="recentMetrics" style="max-height: 400px; overflow-y: auto;">
+
+                <!-- [NEW] 실시간 차트 영역 -->
+                <div class="chart-container">
+                    <canvas id="cpuChart"></canvas>
+                </div>
+
+                <!-- 기존 목록 영역 (스크롤 높이 조정) -->
+                <div id="recentMetrics" style="max-height: 250px; overflow-y: auto;">
                     <div class="empty-state">메트릭 데이터가 없습니다.</div>
                 </div>
             </div>
@@ -401,6 +418,73 @@
         let metrics = [];
         let exceptions = [];
         let agents = [];
+
+        // [NEW] Chart.js 전역 변수
+        let cpuChart = null;
+
+        // [NEW] 차트 초기화 함수
+        function initChart() {
+            const ctx = document.getElementById('cpuChart').getContext('2d');
+            cpuChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU Usage (%)',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#667eea',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0 // 실시간 업데이트 시 깜빡임 방지
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100, // CPU 퍼센트는 최대 100
+                            grid: { color: '#f0f0f0' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 10 }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // [NEW] 차트 데이터 업데이트 렌더링 함수
+        function updateChartDisplay() {
+            if (!cpuChart) return;
+
+            // metrics 중에서 cpu 정보만 골라내기 (최근 데이터가 배열 앞이므로, 차트에 넣으려면 역순 필요)
+            const cpuData = [...metrics]
+                .filter(m => m.metricName === 'cpu_usage_percent' || m.metricType === 'CPU');
+            cpuData.reverse();
+
+            // 최대 30개의 포인트만 보여주도록 슬라이싱
+            const displayData = cpuData.slice(-30);
+
+            cpuChart.data.labels = displayData.map(m => {
+                const date = new Date(m.collectedAt);
+                return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+            });
+            cpuChart.data.datasets[0].data = displayData.map(m => m.metricValue ?? 0);
+
+            cpuChart.update();
+        }
 
         function connect() {
             // [CHANGED] new SockJS('/ws') + Stomp.over()
@@ -485,9 +569,11 @@
         function handleMetricUpdate(data) {
             if (data.data) {
                 metrics.unshift(data.data);
-                if (metrics.length > 10) metrics.pop();
+                // [CHANGED] 차트의 풍부한 데이터를 위해 보관 개수를 10 -> 30개로 늘림
+                if (metrics.length > 30) metrics.pop();
                 updateMetricsDisplay();
                 updateTodayMetrics();
+                updateChartDisplay(); // [NEW] 실시간 차트 갱신
             }
         }
 
@@ -530,6 +616,7 @@
                     metrics = data;
                     updateMetricsDisplay();
                     updateTodayMetrics();
+                    updateChartDisplay(); // [NEW] 초기 로드 시 차트 그리기
                 })
                 .catch(error => console.error('최근 메트릭 로드 실패:', error));
         }
@@ -622,6 +709,7 @@
 
         // 페이지 로드 시 연결
         window.addEventListener('load', function () {
+            initChart();            // [NEW] 차트 컴포넌트 먼저 초기화
             loadAgents();           // 에이전트 목록 로드
             loadRecentMetrics();    // 최근 메트릭 로드
             loadRecentExceptions(); // 최근 Exception 로그 로드
