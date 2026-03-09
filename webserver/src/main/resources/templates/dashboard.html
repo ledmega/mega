@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -86,8 +87,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .container {
@@ -283,6 +291,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <div class="header-content">
@@ -292,7 +301,7 @@
                 <a href="/dashboard" class="nav-link active">대시보드</a>
                 <a href="/agents" class="nav-link">에이전트</a>
                 <a href="/members/me" class="nav-link" sec:authorize="isAuthenticated()">내 정보</a>
-                <a href="/members" class="nav-link" sec:authorize="hasRole('ADMIN')">회원관리</a>
+                <a href="/members" class="nav-link" sec:authorize="hasRole('ADMIN')">사용자 관리</a>
                 <a href="/authority" class="nav-link" sec:authorize="hasRole('ADMIN')">권한관리</a>
                 <div class="user-info" sec:authorize="isAuthenticated()">
                     <div class="ws-status">
@@ -301,7 +310,8 @@
                     </div>
                     <span class="user-name" sec:authentication="name">사용자</span>
                     <form th:action="@{/logout}" method="post" style="display: inline;">
-                        <button type="submit" class="nav-link" style="background: none; border: none; cursor: pointer;">로그아웃</button>
+                        <button type="submit" class="nav-link"
+                            style="background: none; border: none; cursor: pointer;">로그아웃</button>
                     </form>
                 </div>
             </div>
@@ -325,6 +335,12 @@
                 <h3>Exception 발생</h3>
                 <div class="stat-value" id="todayExceptions">0</div>
                 <div class="stat-label">최근 24시간</div>
+            </div>
+            <div class="stat-card" sec:authorize="hasRole('ADMIN')" style="cursor: pointer;"
+                onclick="location.href='/members'">
+                <h3>사용자 관리</h3>
+                <div class="stat-value">이동하기</div>
+                <div class="stat-label">전체 계정 현황 및 관리</div>
             </div>
             <div class="stat-card">
                 <h3>시스템 상태</h3>
@@ -398,28 +414,28 @@
             // [CHANGED] stompClient.subscribe('/topic/metrics', ...)
             //         → eventSource.addEventListener('METRIC', ...)
             //           (서버의 ServerSentEvent.event() 값과 매칭)
-            eventSource.addEventListener('METRIC', function(event) {
+            eventSource.addEventListener('METRIC', function (event) {
                 const data = JSON.parse(event.data);
                 handleMetricUpdate(data);
             });
 
-            eventSource.addEventListener('EXCEPTION', function(event) {
+            eventSource.addEventListener('EXCEPTION', function (event) {
                 const data = JSON.parse(event.data);
                 handleExceptionUpdate(data);
             });
 
-            eventSource.addEventListener('HEARTBEAT', function(event) {
+            eventSource.addEventListener('HEARTBEAT', function (event) {
                 const data = JSON.parse(event.data);
                 handleHeartbeatUpdate(data);
             });
 
-            eventSource.addEventListener('AGENT_STATUS', function(event) {
+            eventSource.addEventListener('AGENT_STATUS', function (event) {
                 const data = JSON.parse(event.data);
                 handleAgentStatusUpdate(data);
             });
 
             // [CHANGED] stompClient.connect 콜백 → eventSource.onopen
-            eventSource.onopen = function() {
+            eventSource.onopen = function () {
                 console.log('SSE 연결됨');
                 updateWsStatus(true);
                 loadAgents();
@@ -427,7 +443,7 @@
 
             // [CHANGED] stompClient 오류 콜백 → eventSource.onerror
             // EventSource는 오류 시 브라우저가 자동 재연결 시도
-            eventSource.onerror = function(error) {
+            eventSource.onerror = function (error) {
                 console.error('SSE 연결 오류:', error);
                 updateWsStatus(false);
                 // 브라우저가 자동으로 재연결 → setTimeout connect() 불필요
@@ -437,7 +453,7 @@
         function updateWsStatus(connected) {
             const indicator = document.getElementById('wsIndicator');
             const status = document.getElementById('wsStatus');
-            
+
             if (connected) {
                 indicator.classList.add('connected');
                 status.textContent = '연결됨';
@@ -490,12 +506,12 @@
 
         function updateAgentDisplay() {
             const container = document.getElementById('agentList');
-            
+
             if (agents.length === 0) {
                 container.innerHTML = '<div class="empty-state">등록된 에이전트가 없습니다.</div>';
                 return;
             }
-            
+
             container.innerHTML = agents.map(agent => `
                 <div class="agent-item" onclick="window.location.href='/agents/${agent.id}'">
                     <div class="agent-header">
@@ -513,12 +529,12 @@
 
         function updateMetricsDisplay() {
             const container = document.getElementById('recentMetrics');
-            
+
             if (metrics.length === 0) {
                 container.innerHTML = '<div class="empty-state">메트릭 데이터가 없습니다.</div>';
                 return;
             }
-            
+
             container.innerHTML = metrics.map(metric => `
                 <div class="metric-item">
                     <div>
@@ -534,12 +550,12 @@
 
         function updateExceptionDisplay() {
             const container = document.getElementById('exceptionLogs');
-            
+
             if (exceptions.length === 0) {
                 container.innerHTML = '<div class="empty-state">Exception 로그가 없습니다.</div>';
                 return;
             }
-            
+
             container.innerHTML = exceptions.map(exception => `
                 <div class="exception-item">
                     <div class="exception-type">${exception.exceptionType || 'Exception'}</div>
@@ -551,7 +567,7 @@
 
         function updateStats() {
             document.getElementById('totalAgents').textContent = agents.length;
-            document.getElementById('onlineAgents').textContent = 
+            document.getElementById('onlineAgents').textContent =
                 agents.filter(a => a.status === 'ONLINE').length;
         }
 
@@ -564,18 +580,18 @@
         }
 
         // 페이지 로드 시 연결
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             connect();
         });
 
         // 페이지 언로드 시 연결 해제
         // [CHANGED] stompClient.disconnect() → eventSource.close()
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener('beforeunload', function () {
             if (eventSource !== null) {
                 eventSource.close();
             }
         });
     </script>
 </body>
-</html>
 
+</html>
