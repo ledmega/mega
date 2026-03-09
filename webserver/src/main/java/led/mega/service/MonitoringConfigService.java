@@ -138,21 +138,43 @@ public class MonitoringConfigService {
                 .countByMonitoringConfigIdSince(entity.getId(), since)
                 .defaultIfEmpty(0L);
 
-        Mono<MetricData> cpuMetric = metricDataRepository
-                .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "CPU").next().defaultIfEmpty(null);
-        Mono<MetricData> memMetric = metricDataRepository
-                .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "MEMORY").next().defaultIfEmpty(null);
-        Mono<MetricData> diskMetric = metricDataRepository
-                .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "DISK").next().defaultIfEmpty(null);
-
-        return Mono.zip(baseDto, recentCount, cpuMetric, memMetric, diskMetric)
-                .map(tuple -> {
+        // 예외 건수까지 채운 후, CPU/MEM/DISK 메트릭은 각각 존재할 때만 DTO에 채운다.
+        return baseDto
+                .zipWith(recentCount)
+                .flatMap(tuple -> {
                     MonitoringConfigDto dto = tuple.getT1();
                     dto.setRecentExceptionCount(tuple.getT2());
-                    dto.setRecentCpu(tuple.getT3() != null ? tuple.getT3().getMetricValue() : null);
-                    dto.setRecentMemory(tuple.getT4() != null ? tuple.getT4().getMetricValue() : null);
-                    dto.setRecentDisk(tuple.getT5() != null ? tuple.getT5().getMetricValue() : null);
-                    return dto;
+
+                    Mono<MonitoringConfigDto> withCpu = metricDataRepository
+                            .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "CPU")
+                            .next()
+                            .map(m -> {
+                                dto.setRecentCpu(m.getMetricValue());
+                                return dto;
+                            })
+                            .switchIfEmpty(Mono.just(dto));
+
+                    Mono<MonitoringConfigDto> withMem = withCpu.flatMap(d ->
+                            metricDataRepository
+                                    .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "MEMORY")
+                                    .next()
+                                    .map(m -> {
+                                        d.setRecentMemory(m.getMetricValue());
+                                        return d;
+                                    })
+                                    .switchIfEmpty(Mono.just(d))
+                    );
+
+                    return withMem.flatMap(d ->
+                            metricDataRepository
+                                    .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "DISK")
+                                    .next()
+                                    .map(m -> {
+                                        d.setRecentDisk(m.getMetricValue());
+                                        return d;
+                                    })
+                                    .switchIfEmpty(Mono.just(d))
+                    );
                 });
     }
 }
