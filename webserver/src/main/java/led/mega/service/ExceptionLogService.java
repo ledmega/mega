@@ -95,5 +95,9 @@ public class ExceptionLogService {
                 .createdAt(exceptionLog.getCreatedAt())
                 .build();
     }
+    public Flux<ExceptionLogResponseDto> getRecentExceptions() {
+        return exceptionLogRepository.findTop10ByOrderByOccurredAtDesc()
+                .map(this::toResponseDto);
+    }
 }
 

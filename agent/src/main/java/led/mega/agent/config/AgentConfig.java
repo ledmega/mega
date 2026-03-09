@@ -57,6 +57,14 @@ public class AgentConfig {
             agentName = props.getProperty("agent.name", "default-agent");
             hostname = getSystemProperty("HOSTNAME", props.getProperty("agent.hostname", "unknown"));
             ipAddress = getSystemProperty("HOST_IP", props.getProperty("agent.ip", "unknown"));
+
+            // 플레이스홀더 문자열이면 자동 감지 시도
+            if ("unknown".equals(hostname) || hostname.contains("${HOSTNAME")) {
+                hostname = detectHostname();
+            }
+            if ("unknown".equals(ipAddress) || ipAddress.contains("${HOST_IP")) {
+                ipAddress = detectIpAddress();
+            }
             
             // 하트비트 설정
             heartbeatIntervalSeconds = Integer.parseInt(

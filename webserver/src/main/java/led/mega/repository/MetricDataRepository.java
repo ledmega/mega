@@ -33,5 +33,8 @@ public interface MetricDataRepository extends ReactiveCrudRepository<MetricData,
 
     @Query("SELECT * FROM metric_data WHERE collected_at < :threshold")
     Flux<MetricData> findOldMetrics(LocalDateTime threshold);
+
+    @Query("SELECT * FROM metric_data ORDER BY collected_at DESC LIMIT 10")
+    Flux<MetricData> findTop10ByOrderByCollectedAtDesc();
 }
 

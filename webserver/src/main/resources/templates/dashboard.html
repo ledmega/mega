@@ -500,6 +500,28 @@
                 });
         }
 
+        function loadRecentMetrics() {
+            fetch('/api/metrics/recent')
+                .then(response => response.json())
+                .then(data => {
+                    metrics = data;
+                    updateMetricsDisplay();
+                    updateTodayMetrics();
+                })
+                .catch(error => console.error('최근 메트릭 로드 실패:', error));
+        }
+
+        function loadRecentExceptions() {
+            fetch('/api/exceptions/recent')
+                .then(response => response.json())
+                .then(data => {
+                    exceptions = data;
+                    updateExceptionDisplay();
+                    updateTodayExceptions();
+                })
+                .catch(error => console.error('최근 Exception 로드 실패:', error));
+        }
+
         function updateAgentDisplay() {
             const container = document.getElementById('agentList');
 
@@ -577,8 +599,10 @@
 
         // 페이지 로드 시 연결
         window.addEventListener('load', function () {
-            loadAgents(); // 목록부터 즉시 로드
-            connect();    // 그 다음 실시간 연결 시도
+            loadAgents();           // 에이전트 목록 로드
+            loadRecentMetrics();    // 최근 메트릭 로드
+            loadRecentExceptions(); // 최근 Exception 로그 로드
+            connect();              // 실시간 연결 시도
         });
 
         // 페이지 언로드 시 연결 해제

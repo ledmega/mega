@@ -33,5 +33,8 @@ public interface ExceptionLogRepository extends ReactiveCrudRepository<Exception
     // [CHANGED] long → Mono<Long>
     @Query("SELECT COUNT(*) FROM exception_log WHERE agent_id = :agentId AND occurred_at >= :since")
     Mono<Long> countByAgentIdSince(Long agentId, LocalDateTime since);
+
+    @Query("SELECT * FROM exception_log ORDER BY occurred_at DESC LIMIT 10")
+    Flux<ExceptionLog> findTop10ByOrderByOccurredAtDesc();
 }
 

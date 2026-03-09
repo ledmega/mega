@@ -32,8 +32,16 @@ public class SseService {
             Sinks.many().multicast().onBackpressureBuffer();
 
     // [NEW] getStream(): 클라이언트 연결 시 호출 → 이 Flux를 SSE 응답 스트림으로 사용
+    //   - keep-alive: 30초마다 PING 메시지를 보내 연결 유지 (Proxy 끊김 방지)
     public Flux<WebSocketMessageDto> getStream() {
-        return sink.asFlux();
+        return Flux.merge(
+                sink.asFlux(),
+                Flux.interval(java.time.Duration.ofSeconds(30))
+                        .map(tick -> WebSocketMessageDto.builder()
+                                .type("PING")
+                                .timestamp(LocalDateTime.now())
+                                .build())
+        );
     }
 
     // [NEW] publish(): 내부에서 이벤트 발행 (서비스 레이어에서 호출)
