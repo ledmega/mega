@@ -33,7 +33,8 @@ import org.springframework.security.web.server.authentication.RedirectServerAuth
 import org.springframework.security.web.server.authentication.logout.RedirectServerLogoutSuccessHandler;
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
-
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationEntryPoint;
+import org.springframework.http.HttpStatus;
 import java.net.URI;
 
 @Configuration
@@ -77,6 +78,15 @@ public class SecurityConfig {
             // [CHANGED] .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
             //         → .addFilterBefore(filter, SecurityWebFiltersOrder.AUTHENTICATION)
             .addFilterBefore(apiKeyAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+            .exceptionHandling(exceptionHandling -> exceptionHandling
+                .authenticationEntryPoint((exchange, e) -> {
+                    if (exchange.getRequest().getPath().value().startsWith("/api/")) {
+                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        return exchange.getResponse().setComplete();
+                    }
+                    return new RedirectServerAuthenticationEntryPoint("/login").commence(exchange, e);
+                })
+            )
             // [CHANGED] .formLogin(form -> form.loginPage(...).defaultSuccessUrl(...).failureUrl(...))
             //         → ServerHttpSecurity.formLogin + RedirectServerAuthenticationSuccessHandler
             .formLogin(form -> form
