@@ -430,7 +430,39 @@
             return colors[idx % colors.length];
         }
 
-        // 일반 단일 차트 생성 (CPU, Disk 등)
+        // 일반 다중 차트 생성 (Disk 등 동적 데이터셋용)
+        function createMultiLineChart(canvasCtx, unit) {
+            return new Chart(canvasCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 0 },
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: unit === '%' ? 100 : undefined,
+                            grid: { color: '#f0f0f0' },
+                            ticks: { font: { size: 10 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 15, font: { size: 10 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top' }
+                    }
+                }
+            });
+        }
+
+        // 일반 단일 차트 생성 (CPU 등)
         function createDynamicLineChart(canvasCtx, color, unit, title) {
             return new Chart(canvasCtx, {
                 type: 'line',
@@ -551,8 +583,64 @@
                 memChart.update();
             }
 
-            // 2. 나머지 차트 처리 (CPU, DISK 등)
-            const otherNames = [...new Set(metrics.filter(m => m.metricType !== 'MEMORY').map(m => m.metricName))];
+            // 2. DISK 통합 차트 처리
+            const diskMetrics = metrics.filter(m => m.metricType === 'DISK');
+            if (diskMetrics.length > 0) {
+                if (!chartsMap['DISK_COMBINED']) {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.height = '250px';
+                    wrapper.style.position = 'relative';
+
+                    const canvas = document.createElement('canvas');
+                    wrapper.appendChild(canvas);
+
+                    const titleDiv = document.createElement('div');
+                    titleDiv.style.textAlign = 'center'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.margin = '10px 0';
+                    titleDiv.textContent = 'Disk Usage (%) (Combined)';
+                    wrapper.insertBefore(titleDiv, wrapper.firstChild);
+
+                    container.appendChild(wrapper);
+                    chartsMap['DISK_COMBINED'] = createMultiLineChart(canvas.getContext('2d'), '%');
+                }
+
+                const diskChart = chartsMap['DISK_COMBINED'];
+                const diskNames = [...new Set(diskMetrics.map(m => m.metricName))];
+
+                // 데이터셋 동적 갱신
+                diskNames.forEach((dName, idx) => {
+                    let dataset = diskChart.data.datasets.find(ds => ds.label === dName);
+                    if (!dataset) {
+                        const color = getChartColor(idx + 3); // CPU, Mem과 색상 겹침 방지 위해 오프셋
+                        dataset = {
+                            label: dName,
+                            data: [],
+                            borderColor: color,
+                            backgroundColor: 'transparent', // 여러 개 겹치므로 투명 처리
+                            borderWidth: 2,
+                            pointRadius: 1,
+                            fill: false,
+                            tension: 0.4
+                        };
+                        diskChart.data.datasets.push(dataset);
+                    }
+
+                    let filtered = diskMetrics.filter(m => m.metricName === dName).slice(0, 250).reverse();
+                    dataset.data = filtered.map(m => m.metricValue ?? 0);
+
+                    // X축 기준은 첫 번째 데이터셋 기준으로 맞춤
+                    if (idx === 0) {
+                        diskChart.data.labels = filtered.map(m => {
+                            const d = new Date(m.collectedAt);
+                            return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                        });
+                    }
+                });
+
+                diskChart.update();
+            }
+
+            // 3. 나머지 차트 처리 (CPU 등)
+            const otherNames = [...new Set(metrics.filter(m => m.metricType !== 'MEMORY' && m.metricType !== 'DISK').map(m => m.metricName))];
 
             otherNames.forEach((mName, idx) => {
                 if (!chartsMap[mName]) {
