@@ -111,49 +111,70 @@ public class MetricParser {
     
     /**
      * CPU 사용률 파싱 (top 또는 /proc/stat 사용)
-     * 
+     *
+     * Ubuntu top 출력 형식: "%Cpu(s):  2.3 us,  1.0 sy, ..."
+     *
      * @param output top 명령어 출력 또는 /proc/stat 내용
      * @return CPU 사용률 (퍼센트)
      */
     public BigDecimal parseCpuUsage(String output) {
         try {
-            // top 명령어 출력에서 CPU 사용률 추출
-            Pattern pattern = Pattern.compile("%Cpu\\(s\\):\\s+(\\d+\\.\\d+)%us");
-            Matcher matcher = pattern.matcher(output);
-            if (matcher.find()) {
-                return new BigDecimal(matcher.group(1));
+            // Ubuntu top 현재 형식: "%Cpu(s):  2.3 us,  1.0 sy, ..."
+            // 기존 '%us' 패턴은 틀린 형식으로 항상 0 반환 → 올바른 '숫자 us' 패턴으로 수정
+            Pattern topPattern = Pattern.compile("%Cpu\\(s\\):\\s+([\\d.]+)\\s+us");
+            Matcher topMatcher = topPattern.matcher(output);
+            if (topMatcher.find()) {
+                BigDecimal val = new BigDecimal(topMatcher.group(1)).setScale(2, RoundingMode.HALF_UP);
+                log.debug("CPU 파싱 성공 (top us%): {}%", val);
+                return val;
             }
-            
-            // /proc/stat 형식 파싱
+
+            // top 구버전 형식: "Cpu(s):  2.3%us" 폴백
+            Pattern topOldPattern = Pattern.compile("Cpu\\(s\\):\\s+([\\d.]+)%us");
+            Matcher topOldMatcher = topOldPattern.matcher(output);
+            if (topOldMatcher.find()) {
+                BigDecimal val = new BigDecimal(topOldMatcher.group(1)).setScale(2, RoundingMode.HALF_UP);
+                log.debug("CPU 파싱 성공 (top old %us): {}%", val);
+                return val;
+            }
+
+            // /proc/stat 형식 파싱 (idle + iowait = 유휴 시간)
             if (output.contains("cpu ")) {
                 String[] lines = output.split("\n");
                 for (String line : lines) {
                     if (line.startsWith("cpu ")) {
                         String[] parts = line.trim().split("\\s+");
                         if (parts.length >= 8) {
-                            long user = Long.parseLong(parts[1]);
-                            long nice = Long.parseLong(parts[2]);
-                            long system = Long.parseLong(parts[3]);
-                            long idle = Long.parseLong(parts[4]);
-                            long iowait = Long.parseLong(parts[5]);
-                            long irq = Long.parseLong(parts[6]);
+                            long user    = Long.parseLong(parts[1]);
+                            long nice    = Long.parseLong(parts[2]);
+                            long system  = Long.parseLong(parts[3]);
+                            long idle    = Long.parseLong(parts[4]);
+                            long iowait  = Long.parseLong(parts[5]);
+                            long irq     = Long.parseLong(parts[6]);
                             long softirq = Long.parseLong(parts[7]);
-                            
-                            long total = user + nice + system + idle + iowait + irq + softirq;
-                            long used = user + nice + system;
-                            
+
+                            long totalIdle = idle + iowait;
+                            long totalBusy = user + nice + system + irq + softirq;
+                            long total     = totalIdle + totalBusy;
+
                             if (total > 0) {
-                                double usage = (double) used / total * 100;
-                                return new BigDecimal(usage).setScale(2, RoundingMode.HALF_UP);
+                                double usage = (double) totalBusy / total * 100;
+                                BigDecimal val = new BigDecimal(usage).setScale(2, RoundingMode.HALF_UP);
+                                log.debug("CPU 파싱 성공 (/proc/stat): {}%", val);
+                                return val;
                             }
                         }
+                        break;
                     }
                 }
             }
         } catch (Exception e) {
             log.error("CPU 사용률 파싱 실패", e);
         }
-        
+
+        // 파싱 실패 시 output 앞부분 로그 출력 (디버그용)
+        log.warn("CPU 파싱 실패 - 0 반환. output 샘플: [{}]",
+                output != null && output.length() > 150 ? output.substring(0, 150) : output);
         return BigDecimal.ZERO;
     }
     
