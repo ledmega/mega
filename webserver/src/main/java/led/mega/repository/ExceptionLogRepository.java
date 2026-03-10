@@ -42,5 +42,9 @@ public interface ExceptionLogRepository extends ReactiveCrudRepository<Exception
 
     @Query("SELECT * FROM exception_log ORDER BY occurred_at DESC LIMIT 10")
     Flux<ExceptionLog> findTop10ByOrderByOccurredAtDesc();
-}
 
+    /** 배치 cleanup: threshold 이전 데이터 일괄 삭제 */
+    @org.springframework.data.r2dbc.repository.Modifying
+    @Query("DELETE FROM exception_log WHERE occurred_at < :threshold")
+    Mono<Integer> deleteByOccurredAtBefore(LocalDateTime threshold);
+}

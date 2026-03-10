@@ -44,5 +44,9 @@ public interface MetricDataRepository extends ReactiveCrudRepository<MetricData,
     /** 서비스(monitoring_config)별 최근 메트릭 1건 조회 */
     @Query("SELECT * FROM metric_data WHERE monitoring_config_id = :configId AND metric_type = :metricType ORDER BY collected_at DESC LIMIT 1")
     Flux<MetricData> findLatestByMonitoringConfigIdAndMetricType(Long configId, String metricType);
-}
 
+    /** 배치 cleanup: threshold 이전 데이터 일괄 삭제 */
+    @org.springframework.data.r2dbc.repository.Modifying
+    @Query("DELETE FROM metric_data WHERE collected_at < :threshold")
+    Mono<Integer> deleteByCollectedAtBefore(LocalDateTime threshold);
+}

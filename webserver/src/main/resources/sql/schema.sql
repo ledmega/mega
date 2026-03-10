@@ -153,3 +153,21 @@ CREATE TABLE IF NOT EXISTS monitoring_config (
     INDEX idx_mc_enabled    (enabled),
     INDEX idx_mc_service    (service_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='서비스 모니터링 설정 테이블';
+
+-- 배치 스케줄러 Job 설정 테이블
+CREATE TABLE IF NOT EXISTS batch_job (
+    id               BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Job ID',
+    job_name         VARCHAR(100) NOT NULL UNIQUE       COMMENT 'Job 이름 (고유)',
+    job_type         VARCHAR(50)  NOT NULL               COMMENT 'Job 유형 (METRIC_DATA_CLEANUP, EXCEPTION_LOG_CLEANUP)',
+    description      VARCHAR(500)                        COMMENT 'Job 설명',
+    interval_minutes INT          NOT NULL DEFAULT 60    COMMENT '실행 주기 (분 단위)',
+    retention_days   INT          NOT NULL DEFAULT 7     COMMENT '데이터 보존 일수 (이 이전 데이터 삭제)',
+    enabled          BOOLEAN      NOT NULL DEFAULT TRUE   COMMENT '활성화 여부',
+    last_run_at      DATETIME                            COMMENT '마지막 실행 시간',
+    last_run_status  VARCHAR(20)                         COMMENT '마지막 실행 결과 (SUCCESS, FAILED, RUNNING)',
+    last_run_message VARCHAR(500)                        COMMENT '마지막 실행 메시지 또는 오류',
+    created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
+    updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
+    INDEX idx_bj_enabled  (enabled),
+    INDEX idx_bj_job_type (job_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='배치 스케줄러 Job 설정 테이블';

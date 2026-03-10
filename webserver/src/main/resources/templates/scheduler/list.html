@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>배치 스케줄러 - MEGA</title>
+    <th:block th:replace="~{fragments/head :: head}"></th:block>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface2: #252836;
+            --border: #2e3147;
+            --accent: #6c63ff;
+            --accent2: #48cfad;
+            --danger: #ff6b6b;
+            --warn: #ffd93d;
+            --text: #e2e8f0;
+            --muted: #8892a4;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', 'Pretendard', sans-serif;
+        }
+
+        .page-header {
+            padding: 32px 36px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-title .icon {
+            font-size: 26px;
+        }
+
+        /* 통계 카드 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+            padding: 24px 36px 0;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            transition: transform .2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .stat-value.green {
+            color: var(--accent2);
+        }
+
+        .stat-value.purple {
+            color: var(--accent);
+        }
+
+        .stat-value.red {
+            color: var(--danger);
+        }
+
+        /* Job 테이블 */
+        .section {
+            padding: 24px 36px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .job-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .job-table th {
+            background: var(--surface2);
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .job-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            vertical-align: middle;
+        }
+
+        .job-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .job-table tr:hover td {
+            background: rgba(108, 99, 255, .05);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-enabled {
+            background: rgba(72, 207, 173, .15);
+            color: var(--accent2);
+        }
+
+        .badge-disabled {
+            background: rgba(255, 107, 107, .12);
+            color: var(--danger);
+        }
+
+        .badge-success {
+            background: rgba(72, 207, 173, .15);
+            color: var(--accent2);
+        }
+
+        .badge-failed {
+            background: rgba(255, 107, 107, .15);
+            color: var(--danger);
+        }
+
+        .badge-running {
+            background: rgba(255, 217, 61, .15);
+            color: var(--warn);
+        }
+
+        .badge-none {
+            background: var(--surface2);
+            color: var(--muted);
+        }
+
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all .15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #7c75fb;
+        }
+
+        .btn-success {
+            background: rgba(72, 207, 173, .2);
+            color: var(--accent2);
+        }
+
+        .btn-success:hover {
+            background: rgba(72, 207, 173, .35);
+        }
+
+        .btn-warn {
+            background: rgba(255, 217, 61, .2);
+            color: var(--warn);
+        }
+
+        .btn-warn:hover {
+            background: rgba(255, 217, 61, .35);
+        }
+
+        .btn-danger {
+            background: rgba(255, 107, 107, .2);
+            color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 107, 107, .35);
+        }
+
+        .btn-muted {
+            background: var(--surface2);
+            color: var(--muted);
+        }
+
+        .btn-muted:hover {
+            background: var(--border);
+        }
+
+        /* 모달 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            width: 540px;
+            max-width: 95vw;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, .6);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .form-row {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: border-color .2s;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            border-color: var(--accent);
+        }
+
+        .form-input::placeholder {
+            color: var(--muted);
+        }
+
+        .form-row-inline {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 24px;
+        }
+
+        /* 토스트 */
+        #toast {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            z-index: 2000;
+            padding: 14px 22px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all .3s cubic-bezier(.34, 1.56, .64, 1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 380px;
+        }
+
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        #toast.success {
+            border-color: var(--accent2);
+            color: var(--accent2);
+        }
+
+        #toast.error {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .spinner {
+            animation: spin .8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div th:replace="~{fragments/layout :: sidebar}"></div>
+
+    <div class="main-content" style="margin-left: var(--sidebar-width, 240px); padding-bottom: 40px;">
+
+        <!-- 헤더 -->
+        <div class="page-header">
+            <div class="page-title">
+                <span class="icon">⏰</span>
+                배치 스케줄러 관리
+            </div>
+            <button class="btn btn-primary" onclick="openCreateModal()">＋ Job 추가</button>
+        </div>
+
+        <!-- 통계 카드 -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">전체 Job</div>
+                <div class="stat-value purple" id="statTotal">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">활성화</div>
+                <div class="stat-value green" id="statEnabled">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">비활성화</div>
+                <div class="stat-value red" id="statDisabled">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">마지막 실패</div>
+                <div class="stat-value red" id="statFailed">-</div>
+            </div>
+        </div>
+
+        <!-- Job 목록 -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">등록된 Batch Job</div>
+                <button class="btn btn-muted" onclick="loadJobs()" style="font-size:12px;">↺ 새로고침</button>
+            </div>
+            <table class="job-table">
+                <thead>
+                    <tr>
+                        <th>Job 이름</th>
+                        <th>유형</th>
+                        <th>주기</th>
+                        <th>보존 기간</th>
+                        <th>상태</th>
+                        <th>마지막 실행</th>
+                        <th>마지막 결과</th>
+                        <th>액션</th>
+                    </tr>
+                </thead>
+                <tbody id="jobTableBody">
+                    <tr>
+                        <td colspan="8" class="empty-state">로딩 중...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 생성/수정 모달 -->
+    <div class="modal-overlay" id="jobModal">
+        <div class="modal">
+            <div class="modal-title" id="modalTitle">Job 추가</div>
+            <input type="hidden" id="editId">
+
+            <div class="form-row">
+                <label class="form-label">Job 이름 *</label>
+                <input class="form-input" id="fJobName" placeholder="예: 메트릭 데이터 정리" maxlength="100">
+            </div>
+            <div class="form-row">
+                <label class="form-label">Job 유형 *</label>
+                <select class="form-select" id="fJobType">
+                    <option value="METRIC_DATA_CLEANUP">METRIC_DATA_CLEANUP (metric_data 삭제)</option>
+                    <option value="EXCEPTION_LOG_CLEANUP">EXCEPTION_LOG_CLEANUP (exception_log 삭제)</option>
+                </select>
+            </div>
+            <div class="form-row form-row-inline">
+                <div>
+                    <label class="form-label">실행 주기 (분) *</label>
+                    <input class="form-input" id="fIntervalMinutes" type="number" min="1" placeholder="60">
+                </div>
+                <div>
+                    <label class="form-label">데이터 보존 기간 (일) *</label>
+                    <input class="form-input" id="fRetentionDays" type="number" min="1" placeholder="7">
+                </div>
+            </div>
+            <div class="form-row">
+                <label class="form-label">설명</label>
+                <input class="form-input" id="fDescription" placeholder="Job에 대한 간단한 설명">
+            </div>
+            <div class="form-row">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+                    <input type="checkbox" id="fEnabled" checked
+                        style="width:16px;height:16px;accent-color:var(--accent);"> 활성화
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-muted" onclick="closeModal()">취소</button>
+                <button class="btn btn-primary" onclick="saveJob()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 -->
+    <div id="toast"></div>
+
+    <script>
+        let allJobs = [];
+
+        // ── 초기 로드 ──────────────────────────────────────────────
+        window.addEventListener('load', loadJobs);
+
+        async function loadJobs() {
+            try {
+                const res = await fetch('/api/batch/jobs');
+                allJobs = await res.json();
+                renderTable(allJobs);
+                renderStats(allJobs);
+            } catch (e) {
+                showToast('Job 목록 로드 실패: ' + e.message, 'error');
+            }
+        }
+
+        // ── 통계 ──────────────────────────────────────────────────
+        function renderStats(jobs) {
+            document.getElementById('statTotal').textContent = jobs.length;
+            document.getElementById('statEnabled').textContent = jobs.filter(j => j.enabled).length;
+            document.getElementById('statDisabled').textContent = jobs.filter(j => !j.enabled).length;
+            document.getElementById('statFailed').textContent = jobs.filter(j => j.lastRunStatus === 'FAILED').length;
+        }
+
+        // ── 테이블 렌더링 ─────────────────────────────────────────
+        function renderTable(jobs) {
+            const tbody = document.getElementById('jobTableBody');
+            if (!jobs || jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">등록된 Job이 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = jobs.map(job => `
+            <tr id="row-${job.id}">
+                <td><strong>${esc(job.jobName)}</strong><br><span style="font-size:11px;color:var(--muted)">${esc(job.description || '')}</span></td>
+                <td><code style="font-size:11px;color:var(--accent);background:rgba(108,99,255,.1);padding:2px 6px;border-radius:4px">${esc(job.jobType)}</code></td>
+                <td>매 <strong>${job.intervalMinutes}</strong>분</td>
+                <td><strong>${job.retentionDays}</strong>일</td>
+                <td>${job.enabled
+                    ? '<span class="badge badge-enabled"><span class="badge-dot"></span>활성</span>'
+                    : '<span class="badge badge-disabled"><span class="badge-dot"></span>비활성</span>'}</td>
+                <td style="font-size:12px;color:var(--muted)">${job.lastRunAt ? formatTime(job.lastRunAt) : '–'}</td>
+                <td>${renderStatusBadge(job.lastRunStatus, job.lastRunMessage)}</td>
+                <td>
+                    <div class="action-btns">
+                        <button class="btn btn-success" onclick="runNow(${job.id})" title="지금 실행">▶ 실행</button>
+                        <button class="btn btn-warn"    onclick="openEditModal(${job.id})" title="수정">✏</button>
+                        <button class="btn btn-muted"   onclick="toggleJob(${job.id})" title="${job.enabled ? '비활성화' : '활성화'}">${job.enabled ? '⏸' : '▶'}</button>
+                        <button class="btn btn-danger"  onclick="deleteJob(${job.id})" title="삭제">🗑</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        }
+
+        function renderStatusBadge(status, message) {
+            if (!status) return '<span class="badge badge-none">–</span>';
+            const cls = { SUCCESS: 'badge-success', FAILED: 'badge-failed', RUNNING: 'badge-running' }[status] || 'badge-none';
+            const label = { SUCCESS: '✓ 성공', FAILED: '✗ 실패', RUNNING: '⟳ 실행중' }[status] || status;
+            const title = message ? ` title="${esc(message)}"` : '';
+            return `<span class="badge ${cls}"${title}>${label}</span>`;
+        }
+
+        function formatTime(dt) {
+            const d = new Date(dt + 'Z');
+            return d.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function esc(str) {
+            return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // ── 즉시 실행 ─────────────────────────────────────────────
+        async function runNow(id) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner">⟳</span> 실행중';
+            try {
+                const res = await fetch(`/api/batch/jobs/${id}/run`, { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message, res.ok ? 'success' : 'error');
+                setTimeout(loadJobs, 800);
+            } catch (e) {
+                showToast('실행 실패: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '▶ 실행';
+            }
+        }
+
+        // ── 토글 ──────────────────────────────────────────────────
+        async function toggleJob(id) {
+            try {
+                const res = await fetch(`/api/batch/jobs/${id}/toggle`, { method: 'PATCH' });
+                if (!res.ok) throw new Error('토글 실패');
+                const job = await res.json();
+                showToast(`'${job.jobName}' ${job.enabled ? '활성화' : '비활성화'}됨`, 'success');
+                loadJobs();
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
+        }
+
+        // ── 삭제 ──────────────────────────────────────────────────
+        async function deleteJob(id) {
+            const job = allJobs.find(j => j.id === id);
+            if (!confirm(`'${job?.jobName || id}' Job을 삭제하시겠습니까?`)) return;
+            try {
+                const res = await fetch(`/api/batch/jobs/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('삭제 실패');
+                showToast('Job이 삭제되었습니다.', 'success');
+                loadJobs();
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
+        }
+
+        // ── 모달 ──────────────────────────────────────────────────
+        function openCreateModal() {
+            document.getElementById('modalTitle').textContent = 'Job 추가';
+            document.getElementById('editId').value = '';
+            document.getElementById('fJobName').value = '';
+            document.getElementById('fJobType').value = 'METRIC_DATA_CLEANUP';
+            document.getElementById('fIntervalMinutes').value = '60';
+            document.getElementById('fRetentionDays').value = '7';
+            document.getElementById('fDescription').value = '';
+            document.getElementById('fEnabled').checked = true;
+            document.getElementById('jobModal').classList.add('show');
+        }
+
+        function openEditModal(id) {
+            const job = allJobs.find(j => j.id === id);
+            if (!job) return;
+            document.getElementById('modalTitle').textContent = 'Job 수정';
+            document.getElementById('editId').value = job.id;
+            document.getElementById('fJobName').value = job.jobName;
+            document.getElementById('fJobType').value = job.jobType;
+            document.getElementById('fIntervalMinutes').value = job.intervalMinutes;
+            document.getElementById('fRetentionDays').value = job.retentionDays;
+            document.getElementById('fDescription').value = job.description || '';
+            document.getElementById('fEnabled').checked = job.enabled;
+            document.getElementById('jobModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('jobModal').classList.remove('show');
+        }
+
+        document.getElementById('jobModal').addEventListener('click', e => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+
+        async function saveJob() {
+            const id = document.getElementById('editId').value;
+            const body = {
+                jobName: document.getElementById('fJobName').value.trim(),
+                jobType: document.getElementById('fJobType').value,
+                intervalMinutes: parseInt(document.getElementById('fIntervalMinutes').value) || 60,
+                retentionDays: parseInt(document.getElementById('fRetentionDays').value) || 7,
+                description: document.getElementById('fDescription').value.trim(),
+                enabled: document.getElementById('fEnabled').checked,
+            };
+            if (!body.jobName) { showToast('Job 이름을 입력해주세요.', 'error'); return; }
+
+            const url = id ? `/api/batch/jobs/${id}` : '/api/batch/jobs';
+            const method = id ? 'PUT' : 'POST';
+            try {
+                const res = await fetch(url, {
+                    method, headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error((await res.text()) || '저장 실패');
+                showToast(id ? 'Job이 수정되었습니다.' : 'Job이 추가되었습니다.', 'success');
+                closeModal();
+                loadJobs();
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
+        }
+
+        // ── 토스트 ────────────────────────────────────────────────
+        let toastTimer;
+        function showToast(msg, type = 'success') {
+            const el = document.getElementById('toast');
+            el.textContent = (type === 'success' ? '✓ ' : '✗ ') + msg;
+            el.className = `show ${type}`;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+        }
+    </script>
+</body>
+
+</html>
