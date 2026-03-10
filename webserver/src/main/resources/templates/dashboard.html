@@ -640,7 +640,7 @@
                 // X축 데이터 세팅
                 const baseData = usedPctData.length > availMbData.length ? usedPctData : availMbData;
                 memChart.data.labels = baseData.map(m => {
-                    const d = new Date(m.collectedAt);
+                    const d = new Date(m.collectedAt + 'Z'); // UTC → 브라우저 로컬(KST) 자동 변환
                     return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                 });
 
@@ -696,7 +696,7 @@
                     // X축 기준은 첫 번째 데이터셋 기준으로 맞춤
                     if (idx === 0) {
                         diskChart.data.labels = filtered.map(m => {
-                            const d = new Date(m.collectedAt);
+                            const d = new Date(m.collectedAt + 'Z'); // UTC → 브라우저 로컬(KST) 자동 변환
                             return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                         });
                     }
@@ -738,7 +738,7 @@
                 const displayData = filtered.slice(-250);
 
                 chartObj.data.labels = displayData.map(m => {
-                    const d = new Date(m.collectedAt);
+                    const d = new Date(m.collectedAt + 'Z'); // UTC → 브라우저 로컬(KST) 자동 변환
                     return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                 });
                 chartObj.data.datasets[0].data = displayData.map(m => m.metricValue ?? 0);
@@ -926,7 +926,7 @@
                 <div class="metric-item">
                     <div>
                         <div class="metric-name">${metric.metricName || metric.metricType}</div>
-                        <div style="font-size: 12px; color: #999;">${new Date(metric.collectedAt).toLocaleString()}</div>
+                        <div style="font-size: 12px; color: #999;">${new Date(metric.collectedAt + 'Z').toLocaleString('ko-KR')}</div>
                     </div>
                     <div class="metric-value">
                         ${metric.metricValue ?? 'N/A'} ${metric.unit || ''}
