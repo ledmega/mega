@@ -455,9 +455,10 @@ public class TaskScheduler {
         }
 
         try {
-            apiClient.sendServiceMetricData(agentId, apiKey, 
-                new ApiClient.ServiceMetricDataRequestDto(configId, cpu, memMb, memPct, diskPct, null, null, now)
-            );
+            ApiClient.ServiceMetricDataRequestDto reqDto = new ApiClient.ServiceMetricDataRequestDto(configId, cpu, memMb, memPct, diskPct, null, null, now);
+            boolean success = apiClient.sendServiceMetricData(agentId, apiKey, reqDto);
+            log.info("[Service Metric] 타겟={}, configId={}, 전송성공여부: {}, 데이터: CPU={}%, MEM={}MB({}%), DISK={}%", 
+                    targetName != null ? targetName : targetType, configId, success, cpu, memMb, memPct, diskPct);
         } catch (Exception e) {
             log.error("Service Metric 전송 실패", e);
         }

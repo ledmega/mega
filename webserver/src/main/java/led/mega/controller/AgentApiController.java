@@ -86,8 +86,8 @@ public class AgentApiController {
         return getAuthenticatedAgentMono(authentication, agentId)
                 .flatMap(agent -> serviceMetricDataService.saveServiceMetric(agent.getId(), requestDto))
                 .<ResponseEntity<Void>>thenReturn(ResponseEntity.status(HttpStatus.CREATED).build())
-                .onErrorResume(IllegalArgumentException.class, e -> 
-                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<Void>build()));
+                .doOnError(e -> log.error("[API] 서비스 메트릭 수집 처리 중 오류 발생: {}", e.getMessage(), e))
+                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<Void>build()));
     }
 
     @PostMapping("/{agentId}/exceptions")
