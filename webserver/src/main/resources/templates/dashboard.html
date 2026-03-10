@@ -880,6 +880,32 @@
                 .catch(error => console.error('최근 메트릭 로드 실패:', error));
         }
 
+        // ── 10초마다 차트 자동 갱신 (폴링) ──────────────────────────────────
+        // SSE 이벤트가 없는 구간(수집 주기 사이)에도 최신 데이터를 유지하기 위해
+        // 10초마다 /api/metrics/recent 를 polling 하여 새 데이터가 있으면 차트를 다시 그린다.
+        let chartPollingTimer = null;
+        function startChartPolling() {
+            if (chartPollingTimer) return; // 중복 방지
+            chartPollingTimer = setInterval(() => {
+                fetch('/api/metrics/recent')
+                    .then(r => r.json())
+                    .then(data => {
+                        // 새 데이터가 실제로 추가됐을 때만 갱신 (불필요한 렌더링 방지)
+                        const latestId = data.length > 0 ? data[0].id : null;
+                        const currentId = metrics.length > 0 ? metrics[0].id : null;
+                        if (latestId !== currentId) {
+                            metrics = data;
+                            updateMetricsDisplay();
+                            updateChartDisplay();
+                            updateTodayMetrics();
+                            console.debug('[Polling] 새 메트릭 감지 → 차트 갱신');
+                        }
+                    })
+                    .catch(e => console.warn('[Polling] 메트릭 조회 실패:', e));
+            }, 10000); // 10초
+            console.log('[Polling] 차트 자동 갱신 시작 (10초 주기)');
+        }
+
         function loadRecentExceptions() {
             fetch('/api/exceptions/recent')
                 .then(response => response.json())
@@ -977,7 +1003,8 @@
             loadRecentMetrics();      // 최근 메트릭 로드 (여기서 차트 자동 생성)
             loadRecentExceptions();   // 최근 Exception 로그 로드
             loadTodayMetricCount();   // 오늘 수집된 메트릭 개수
-            connect();                // 실시간 연결 시도
+            connect();                // 실시간 SSE 연결
+            startChartPolling();      // 10초 주기 차트 폴링 시작
         });
 
         // 페이지 언로드 시 연결 해제
