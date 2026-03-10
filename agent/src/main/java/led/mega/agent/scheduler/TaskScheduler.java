@@ -133,7 +133,7 @@ public class TaskScheduler {
                 // [FIX] top -bn1은 첫 실행 시 비교 기준값 없어 0 반환
                 //       → cat /proc/stat 토대 이전 스냅샷과 델타로 정확한 CPU% 계산
                 String procStat = commandExecutor.executeToString("cat /proc/stat");
-                BigDecimal cpuUsage = metricParser.parseCpuUsageFromProcStat(procStat);
+                BigDecimal cpuUsage = metricParser.parseCpuUsageFromProcStat(procStat, "host-cpu");
 
                 Map<String, Object> rawData = new HashMap<>();
                 rawData.put("cpuUsage", cpuUsage);
@@ -375,7 +375,7 @@ public class TaskScheduler {
         if (needCpu) {
             try {
                 String procStat = commandExecutor.executeToString("cat /proc/stat");
-                BigDecimal cpuUsage = metricParser.parseCpuUsageFromProcStat(procStat);
+                BigDecimal cpuUsage = metricParser.parseCpuUsageFromProcStat(procStat, "service-cpu-" + monitoringConfigId);
                 Map<String, Object> raw = new HashMap<>();
                 raw.put("cpuUsage", cpuUsage);
                 apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
@@ -388,9 +388,11 @@ public class TaskScheduler {
             try {
                 String output = commandExecutor.executeToString("free -m");
                 Map<String, Object> metrics = metricParser.parseFreeMemory(output);
-                BigDecimal usedPercent = new BigDecimal(metrics.get("usedPercent").toString());
-                apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
-                        null, monitoringConfigId, "MEMORY", "memory_usage_percent", usedPercent, "%", gson.toJson(metrics), now));
+                if (metrics.containsKey("usedPercent")) {
+                    BigDecimal usedPercent = new BigDecimal(metrics.get("usedPercent").toString());
+                    apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
+                            null, monitoringConfigId, "MEMORY", "memory_usage_percent", usedPercent, "%", gson.toJson(metrics), now));
+                }
             } catch (Exception e) {
                 log.debug("서비스 MEMORY 메트릭 수집 실패: configId={}", monitoringConfigId, e);
             }
@@ -402,9 +404,11 @@ public class TaskScheduler {
                 for (Map.Entry<String, Map<String, Object>> entry : diskMetrics.entrySet()) {
                     String mountPoint = entry.getKey();
                     Map<String, Object> diskInfo = entry.getValue();
-                    BigDecimal usePercent = new BigDecimal(diskInfo.get("usePercent").toString());
-                    apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
-                            null, monitoringConfigId, "DISK", "disk_usage_" + mountPoint.replace("/", "_"), usePercent, "%", gson.toJson(diskInfo), now));
+                    if (diskInfo.containsKey("usePercent")) {
+                        BigDecimal usePercent = new BigDecimal(diskInfo.get("usePercent").toString());
+                        apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
+                                null, monitoringConfigId, "DISK", "disk_usage_" + mountPoint.replace("/", "_"), usePercent, "%", gson.toJson(diskInfo), now));
+                    }
                 }
             } catch (Exception e) {
                 log.debug("서비스 DISK 메트릭 수집 실패: configId={}", monitoringConfigId, e);

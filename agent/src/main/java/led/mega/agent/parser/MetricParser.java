@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
 public class MetricParser {
 
     // /proc/stat 데이터 스냅샷 (CPU 델타 계산용)
-    private long lastTotal = 0;
-    private long lastIdle  = 0;
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> lastTotalMap = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> lastIdleMap  = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * free -m 명령어 결과 파싱
@@ -120,7 +120,7 @@ public class MetricParser {
      * @param procStatOutput `cat /proc/stat` 명령어 출력
      * @return CPU 사용률 (퍼센트), 첫 호출 시는 0 반환 (다음 호출부터 정확)
      */
-    public BigDecimal parseCpuUsageFromProcStat(String procStatOutput) {
+    public BigDecimal parseCpuUsageFromProcStat(String procStatOutput, String taskId) {
         try {
             String[] lines = procStatOutput.split("\n");
             for (String line : lines) {
@@ -139,12 +139,15 @@ public class MetricParser {
                     long currentIdle  = idle + iowait;
                     long currentTotal = user + nice + system + idle + iowait + irq + softirq;
 
+                    long lastTotal = lastTotalMap.getOrDefault(taskId, 0L);
+                    long lastIdle  = lastIdleMap.getOrDefault(taskId, 0L);
+
                     long deltaTotal = currentTotal - lastTotal;
                     long deltaIdle  = currentIdle  - lastIdle;
 
                     // 스냅샷 저장 (다음 호출 준비)
-                    lastTotal = currentTotal;
-                    lastIdle  = currentIdle;
+                    lastTotalMap.put(taskId, currentTotal);
+                    lastIdleMap.put(taskId, currentIdle);
 
                     if (deltaTotal <= 0) {
                         // 첫 호출 또는 데이터 이상 → 0 반환, 다음에 정확
