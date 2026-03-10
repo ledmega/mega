@@ -35,6 +35,9 @@ public class AgentApplication {
     private static final String ID_FILE = ".agent_id";
     
     public static void main(String[] args) {
+        // [FIX] 로그 시간 및 내부 시간 처리를 KST(Asia/Seoul)로 고정
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+
         AgentApplication app = new AgentApplication();
         app.start();
         
