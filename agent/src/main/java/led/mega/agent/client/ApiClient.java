@@ -344,7 +344,7 @@ public class ApiClient {
     public boolean sendServiceMetricData(String agentId, String apiKey, ServiceMetricDataRequestDto requestDto) throws IOException {
         String url = baseUrl + "/api/agents/" + agentId + "/service-metrics";
         String json = gson.toJson(requestDto);
-        RequestBody body = RequestBody.create(json, JSON);
+        RequestBody body = RequestBody.create(json, MediaType.parse("application/json; charset=utf-8"));
         Request request = new Request.Builder()
                 .url(url)
                 .post(body)
