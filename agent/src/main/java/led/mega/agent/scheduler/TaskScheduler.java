@@ -127,33 +127,29 @@ public class TaskScheduler {
             }
         }, 1, TimeUnit.MINUTES);
         
-        // 30초마다 CPU 사용률 수집
+        // 30초마다 CPU 사용률 수집 (/proc/stat 델타 방식 - top보다 정확)
         scheduleTask("cpu-usage", () -> {
             try {
-                // top 명령어로 CPU 사용률 수집 (1초 동안)
-                CommandExecutor.CommandResult result = commandExecutor.execute(
-                    new String[]{"top", "-bn1", "-d1"}
-                );
-                
-                if (result.isSuccess()) {
-                    String output = result.getOutputAsString();
-                    BigDecimal cpuUsage = metricParser.parseCpuUsage(output);
-                    
-                    Map<String, Object> rawData = new HashMap<>();
-                    rawData.put("cpuUsage", cpuUsage);
-                    String rawDataJson = new Gson().toJson(rawData);
-                    
-                    apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
-                        null, "CPU", "cpu_usage_percent",
-                        cpuUsage, "%", rawDataJson, LocalDateTime.now()
-                    ));
-                    
-                    log.debug("CPU 메트릭 전송 완료: {}%", cpuUsage);
-                }
+                // [FIX] top -bn1은 첫 실행 시 비교 기준값 없어 0 반환
+                //       → cat /proc/stat 토대 이전 스냅샷과 델타로 정확한 CPU% 계산
+                String procStat = commandExecutor.executeToString("cat /proc/stat");
+                BigDecimal cpuUsage = metricParser.parseCpuUsageFromProcStat(procStat);
+
+                Map<String, Object> rawData = new HashMap<>();
+                rawData.put("cpuUsage", cpuUsage);
+                String rawDataJson = new Gson().toJson(rawData);
+
+                apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
+                    null, "CPU", "cpu_usage_percent",
+                    cpuUsage, "%", rawDataJson, LocalDateTime.now()
+                ));
+
+                log.debug("CPU 메트릭 전송 완료: {}%", cpuUsage);
             } catch (Exception e) {
                 log.error("CPU 메트릭 수집 실패", e);
             }
         }, 30, TimeUnit.SECONDS);
+
         
         // 10분마다 로그 파일에서 Exception 파싱
         scheduleTask("exception-log", () -> {
@@ -378,14 +374,12 @@ public class TaskScheduler {
 
         if (needCpu) {
             try {
-                CommandExecutor.CommandResult result = commandExecutor.execute(new String[]{"top", "-bn1", "-d1"});
-                if (result.isSuccess()) {
-                    BigDecimal cpuUsage = metricParser.parseCpuUsage(result.getOutputAsString());
-                    Map<String, Object> raw = new HashMap<>();
-                    raw.put("cpuUsage", cpuUsage);
-                    apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
-                            null, monitoringConfigId, "CPU", "cpu_usage_percent", cpuUsage, "%", gson.toJson(raw), now));
-                }
+                String procStat = commandExecutor.executeToString("cat /proc/stat");
+                BigDecimal cpuUsage = metricParser.parseCpuUsageFromProcStat(procStat);
+                Map<String, Object> raw = new HashMap<>();
+                raw.put("cpuUsage", cpuUsage);
+                apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
+                        null, monitoringConfigId, "CPU", "cpu_usage_percent", cpuUsage, "%", gson.toJson(raw), now));
             } catch (Exception e) {
                 log.debug("서비스 CPU 메트릭 수집 실패: configId={}", monitoringConfigId, e);
             }

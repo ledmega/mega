@@ -15,7 +15,11 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 public class MetricParser {
-    
+
+    // /proc/stat 데이터 스냅샷 (CPU 델타 계산용)
+    private long lastTotal = 0;
+    private long lastIdle  = 0;
+
     /**
      * free -m 명령어 결과 파싱
      * 
@@ -110,6 +114,58 @@ public class MetricParser {
     }
     
     /**
+     * /proc/stat 출력을 파싱하여 이전 호출 시점과의 델타로 CPU 사용률을 계산합니다.
+     * top -bn1은 첫 실행 시 비교 기준값이 없어 0을 반환하는 구조적 한게에 슈이트 합니다.
+     *
+     * @param procStatOutput `cat /proc/stat` 명령어 출력
+     * @return CPU 사용률 (퍼센트), 첫 호출 시는 0 반환 (다음 호출부터 정확)
+     */
+    public BigDecimal parseCpuUsageFromProcStat(String procStatOutput) {
+        try {
+            String[] lines = procStatOutput.split("\n");
+            for (String line : lines) {
+                if (line.startsWith("cpu ")) {
+                    String[] p = line.trim().split("\\s+");
+                    if (p.length < 8) break;
+
+                    long user    = Long.parseLong(p[1]);
+                    long nice    = Long.parseLong(p[2]);
+                    long system  = Long.parseLong(p[3]);
+                    long idle    = Long.parseLong(p[4]);
+                    long iowait  = Long.parseLong(p[5]);
+                    long irq     = Long.parseLong(p[6]);
+                    long softirq = Long.parseLong(p[7]);
+
+                    long currentIdle  = idle + iowait;
+                    long currentTotal = user + nice + system + idle + iowait + irq + softirq;
+
+                    long deltaTotal = currentTotal - lastTotal;
+                    long deltaIdle  = currentIdle  - lastIdle;
+
+                    // 스냅샷 저장 (다음 호출 준비)
+                    lastTotal = currentTotal;
+                    lastIdle  = currentIdle;
+
+                    if (deltaTotal <= 0) {
+                        // 첫 호출 또는 데이터 이상 → 0 반환, 다음에 정확
+                        log.debug("CPU /proc/stat 첫 스냅샷 저장 완료 (deltaTotal=0), 다음 호출부터 정확한 값 제공");
+                        return BigDecimal.ZERO;
+                    }
+
+                    double usage = (double)(deltaTotal - deltaIdle) / deltaTotal * 100.0;
+                    BigDecimal result = new BigDecimal(usage).setScale(2, RoundingMode.HALF_UP);
+                    log.debug("CPU 사용률 (/proc/stat 델타): {}% (deltaTotal={}, deltaIdle={})",
+                            result, deltaTotal, deltaIdle);
+                    return result;
+                }
+            }
+        } catch (Exception e) {
+            log.error("/proc/stat CPU 파싱 실패", e);
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /**
      * CPU 사용률 파싱 (top 또는 /proc/stat 사용)
      *
      * Ubuntu top 출력 형식: "%Cpu(s):  2.3 us,  1.0 sy, ..."
@@ -160,7 +216,7 @@ public class MetricParser {
                             if (total > 0) {
                                 double usage = (double) totalBusy / total * 100;
                                 BigDecimal val = new BigDecimal(usage).setScale(2, RoundingMode.HALF_UP);
-                                log.debug("CPU 파싱 성공 (/proc/stat): {}%", val);
+                                log.debug("CPU 파싱 성공 (/proc/stat 단일): {}%", val);
                                 return val;
                             }
                         }
