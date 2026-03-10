@@ -6,18 +6,24 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * 로그 파일 파싱 모듈
  * Exception 로그를 찾아서 위아래 5줄씩 컨텍스트를 포함하여 반환합니다.
+ * 또한 로그 키워드 Tail 모니터링을 지원합니다 (새로 추가된 라인만 처리).
  */
 @Slf4j
 public class LogParser {
@@ -32,6 +38,128 @@ public class LogParser {
     private static final Pattern JAVA_EXCEPTION_PATTERN = Pattern.compile(
         "^([a-zA-Z][a-zA-Z0-9_.]*Exception|Error|Throwable)(:.*)?$"
     );
+
+    /**
+     * 파일별 마지막으로 읽은 오프셋(byte position)을 추적합니다.
+     * key: 파일 절대 경로, value: RandomAccessFile 기준 마지막 읽기 위치
+     */
+    private final Map<String, Long> fileOffsets = new HashMap<>();
+
+    // -----------------------------------------------------------------------
+    // P2: 키워드 Tail 모니터링
+    // -----------------------------------------------------------------------
+
+    /**
+     * 로그 파일을 tail 방식으로 읽어 새로 추가된 라인에서 키워드를 검색합니다.
+     * 이전에 읽은 위치(오프셋)를 기억하여 새 라인만 처리합니다.
+     * 파일이 로테이션(재생성)된 경우 오프셋을 0으로 리셋합니다.
+     *
+     * @param logFilePath 모니터링할 로그 파일 경로
+     * @param keywordsCsv 감시할 키워드 CSV (예: "Error,404,Exception,WARN")
+     * @return 키워드가 포함된 라인에서 생성된 ExceptionInfo 리스트
+     */
+    public List<ExceptionInfo> tailAndMatchKeywords(String logFilePath, String keywordsCsv) {
+        List<ExceptionInfo> results = new ArrayList<>();
+
+        if (logFilePath == null || logFilePath.isBlank()) return results;
+        if (keywordsCsv == null || keywordsCsv.isBlank()) return results;
+
+        // 키워드 목록 파싱 (소문자로 정규화해서 대소문자 무관 매칭)
+        List<String> keywords = Arrays.stream(keywordsCsv.split(","))
+                .map(String::trim)
+                .filter(k -> !k.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
+
+        if (keywords.isEmpty()) return results;
+
+        File logFile = new File(logFilePath);
+        if (!logFile.exists() || !logFile.isFile()) {
+            log.warn("[Tail] 로그 파일이 존재하지 않습니다: {}", logFilePath);
+            // 파일이 없으면 오프셋도 초기화
+            fileOffsets.remove(logFilePath);
+            return results;
+        }
+
+        long currentFileSize = logFile.length();
+        long lastOffset = fileOffsets.getOrDefault(logFilePath, 0L);
+
+        // 파일이 로테이션(재생성)되어 크기가 줄었으면 처음부터 읽기
+        if (currentFileSize < lastOffset) {
+            log.info("[Tail] 로그 파일 로테이션 감지, 오프셋 리셋: {}", logFilePath);
+            lastOffset = 0L;
+        }
+
+        // 새로 추가된 내용이 없으면 스킵
+        if (currentFileSize == lastOffset) {
+            log.debug("[Tail] 새 로그 없음: {}", logFilePath);
+            return results;
+        }
+
+        // 마지막 오프셋부터 파일 읽기
+        try (RandomAccessFile raf = new RandomAccessFile(logFile, "r")) {
+            raf.seek(lastOffset);
+
+            String line;
+            List<String> newLines = new ArrayList<>();
+            while ((line = raf.readLine()) != null) {
+                // readLine()은 ISO-8859-1로 읽으므로 UTF-8로 변환
+                String utf8Line = new String(line.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                newLines.add(utf8Line);
+            }
+
+            // 오프셋 업데이트
+            fileOffsets.put(logFilePath, raf.getFilePointer());
+
+            log.debug("[Tail] {}줄 신규 라인 읽음: {}", newLines.size(), logFilePath);
+
+            // 키워드 매칭
+            for (int i = 0; i < newLines.size(); i++) {
+                String newLine = newLines.get(i);
+                String lowerLine = newLine.toLowerCase();
+
+                String matchedKeyword = keywords.stream()
+                        .filter(lowerLine::contains)
+                        .findFirst()
+                        .orElse(null);
+
+                if (matchedKeyword != null) {
+                    // 앞뒤 3줄 컨텍스트 수집
+                    String contextBefore = newLines.subList(Math.max(0, i - 3), i)
+                            .stream().collect(Collectors.joining("\n"));
+                    String contextAfter = newLines.subList(i + 1, Math.min(newLines.size(), i + 4))
+                            .stream().collect(Collectors.joining("\n"));
+
+                    results.add(new ExceptionInfo(
+                            logFilePath,
+                            "KeywordAlert[" + matchedKeyword + "]",   // exceptionType
+                            newLine.trim(),                             // exceptionMessage = 해당 라인 전체
+                            contextBefore,
+                            contextAfter,
+                            "",                                         // stackTrace 없음
+                            newLine
+                    ));
+                    log.info("[Tail] 키워드 감지 '{}': {}", matchedKeyword, newLine.trim());
+                }
+            }
+
+        } catch (IOException e) {
+            log.error("[Tail] 로그 파일 읽기 실패: {}", logFilePath, e);
+        }
+
+        return results;
+    }
+
+    /**
+     * 특정 파일의 tail 오프셋을 초기화합니다.
+     * (config가 삭제되거나 logPath가 변경될 때 호출)
+     */
+    public void resetOffset(String logFilePath) {
+        fileOffsets.remove(logFilePath);
+        log.info("[Tail] 오프셋 초기화: {}", logFilePath);
+    }
+
+
     
     /**
      * 로그 파일에서 Exception을 찾아서 파싱

@@ -284,6 +284,12 @@ public class TaskScheduler {
             metricFuture.cancel(false);
             log.info("서비스 메트릭 모니터링 작업 중지: {}", metricTaskName);
         }
+
+        // 해당 config의 logPath 오프셋 초기화
+        ApiClient.MonitoringConfigDto cfg = activeServiceMonitoringConfigs.get(configId);
+        if (cfg != null && cfg.getLogPath() != null) {
+            logParser.resetOffset(cfg.getLogPath());
+        }
     }
 
     /**
@@ -293,31 +299,44 @@ public class TaskScheduler {
         String collectItems = cfg.getCollectItems() != null ? cfg.getCollectItems().toUpperCase() : "";
         int interval = cfg.getIntervalSeconds() != null ? cfg.getIntervalSeconds() : 60; // 기본 60초
 
-        // 로그 모니터링
+        // 로그 키워드 모니터링 (LOG 수집 + logPath 있을 때)
         boolean logEnabled = collectItems.contains("LOG");
         String logPath = cfg.getLogPath();
+        String logKeywords = cfg.getLogKeywords(); // CSV: "Error,404,Exception,WARN"
         if (logEnabled && logPath != null && !logPath.isBlank()) {
             String taskName = "service-log-" + cfg.getId();
             scheduleTask(taskName, () -> {
                 try {
-                    java.util.List<LogParser.ExceptionInfo> exceptions =
-                            logParser.parseExceptions(logPath);
+                    java.util.List<LogParser.ExceptionInfo> hits;
 
-                    for (LogParser.ExceptionInfo exceptionInfo : exceptions) {
+                    if (logKeywords != null && !logKeywords.isBlank()) {
+                        // [P2] Tail + 키워드 매칭: 새로 추가된 라인에서만 키워드 검색
+                        hits = logParser.tailAndMatchKeywords(logPath, logKeywords);
+                    } else {
+                        // 키워드 미설정 시 기존 Java Exception 스택트레이스 파싱
+                        hits = logParser.parseExceptions(logPath);
+                    }
+
+                    for (LogParser.ExceptionInfo ex : hits) {
                         apiClient.sendExceptionLog(agentId, apiKey, new ApiClient.ExceptionRequest(
                                 cfg.getId(),
-                                exceptionInfo.getLogFilePath(),
-                                exceptionInfo.getExceptionType(),
-                                exceptionInfo.getExceptionMessage(),
-                                exceptionInfo.getContextBefore(),
-                                exceptionInfo.getContextAfter(),
-                                exceptionInfo.getFullStackTrace(),
+                                ex.getLogFilePath(),
+                                ex.getExceptionType(),
+                                ex.getExceptionMessage(),
+                                ex.getContextBefore(),
+                                ex.getContextAfter(),
+                                ex.getFullStackTrace(),
                                 LocalDateTime.now()
                         ));
                     }
-                    log.debug("서비스 로그 전송 완료: serviceName={}, logPath={}", cfg.getServiceName(), logPath);
+                    if (!hits.isEmpty()) {
+                        log.info("[Log Monitor] {}건 전송: serviceName={}, keywords={}",
+                                hits.size(), cfg.getServiceName(), logKeywords);
+                    } else {
+                        log.debug("[Log Monitor] 새 감지 없음: serviceName={}", cfg.getServiceName());
+                    }
                 } catch (Exception e) {
-                    log.error("서비스 로그 수집 실패: serviceName={}, logPath={}", cfg.getServiceName(), logPath, e);
+                    log.error("[Log Monitor] 서비스 로그 수집 실패: serviceName={}, logPath={}", cfg.getServiceName(), logPath, e);
                 }
             }, interval, TimeUnit.SECONDS);
         }
