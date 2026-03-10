@@ -1,30 +1,34 @@
 ---
-description: General instructions and knowledge for MEGA (Monitoring & Error Gathering Agent) development.
+description: MEGA(Monitoring & Error Gathering Agent) 개발을 위한 일반 지침 및 프로젝트 컨텍스트
 globs: *.java, *.html, *.sh, *.properties, *.js
 ---
 
-# MEGA Project Development Rules & Context
+# MEGA 프로젝트 개발 컨텍스트 및 필수 규칙
 
-## 1. System Architecture
-MEGA operates through a one-way REST Pull & Push dynamic:
-- **Agents** pull data from the OS (via Linux tools) and push HTTP API requests to the Web Server.
-- **Web Server** intercepts payloads and pushes generic `ServerSentEvent<T>` generic messages explicitly to UI dashboard views to be graphed dynamically with Chart.js.
+## 1. 시스템 아키텍처 (System Architecture)
+MEGA 시스템은 단방향 Pull & Push 방식으로 동작합니다:
+- **Agents (클라이언트)**: 리눅스 명령어 도구를 통해 OS에서 직접 데이터를 수집(Pull)하고, 웹 서버의 HTTP API로 전송(Push)합니다.
+- **Web Server (중앙 서버)**: Agent가 보낸 Payload를 수신하고, 연결된 UI 대시보드 화면(브라우저)에 명시적인 `ServerSentEvent<T>` 메시지를 실시간으로 전송하여 Chart.js를 통해 동적 그래프를 그리도록 합니다.
 
-## 2. Framework Guidelines & Best Practices
+## 2. 프레임워크 가이드라인 및 모범 사례
 
-### Spring WebFlux (Reactive Stack)
-* **Non-Blocking Principle**: Never block the underlying Netty threads (e.g., calling `.block()` on `Mono` or `Flux` inside web requests unless you're starting up an orchestration thread).
-* **SSE (Server-Sent Events) Handling**: WebFlux has native support for returning `Flux<ServerSentEvent<T>>`. Ensure that responses mapped to `EventSource` connections inject HTTP headers overriding buffering (`Cache-Control: no-cache` and `X-Accel-Buffering: no`).
+### Spring WebFlux (리액티브 스택)
+* **Non-Blocking 원칙**: 애플리케이션 시작 단계와 같은 특수 상황이 아니라면 웹 요청 처리 중 Netty 스레드를 차단(Block)하지 마십시오. (예: `Mono` 또는 `Flux`에서 `.block()` 사용 절대 금지).
+* **SSE (Server-Sent Events) 처리**: WebFlux는 `Flux<ServerSentEvent<T>>` 반환을 기본 지원합니다. Nginx 등의 프론트 프록시 환경에서 데이터가 버퍼링되지 않고 즉시 전파되도록 `EventSource` 연결에 캐시 무효화 헤더(`Cache-Control: no-cache` 및 `X-Accel-Buffering: no`)를 반드시 포함하십시오.
 
-### Spring Data R2DBC (Database)
-* Use native `@Query` over strictly relational query methods when dealing with complex time-series lookups (e.g., retrieving the last 500 history items). Remember to call `.name()` on ENUM types dynamically when supplying queries to R2DBC parameter bindings.
+### Spring Data R2DBC (데이터베이스)
+* 시계열 데이터(최근 500개 기록 조회 등)와 같은 복잡한 조회를 다룰 때는, 단순히 관계형 쿼리 메서드 방식에 의존하기보다 R2DBC 네이티브 `@Query`를 적극 활용하십시오.
+* R2DBC의 네이티브 SQL에서 ENUM 타입 파라미터를 바인딩할 때는 항상 동적으로 `.name()`을 호출하여 문자열로 변환한 뒤 전달해야 오류를 방지할 수 있습니다.
 
-### Front-End (Dashboard)
-* **Vanilla JavaScript Only**: Do not propose or include modern SPAs like React/Angular. Maintain Event-Driven updates via `EventSource`.
-* **Chart.js Management**: Ensure logic maintains independent scopes per dynamic chart instance. Avoid hardcoding references (i.e., iterate gracefully as unknown disk or metric labels might manifest from an agent). 
-* **Combined Metric Sets**: When visualizing memory or disk spaces dynamically, prefer grouping elements logically (e.g., 'Free Space' vs 'Used Space') via multi-line array mapping.
-* **Dual Y-Axes**: Configure percent values strictly against `0 - 100` ranges and raw volumes loosely depending on scaling bounds to prevent visual skewing.
+### Front-End (웹 대시보드 화면)
+* **Vanilla JavaScript Only**: React, Vue, Angular와 같은 무거운 SPA 프레임워크를 절대 도입하거나 제안하지 마십시오. 모든 상태 업데이트는 `EventSource`를 통한 이벤트를 수신하여 가볍게 처리(Event-Driven)해야 합니다.
+* **Chart.js 관리 및 동적 렌더링**: 각 동적 차트 객체가 독립적인 스코프를 유지하도록 로직을 작성하십시오. Agent에서 어떤 디스크 레이블이나 메트릭 이름이 올지 모르므로 캔버스(Canvas) 객체를 생성하고 변수명을 하드코딩하지 말고 객체 맵핑(Mapping) 형태로 동적 관리하십시오.
+* **통합 메트릭 차트 (Combined Metric Sets)**: 메모리나 디스크 공간 같은 데이터를 시각화할 때는 별개의 여러 차트를 그리는 대신, 논리적인 그룹(예: '사용량' vs '가용량')을 하나로 묶는 다중 선(Multi-line) 배열 매핑 방식을 우선시하십시오.
+* **듀얼 Y축 (Dual Y-Axes)**: % 단위와 실제 용량(MB 등) 단위가 겹칠 때, 퍼센테이지의 Y축 스케일은 반드시 `0 - 100`으로 고정하고 용량 수치는 데이터에 맞춰 자동 크기 조정이 되도록 각 축을 엄격하게 구성하십시오.
+* **UTC 시간 처리 (필수)**: Agent는 Ubuntu(UTC 타임존)에서 `LocalDateTime.now()`로 수집 시각을 기록하므로 `collectedAt`에는 타임존 정보가 없습니다. JS에서 파싱 시 반드시 `new Date(m.collectedAt + 'Z')`처럼 `'Z'`를 붙여 UTC임을 명시하고 브라우저가 로컬(KST)로 자동 변환하도록 처리하십시오. 이를 누락하면 차트 X축 및 시간 표시가 9시간 틀어집니다.
 
-### Linux Integration (Agent)
-* **Bash Data Extraction**: Keep java footprint light. Favor processing through `Runtime.getRuntime().exec` with common system tools like `top -bn1 -d1`, `df -h`, and `free -m`.
-* Use specific bash-based wrappers (`agent.sh`) for execution lifecycle (pulling github changes over `rebuild`) instead of raw compilation scripts.
+### Linux 인터그레이션 (Agent 모듈)
+* **Bash 기반 데이터 수집**: Agent 내 자바 의존성을 최소화하십시오. 하드웨어 스펙 수집은 `top -bn1 -d1`, `df -h`, `free -m` 등 범용 리눅스 도구를 `Runtime.getRuntime().exec()`로 실행하고 정규식으로 파싱하는 가벼운 접근 방식을 선호하십시오.
+* **배포 및 빌드 라이프사이클**: 미리 감싸 둔 래퍼 쉘 스크립트(`agent.sh rebuild`) 등을 통해 재시작 및 Github 동기화 라이프사이클이 운영 위주로 간편하게 동작하도록 하십시오.
+* **동적 스케줄러 패턴 (P1 구현 완료)**: `TaskScheduler`는 60초마다 서버에서 `MonitoringConfig` 목록을 Pull(`GET /api/configs/agent/{id}/active`)하여 `activeServiceMonitoringConfigs` 맵(Long configId → DTO)과 비교합니다. 신규는 추가 등록, 삭제/비활성화는 `ScheduledFuture.cancel()`, `intervalSeconds`·`collectItems`·`logPath` 변경 시 취소 후 재등록합니다. `scheduleTask()`는 동일 이름 작업이 있으면 자동으로 기존 것을 취소하고 재등록합니다.
+* **로그 Tail 모니터링 패턴 (P2 구현 완료)**: `LogParser`는 `fileOffsets` 맵(파일경로 → byte offset)으로 파일별 마지막 읽기 위치를 추적합니다. `tailAndMatchKeywords(path, keywordsCsv)` 호출 시 `RandomAccessFile`로 오프셋부터만 읽어 새 라인에서 키워드(대소문자 무관, CSV 파싱)를 검색합니다. 파일 로테이션(크기 감소) 감지 시 오프셋을 자동 리셋합니다. 키워드 미설정 시에는 기존 `parseExceptions()`(Java Exception 스택트레이스 파싱)로 폴백합니다. config 삭제·변경 시 `resetOffset()`을 호출하여 오프셋을 초기화합니다.
