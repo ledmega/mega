@@ -211,29 +211,75 @@
             border-radius: 6px;
             cursor: pointer;
         }
+
+        /* 네비게이션 바 메뉴 통일 */
+        .navbar {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            padding: 1rem 2rem;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+            white-space: nowrap;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .nav-link i {
+            margin-right: 6px;
+        }
+
+        .nav-link:hover {
+            color: white;
+        }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body>
-    <div class="header">
-        <div class="header-content">
-            <span class="logo">MEGA</span>
-            <div class="nav-links">
-                <a href="/" class="nav-link">홈</a>
-                <a href="/dashboard" class="nav-link">대시보드</a>
-                <a href="/agents" class="nav-link">에이전트</a>
-                <a href="/members" class="nav-link" style="background: rgba(255,255,255,0.25);">회원관리</a>
-                <a href="/authority" class="nav-link" th:if="${isAdmin}">권한관리</a>
-                <span th:if="${isLoggedIn}">
-                    <span th:text="${username}"></span>
-                    <form th:action="@{/logout}" method="post" style="display: inline;">
-                        <button type="submit" class="nav-link"
-                            style="background: none; border: none; cursor: pointer;">로그아웃</button>
-                    </form>
-                </span>
-            </div>
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">MEGA Dashboard</a>
+        <div class="nav-links">
+            <th:block th:each="menu : ${menus}">
+                <a th:href="${menu.url}" class="nav-link">
+                    <i th:if="${menu.icon}" th:class="'fas ' + ${menu.icon}"></i>
+                    [[${menu.name}]]
+                </a>
+            </th:block>
+            <span th:if="${isLoggedIn}" style="display:flex; align-items:center; gap:20px;">
+                <span style="opacity: 0.8; font-size: 0.9rem;" th:text="${username}"></span>
+                <form th:action="@{/logout}" method="post" style="display: inline; margin: 0;">
+                    <button type="submit" class="nav-link"
+                        style="background:none; border:none; cursor:pointer; padding:0;">로그아웃</button>
+                </form>
+            </span>
+            <span th:if="${isLoggedIn == null or !isLoggedIn}">
+                <a href="/login" class="nav-link">로그인</a>
+            </span>
         </div>
-    </div>
+    </nav>
     <div class="container">
         <h1 class="page-title">회원 상세</h1>
         <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>

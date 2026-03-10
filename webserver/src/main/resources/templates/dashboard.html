@@ -352,33 +352,77 @@
             padding-bottom: 20px;
             border-bottom: 1px solid #f0f0f0;
         }
+
+        /* 네비게이션 바 메뉴 통일 */
+        .navbar {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            padding: 1rem 2rem;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .nav-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: white;
+            white-space: nowrap;
+        }
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+        }
+        .nav-link i {
+            margin-right: 6px;
+        }
+        .nav-link:hover {
+            color: white;
+        }
     </style>
     <!-- [NEW] Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body>
-    <div class="header">
-        <div class="header-content">
-            <div class="logo">MEGA Dashboard</div>
-            <div class="nav-links">
-                <!-- Dynamic Menus -->
-                <a th:each="menu : ${menus}" th:href="${menu.url}" class="nav-link" th:text="${menu.name}">Menu Name</a>
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">MEGA Dashboard</a>
+        <div class="nav-links">
+            <th:block th:each="menu : ${menus}">
+                <a th:href="${menu.url}" class="nav-link">
+                    <i th:if="${menu.icon}" th:class="'fas ' + ${menu.icon}"></i>
+                    [[${menu.name}]]
+                </a>
+            </th:block>
 
-                <div class="user-info" th:if="${isLoggedIn}">
-                    <div class="ws-status">
-                        <div class="ws-indicator" id="wsIndicator"></div>
-                        <span id="wsStatus">연결 중...</span>
-                    </div>
-                    <span class="user-name" th:text="${username}">사용자</span>
-                    <form th:action="@{/logout}" method="post" style="display: inline;">
-                        <button type="submit" class="nav-link"
-                            style="background: none; border: none; cursor: pointer;">로그아웃</button>
-                    </form>
+            <div class="user-info" th:if="${isLoggedIn}" style="display:flex; align-items:center; gap:20px;">
+                <div class="ws-status" style="display:flex; align-items:center; gap:8px;">
+                    <div class="ws-indicator" id="wsIndicator"></div>
+                    <span id="wsStatus">연결 중...</span>
                 </div>
+                <span style="opacity: 0.8; font-size: 0.9rem;" th:text="${username}"></span>
+                <form th:action="@{/logout}" method="post" style="display: inline; margin: 0;">
+                    <button type="submit" class="nav-link"
+                        style="background:none; border:none; cursor:pointer; padding:0;">로그아웃</button>
+                </form>
+            </div>
+            <div th:if="${isLoggedIn == null or !isLoggedIn}">
+                <a href="/login" class="nav-link">로그인</a>
             </div>
         </div>
-    </div>
+    </nav>
 
     <div class="container">
         <!-- 비로그인 접속 시에만 안내 배너 표시 -->

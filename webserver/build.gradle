@@ -21,8 +21,9 @@ dependencies {
 	// [REACTIVE] spring-boot-starter-web → spring-boot-starter-webflux
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	// [REACTIVE] spring-boot-starter-data-jpa → spring-boot-starter-data-r2dbc + r2dbc-mariadb
+	// 버전은 Spring Boot BOM에 위임 (Netty/Reactor 정렬로 fat JAR 종료 시 ClassNotFoundException 방지)
 	implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
-	implementation 'org.mariadb:r2dbc-mariadb:1.2.2'
+	implementation 'org.mariadb:r2dbc-mariadb'
 	// [REMOVED] spring-boot-starter-web-services (서블릿 기반 웹서비스 → WebFlux 불필요)
 	// [REMOVED] spring-boot-starter-websocket    (STOMP/SockJS → SSE로 교체)
 	// [REMOVED] mybatis-spring-boot-starter      (JPA와 함께 제거)
