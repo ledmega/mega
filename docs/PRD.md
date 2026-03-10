@@ -32,5 +32,6 @@ MEGA는 분산된 리눅스 서버 환경에서 시스템 자원(CPU, Memory, Di
 * **Service 목록 UI 풀 폴링**: 대시보드 뿐만 아니라 `/services` 전체 목록 페이지에서도 SSE 또는 AJAX Polling을 통해 상태 배지 및 최신 지표 실시간 감시 가능.
 
 ## 3. 남은 작업 (Backlog)
+- [x] 전역 Navigation UI 통일 (Dashboard, Admin Pages 공통 디자인 적용 요소 구축)
 - [ ] 현재 대부분의 코어 시스템 완료. 추가 권한 체계 정교화 및 알럿(Slack/이메일) 트리거 시스템.
 - [ ] 시스템 메모리 누수 방어를 위한 Agent/Webserver 자원 사용량 최적화 (Profiling).
