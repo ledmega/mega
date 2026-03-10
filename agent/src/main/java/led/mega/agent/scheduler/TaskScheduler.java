@@ -259,7 +259,15 @@ public class TaskScheduler {
 
         String oldLog = oldCfg.getLogPath() != null ? oldCfg.getLogPath() : "";
         String newLog = newCfg.getLogPath() != null ? newCfg.getLogPath() : "";
-        return !oldLog.equals(newLog);
+        if (!oldLog.equals(newLog)) return true;
+        
+        String oldTargetType = oldCfg.getTargetType() != null ? oldCfg.getTargetType() : "";
+        String newTargetType = newCfg.getTargetType() != null ? newCfg.getTargetType() : "";
+        if (!oldTargetType.equals(newTargetType)) return true;
+
+        String oldTargetName = oldCfg.getTargetName() != null ? oldCfg.getTargetName() : "";
+        String newTargetName = newCfg.getTargetName() != null ? newCfg.getTargetName() : "";
+        return !oldTargetName.equals(newTargetName);
     }
 
     /**
