@@ -769,13 +769,58 @@
 
         // ── 초기화 ──────────────────────────────────────────────────── //
         window.addEventListener('load', () => {
-            loadAgents().then(() => loadConfigs());
+            loadAgents().then(() => {
+                loadConfigs();
+                startPolling(); // 실시간 데이터 갱신 시동
+            });
 
             // LOG 체크박스 연동
             document.getElementById('item_LOG').addEventListener('change', function () {
                 document.getElementById('logKeywordsGroup').style.display = this.checked ? 'block' : 'none';
             });
         });
+
+        // ── 10초 주기 실시간 폴링 (화면 깜박임 없는 부분 업데이트) ── //
+        let pollingTimer = null;
+        function startPolling() {
+            if (pollingTimer) clearInterval(pollingTimer);
+            pollingTimer = setInterval(loadConfigsSilent, 10000);
+        }
+
+        async function loadConfigsSilent() {
+            try {
+                const res = await fetch('/api/configs');
+                const newConfigs = await res.json();
+                allConfigs = newConfigs; // 데이터 교체 (모달이나 필터 검색에서 항상 최신본을 쓰기 위함)
+
+                // 통계 카드 부분 갱신
+                renderStats(newConfigs);
+
+                // 테이블 로우별 데이터 부분 갱신 (통째로 덮어쓰면 깜박이므로 개별 요소만 업데이트)
+                newConfigs.forEach(c => {
+                    const tr = document.querySelector(`tr[data-id="${c.id}"]`);
+                    if (!tr) return; // 아직 그려지지 않았거나 필터링으로 가려진 경우 패스
+
+                    const exBadge = tr.querySelector('.ex-count');
+                    if (exBadge) {
+                        const exCount = (c.recentExceptionCount != null ? c.recentExceptionCount : 0);
+                        exBadge.className = `status-badge ex-count ${exCount > 0 ? 'status-on' : 'status-off'}`;
+                        exBadge.textContent = exCount + '건';
+                    }
+
+                    const cpuTag = tr.querySelector('.tag-cpu');
+                    if (cpuTag) cpuTag.textContent = c.recentCpu != null ? (Number(c.recentCpu).toFixed(1) + '%') : '-';
+
+                    const memTag = tr.querySelector('.tag-mem');
+                    if (memTag) memTag.textContent = c.recentMemory != null ? (Number(c.recentMemory).toFixed(1) + '%') : '-';
+
+                    const diskTag = tr.querySelector('.tag-disk');
+                    if (diskTag) diskTag.textContent = c.recentDisk != null ? (Number(c.recentDisk).toFixed(1) + '%') : '-';
+                });
+            } catch (e) {
+                console.warn('실시간 갱신 실패:', e);
+            }
+        }
 
         // ── 에이전트 목록 로드 ─────────────────────────────────────── //
         async function loadAgents() {
@@ -803,12 +848,12 @@
             });
         }
 
-        // ── 설정 목록 로드 ─────────────────────────────────────────── //
+        // ── 설정 목록 로드 (전체 렌더링, 주로 초기 로드용) ─────────── //
         async function loadConfigs() {
             const res = await fetch('/api/configs');
             allConfigs = await res.json();
             renderStats(allConfigs);
-            renderTable(allConfigs);
+            filterTable(); // renderTable 대신 필터 로직 태움
         }
 
         // ── 통계 ──────────────────────────────────────────────────── //
@@ -847,8 +892,8 @@
                 <td>${tags}</td>
                 <td>
                     ${exCount > 0
-                        ? `<span class="status-badge status-on">${exCount}건</span>`
-                        : `<span class="status-badge status-off">0건</span>`}
+                        ? `<span class="status-badge ex-count status-on">${exCount}건</span>`
+                        : `<span class="status-badge ex-count status-off">0건</span>`}
                 </td>
                 <td>
                     <span class="tag tag-cpu" title="CPU 사용률">${c.recentCpu != null ? (Number(c.recentCpu).toFixed(1) + '%') : '-'}</span>
