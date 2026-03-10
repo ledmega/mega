@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>배치 스케줄러 - MEGA</title>
-    <th:block th:replace="~{fragments/head :: head}"></th:block>
     <style>
         :root {
             --bg: #0f1117;
@@ -30,10 +29,69 @@
             background: var(--bg);
             color: var(--text);
             font-family: 'Inter', 'Pretendard', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Header ─────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #1e2235 0%, #252836 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .3);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text);
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: background .2s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, .1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-name {
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 32px auto;
+            padding: 0 24px;
         }
 
         .page-header {
-            padding: 32px 36px 20px;
+            padding: 0 0 20px;
             border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
@@ -59,7 +117,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 16px;
-            padding: 24px 36px 0;
+            padding: 24px 0 0;
         }
 
         .stat-card {
@@ -101,7 +159,7 @@
 
         /* Job 테이블 */
         .section {
-            padding: 24px 36px;
+            padding: 24px 0;
         }
 
         .section-header {
@@ -292,6 +350,7 @@
             font-size: 18px;
             font-weight: 700;
             margin-bottom: 24px;
+            color: var(--text);
         }
 
         .form-row {
@@ -397,9 +456,26 @@
 </head>
 
 <body>
-    <div th:replace="~{fragments/layout :: sidebar}"></div>
 
-    <div class="main-content" style="margin-left: var(--sidebar-width, 240px); padding-bottom: 40px;">
+    <!-- ── Header ─────────────────────────────────────── -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">MEGA Dashboard</div>
+            <div class="nav-links">
+                <a th:each="menu : ${menus}" th:href="${menu.url}" class="nav-link" th:text="${menu.name}">Menu</a>
+                <div class="user-info" th:if="${isLoggedIn}">
+                    <span class="user-name" th:text="${username}">사용자</span>
+                    <form th:action="@{/logout}" method="post" style="display:inline;">
+                        <button type="submit" class="nav-link"
+                            style="background:none;border:none;cursor:pointer;">로그아웃</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="container">
 
         <!-- 헤더 -->
         <div class="page-header">
@@ -470,7 +546,7 @@
             </div>
             <div class="form-row">
                 <label class="form-label">Job 유형 *</label>
-                <select class="form-select" id="fJobType">
+                <select class="form-select" id="fJobType" style="color:var(--text); background:var(--surface);">
                     <option value="METRIC_DATA_CLEANUP">METRIC_DATA_CLEANUP (metric_data 삭제)</option>
                     <option value="EXCEPTION_LOG_CLEANUP">EXCEPTION_LOG_CLEANUP (exception_log 삭제)</option>
                 </select>
@@ -490,7 +566,7 @@
                 <input class="form-input" id="fDescription" placeholder="Job에 대한 간단한 설명">
             </div>
             <div class="form-row">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text);">
                     <input type="checkbox" id="fEnabled" checked
                         style="width:16px;height:16px;accent-color:var(--accent);"> 활성화
                 </label>
