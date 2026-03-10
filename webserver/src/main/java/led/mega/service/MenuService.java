@@ -34,10 +34,11 @@ public class MenuService {
                     List<Menu> defaultMenus = new ArrayList<>();
                     defaultMenus.add(Menu.builder().name("홈").url("/dashboard").icon("fa-home").sortOrder(1).build());
                     defaultMenus.add(Menu.builder().name("에이전트").url("/agents").icon("fa-server").sortOrder(2).build());
-                    defaultMenus.add(Menu.builder().name("작업 현황").url("/tasks").icon("fa-tasks").sortOrder(3).build());
-                    defaultMenus.add(Menu.builder().name("사용자 관리").url("/members").icon("fa-users").sortOrder(4).requiredRole("ROLE_ADMIN").build());
-                    defaultMenus.add(Menu.builder().name("권한 관리").url("/authority").icon("fa-user-shield").sortOrder(5).requiredRole("ROLE_ADMIN").build());
-                    defaultMenus.add(Menu.builder().name("메뉴 관리").url("/menu").icon("fa-bars").sortOrder(6).requiredRole("ROLE_ADMIN").build());
+                    defaultMenus.add(Menu.builder().name("배치 스케줄러").url("/scheduler").icon("fa-clock").sortOrder(3).build());
+                    defaultMenus.add(Menu.builder().name("서비스 관리").url("/services").icon("fa-cogs").sortOrder(4).build());
+                    defaultMenus.add(Menu.builder().name("사용자 관리").url("/members").icon("fa-users").sortOrder(5).requiredRole("ROLE_ADMIN").build());
+                    defaultMenus.add(Menu.builder().name("권한 관리").url("/authority").icon("fa-user-shield").sortOrder(6).requiredRole("ROLE_ADMIN").build());
+                    defaultMenus.add(Menu.builder().name("메뉴 관리").url("/menu").icon("fa-bars").sortOrder(7).requiredRole("ROLE_ADMIN").build());
                     
                     return menuRepository.saveAll(defaultMenus);
                 })

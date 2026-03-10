@@ -2,7 +2,7 @@
 alwaysApply: true
 ---
 # Java 개발 규칙
-#- Java 17 기준으로 작성
+#- Java 21 기준으로 작성
 #- Spring Boot 3.x 사용
 - 항상 @docs/PRD.md 참고
 - 테스트 코드 필수 작성
