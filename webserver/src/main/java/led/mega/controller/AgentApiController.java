@@ -62,8 +62,8 @@ public class AgentApiController {
         return getAuthenticatedAgentMono(authentication, agentId)
                 .flatMap(agent -> heartbeatService.saveHeartbeat(agent.getId(), requestDto))
                 .<ResponseEntity<Void>>thenReturn(ResponseEntity.<Void>ok().build())
-                .onErrorResume(IllegalArgumentException.class, e -> 
-                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<Void>build()));
+                .doOnError(e -> log.error("[API] 하트비트 처리 중 오류 발생: {}", e.getMessage(), e))
+                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<Void>build()));
     }
 
     @PostMapping("/{agentId}/metrics")
@@ -74,8 +74,8 @@ public class AgentApiController {
         return getAuthenticatedAgentMono(authentication, agentId)
                 .flatMap(agent -> metricDataService.saveMetricData(agent.getId(), requestDto))
                 .<ResponseEntity<MetricDataResponseDto>>map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
-                .onErrorResume(IllegalArgumentException.class, e -> 
-                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<MetricDataResponseDto>build()));
+                .doOnError(e -> log.error("[API] 일반 메트릭 수집 처리 중 오류 발생: {}", e.getMessage(), e))
+                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<MetricDataResponseDto>build()));
     }
 
     @PostMapping("/{agentId}/service-metrics")

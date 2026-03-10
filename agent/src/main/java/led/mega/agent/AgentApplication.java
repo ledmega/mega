@@ -91,6 +91,13 @@ public class AgentApplication {
                 }
             } else {
                 log.info("기존 에이전트 정보를 로드했습니다: agentId={}", agentId);
+                if (agentDbId == null) {
+                    log.info("agentDbId 값이 누락되어 에이전트 정보 재등록(업데이트)을 수행합니다.");
+                    if (!registerAgent()) {
+                        log.error("에이전트 재등록(업데이트) 실패, 애플리케이션 종료");
+                        System.exit(1);
+                    }
+                }
             }
             
             // 4. 작업 스케줄러 시작
