@@ -6,11 +6,11 @@
     
     <!-- 콘솔 출력 패턴 -->
     <property name="CONSOLE_LOG_PATTERN" 
-              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS, Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n"/>
     
     <!-- 파일 출력 패턴 -->
     <property name="FILE_LOG_PATTERN" 
-              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS, Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n"/>
 
     <!-- 콘솔 출력 설정 (Windows 콘솔 인코딩 대응) -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
