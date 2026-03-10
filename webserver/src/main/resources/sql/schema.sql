@@ -139,6 +139,8 @@ CREATE TABLE IF NOT EXISTS monitoring_config (
     id               BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '설정 ID',
     agent_id         BIGINT NOT NULL                   COMMENT '연결된 에이전트 ID',
     service_name     VARCHAR(100) NOT NULL              COMMENT '서비스 이름 (예: Nginx-Docker)',
+    target_type      VARCHAR(20) NOT NULL DEFAULT 'HOST' COMMENT '타겟 유형 (HOST, PROCESS, DOCKER)',
+    target_name      VARCHAR(100)                       COMMENT '타겟 식별자 (프로세스명 또는 컨테이너명)',
     service_path     VARCHAR(500)                       COMMENT '서비스 설치 경로',
     log_path         VARCHAR(500)                       COMMENT '모니터링 로그 파일 경로',
     collect_items    VARCHAR(255) NOT NULL DEFAULT 'CPU,MEMORY,DISK' COMMENT '수집 항목 목록 (CSV: CPU,MEMORY,DISK,LOG)',
@@ -171,3 +173,23 @@ CREATE TABLE IF NOT EXISTS batch_job (
     INDEX idx_bj_enabled  (enabled),
     INDEX idx_bj_job_type (job_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='배치 스케줄러 Job 설정 테이블';
+
+-- 서비스 전용 메트릭 데이터 테이블
+CREATE TABLE IF NOT EXISTS service_metric_data (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '메트릭 ID',
+    agent_id BIGINT NOT NULL COMMENT '에이전트 ID',
+    monitoring_config_id BIGINT NOT NULL COMMENT '연결된 서비스 모니터링 설정 ID',
+    cpu_usage_percent DECIMAL(10, 4) COMMENT '서비스 CPU 사용량 (%)',
+    memory_usage_mb DECIMAL(10, 4) COMMENT '서비스 메모리 사용량 (MB)',
+    memory_usage_percent DECIMAL(10, 4) COMMENT '서비스 메모리 제한 대비 사용량 (%)',
+    disk_usage_percent DECIMAL(10, 4) COMMENT '서비스 디스크 사용률 (%)',
+    network_rx_bytes BIGINT COMMENT '서비스 네트워크 다운로드 바이트',
+    network_tx_bytes BIGINT COMMENT '서비스 네트워크 업로드 바이트',
+    collected_at DATETIME NOT NULL COMMENT '수집 시간',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
+    FOREIGN KEY (agent_id) REFERENCES agent(id) ON DELETE CASCADE,
+    FOREIGN KEY (monitoring_config_id) REFERENCES monitoring_config(id) ON DELETE CASCADE,
+    INDEX idx_smd_agent_collected (agent_id, collected_at),
+    INDEX idx_smd_config (monitoring_config_id),
+    INDEX idx_smd_collected_at (collected_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='서비스 전용 통계 데이터 테이블';

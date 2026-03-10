@@ -22,6 +22,9 @@ public class MonitoringConfig {
     private Long agentId;              // agent 테이블 FK
 
     private String serviceName;        // 서비스 이름 (예: Nginx-Docker)
+    @Builder.Default
+    private String targetType = "HOST"; // HOST, PROCESS, DOCKER
+    private String targetName;         // 타겟 식별자 (프로세스명 또는 컨테이너명)
     private String servicePath;        // 서비스 경로 (예: /home/user/apps/mega-api)
     private String logPath;            // 로그 파일 경로 (예: /var/log/nginx/access.log)
 

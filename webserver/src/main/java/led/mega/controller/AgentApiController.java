@@ -30,6 +30,7 @@ public class AgentApiController {
 
     private final AgentService agentService;
     private final MetricDataService metricDataService;
+    private final ServiceMetricDataService serviceMetricDataService;
     private final ExceptionLogService exceptionLogService;
     private final AgentHeartbeatService heartbeatService;
 
@@ -75,6 +76,18 @@ public class AgentApiController {
                 .<ResponseEntity<MetricDataResponseDto>>map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
                 .onErrorResume(IllegalArgumentException.class, e -> 
                         Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<MetricDataResponseDto>build()));
+    }
+
+    @PostMapping("/{agentId}/service-metrics")
+    public Mono<ResponseEntity<Void>> sendServiceMetricData(
+            @PathVariable String agentId,
+            @Valid @RequestBody led.mega.dto.ServiceMetricDataRequestDto requestDto,
+            Authentication authentication) {
+        return getAuthenticatedAgentMono(authentication, agentId)
+                .flatMap(agent -> serviceMetricDataService.saveServiceMetric(agent.getId(), requestDto))
+                .<ResponseEntity<Void>>thenReturn(ResponseEntity.status(HttpStatus.CREATED).build())
+                .onErrorResume(IllegalArgumentException.class, e -> 
+                        Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<Void>build()));
     }
 
     @PostMapping("/{agentId}/exceptions")

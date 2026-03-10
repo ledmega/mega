@@ -294,6 +294,8 @@ public class ApiClient {
         private Long   id;
         private Long   agentId;
         private String serviceName;
+        private String targetType;
+        private String targetName;
         private String servicePath;
         private String logPath;
         private String collectItems;   // CSV: CPU,MEMORY,DISK,LOG
@@ -311,7 +313,50 @@ public class ApiClient {
         public String getLogKeywords() { return logKeywords; }
         public Integer getIntervalSeconds() { return intervalSeconds; }
         public Boolean getEnabled() { return enabled; }
+        public String getTargetType() { return targetType; }
+        public String getTargetName() { return targetName; }
         public String getDescription() { return description; }
+    }
+
+    public static class ServiceMetricDataRequestDto {
+        private Long monitoringConfigId;
+        private java.math.BigDecimal cpuUsagePercent;
+        private java.math.BigDecimal memoryUsageMb;
+        private java.math.BigDecimal memoryUsagePercent;
+        private java.math.BigDecimal diskUsagePercent;
+        private Long networkRxBytes;
+        private Long networkTxBytes;
+        private LocalDateTime collectedAt;
+
+        public ServiceMetricDataRequestDto(Long id, java.math.BigDecimal cpu, java.math.BigDecimal memMb,
+                                           java.math.BigDecimal memPct, java.math.BigDecimal disk, Long rx, Long tx, LocalDateTime collectedAt) {
+            this.monitoringConfigId = id;
+            this.cpuUsagePercent = cpu;
+            this.memoryUsageMb = memMb;
+            this.memoryUsagePercent = memPct;
+            this.diskUsagePercent = disk;
+            this.networkRxBytes = rx;
+            this.networkTxBytes = tx;
+            this.collectedAt = collectedAt;
+        }
+    }
+
+    public boolean sendServiceMetricData(String agentId, String apiKey, ServiceMetricDataRequestDto requestDto) throws IOException {
+        String url = baseUrl + "/api/agents/" + agentId + "/service-metrics";
+        String json = gson.toJson(requestDto);
+        RequestBody body = RequestBody.create(json, JSON);
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .addHeader("Authorization", "Bearer " + apiKey)
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                log.error("서비스 메트릭 통계 전송 실패 HTTP 상태코드: {}", response.code());
+            }
+            return response.isSuccessful();
+        }
     }
 }
 

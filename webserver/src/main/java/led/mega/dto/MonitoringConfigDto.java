@@ -16,6 +16,8 @@ public class MonitoringConfigDto {
     private String agentName;      // 화면 표시용 (조인 없이 서비스에서 채움)
 
     private String serviceName;
+    private String targetType;     // HOST, PROCESS, DOCKER
+    private String targetName;     // 프로세스명 / 컨테이너명
     private String servicePath;
     private String logPath;
     private String collectItems;   // CSV: CPU,MEMORY,DISK,LOG

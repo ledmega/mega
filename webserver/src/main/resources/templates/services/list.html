@@ -678,9 +678,25 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">서비스명 <span class="required">*</span></label>
+                    <label class="form-label">표시용 서비스명 <span class="required">*</span></label>
                     <input id="f_serviceName" class="form-control" type="text" placeholder="예: Nginx-Docker, Spring-App"
                         required>
+                </div>
+
+                <div class="form-row" style="background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:16px;">
+                    <div class="form-group" style="flex:1;">
+                        <label class="form-label">메트릭 타겟 유형 <span class="required">*</span></label>
+                        <select class="form-control" id="f_targetType" required>
+                            <option value="HOST">서버 전체 (Host)</option>
+                            <option value="PROCESS">프로세스 (grep명)</option>
+                            <option value="DOCKER">컨테이너 (docker stats)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label class="form-label">타겟 식별자(이름)</label>
+                        <input id="f_targetName" class="form-control" type="text" placeholder="예: mega-api">
+                        <div class="form-hint">프로세스나 도커 이름</div>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -943,6 +959,8 @@
             document.getElementById('submitBtn').textContent = '등록하기';
             document.getElementById('editId').value = '';
             document.getElementById('configForm').reset();
+            document.getElementById('f_targetType').value = 'HOST';
+            document.getElementById('f_targetName').value = '';
             document.getElementById('logKeywordsGroup').style.display = 'none';
             // 기본 체크박스 상태 복원
             ['CPU', 'MEMORY', 'DISK'].forEach(k => document.getElementById('item_' + k).checked = true);
@@ -961,6 +979,8 @@
 
             document.getElementById('f_agentId').value = c.agentId;
             document.getElementById('f_serviceName').value = c.serviceName || '';
+            document.getElementById('f_targetType').value = c.targetType || 'HOST';
+            document.getElementById('f_targetName').value = c.targetName || '';
             document.getElementById('f_servicePath').value = c.servicePath || '';
             document.getElementById('f_logPath').value = c.logPath || '';
             document.getElementById('f_logKeywords').value = c.logKeywords || '';
@@ -996,6 +1016,8 @@
             const payload = {
                 agentId: Number(document.getElementById('f_agentId').value),
                 serviceName: document.getElementById('f_serviceName').value,
+                targetType: document.getElementById('f_targetType').value,
+                targetName: document.getElementById('f_targetName').value,
                 servicePath: document.getElementById('f_servicePath').value,
                 logPath: document.getElementById('f_logPath').value,
                 collectItems: items.join(','),

@@ -343,7 +343,7 @@ public class TaskScheduler {
         boolean needDisk = collectItems.contains("DISK");
         if (needCpu || needMem || needDisk) {
             String taskName = "service-metric-" + cfg.getId();
-            scheduleTask(taskName, () -> collectAndSendServiceMetrics(cfg.getId(), needCpu, needMem, needDisk), interval, TimeUnit.SECONDS);
+            scheduleTask(taskName, () -> collectAndSendServiceMetrics(cfg, needCpu, needMem, needDisk), interval, TimeUnit.SECONDS);
         }
     }
 
@@ -368,51 +368,90 @@ public class TaskScheduler {
         // 기존 코드는 유지하되, 호출되지 않도록 합니다.
     }
 
-    private void collectAndSendServiceMetrics(Long monitoringConfigId, boolean needCpu, boolean needMem, boolean needDisk) {
+    private void collectAndSendServiceMetrics(ApiClient.MonitoringConfigDto cfg, boolean needCpu, boolean needMem, boolean needDisk) {
+        Long configId = cfg.getId();
+        String targetType = cfg.getTargetType() != null ? cfg.getTargetType() : "HOST";
+        String targetName = cfg.getTargetName();
         LocalDateTime now = LocalDateTime.now();
-        Gson gson = new Gson();
 
-        if (needCpu) {
+        BigDecimal cpu = null;
+        BigDecimal memMb = null;
+        BigDecimal memPct = null;
+        BigDecimal diskPct = null;
+
+        if ("DOCKER".equalsIgnoreCase(targetType) && targetName != null && !targetName.trim().isEmpty()) {
             try {
-                String procStat = commandExecutor.executeToString("cat /proc/stat");
-                BigDecimal cpuUsage = metricParser.parseCpuUsageFromProcStat(procStat, "service-cpu-" + monitoringConfigId);
-                Map<String, Object> raw = new HashMap<>();
-                raw.put("cpuUsage", cpuUsage);
-                apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
-                        null, monitoringConfigId, "CPU", "cpu_usage_percent", cpuUsage, "%", gson.toJson(raw), now));
-            } catch (Exception e) {
-                log.debug("서비스 CPU 메트릭 수집 실패: configId={}", monitoringConfigId, e);
-            }
-        }
-        if (needMem) {
-            try {
-                String output = commandExecutor.executeToString("free -m");
-                Map<String, Object> metrics = metricParser.parseFreeMemory(output);
-                if (metrics.containsKey("usedPercent")) {
-                    BigDecimal usedPercent = new BigDecimal(metrics.get("usedPercent").toString());
-                    apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
-                            null, monitoringConfigId, "MEMORY", "memory_usage_percent", usedPercent, "%", gson.toJson(metrics), now));
-                }
-            } catch (Exception e) {
-                log.debug("서비스 MEMORY 메트릭 수집 실패: configId={}", monitoringConfigId, e);
-            }
-        }
-        if (needDisk) {
-            try {
-                String output = commandExecutor.executeToString("df -h");
-                Map<String, Map<String, Object>> diskMetrics = metricParser.parseDiskUsage(output);
-                for (Map.Entry<String, Map<String, Object>> entry : diskMetrics.entrySet()) {
-                    String mountPoint = entry.getKey();
-                    Map<String, Object> diskInfo = entry.getValue();
-                    if (diskInfo.containsKey("usePercent")) {
-                        BigDecimal usePercent = new BigDecimal(diskInfo.get("usePercent").toString());
-                        apiClient.sendMetricData(agentId, apiKey, new ApiClient.MetricRequest(
-                                null, monitoringConfigId, "DISK", "disk_usage_" + mountPoint.replace("/", "_"), usePercent, "%", gson.toJson(diskInfo), now));
+                // docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}" [컨테이너명]
+                String cmd = "docker stats --no-stream --format \"{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}\" " + targetName;
+                led.mega.agent.executor.CommandExecutor.CommandResult res = commandExecutor.execute(new String[]{"sh", "-c", cmd});
+                String output = res.getOutputAsString();
+                
+                if (output != null && !output.trim().isEmpty()) {
+                    String[] parts = output.trim().split("\\|");
+                    if (parts.length >= 3) {
+                        cpu = new BigDecimal(parts[0].replaceAll("[^0-9.]", ""));
+                        memPct = new BigDecimal(parts[2].replaceAll("[^0-9.]", ""));
+                        // MemUsage = 150MiB / 2GiB -> MB로 대략 변환
+                        String memStr = parts[1].split("/")[0].replaceAll("[^0-9.]", "");
+                        if (!memStr.isEmpty()) memMb = new BigDecimal(memStr);
                     }
                 }
             } catch (Exception e) {
-                log.debug("서비스 DISK 메트릭 수집 실패: configId={}", monitoringConfigId, e);
+                log.debug("도커 메트릭 수집 실패: {}", targetName, e);
             }
+        } else if ("PROCESS".equalsIgnoreCase(targetType) && targetName != null && !targetName.trim().isEmpty()) {
+            try {
+                // ps aux | grep -v grep | grep "이름" | awk '{cpu+=$3; mem+=$4} END {print cpu"|"mem}'
+                String cmd = "ps aux | grep -v grep | grep \"" + targetName + "\" | awk '{cpu+=$3; mem+=$4} END {print cpu\"|\"mem}'";
+                led.mega.agent.executor.CommandExecutor.CommandResult res = commandExecutor.execute(new String[]{"sh", "-c", cmd});
+                String output = res.getOutputAsString();
+                
+                if (output != null && !output.trim().isEmpty() && output.contains("|")) {
+                    String[] parts = output.trim().split("\\|");
+                    if (parts.length == 2 && !parts[0].isEmpty()) {
+                        cpu = new BigDecimal(parts[0]);
+                        memPct = new BigDecimal(parts[1]);
+                        memMb = memPct; // 프로세스 전체 MB계산은 어려워 % 값 동일 복사 (지표용 트릭)
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("프로세스 메트릭 수집 실패: {}", targetName, e);
+            }
+        } 
+        
+        // HOST 모드일 때 (또는 위에서 아무것도 못구했을 때 보강용 - 기본 시스템 수집로직)
+        if (cpu == null && ("HOST".equalsIgnoreCase(targetType) || needCpu)) {
+            try {
+                String procStat = commandExecutor.executeToString("cat /proc/stat");
+                cpu = metricParser.parseCpuUsageFromProcStat(procStat, "service-cpu-" + configId);
+            } catch (Exception e) {}
+        }
+        if (memPct == null && ("HOST".equalsIgnoreCase(targetType) || needMem)) {
+            try {
+                String output = commandExecutor.executeToString("free -m");
+                Map<String, Object> metrics = metricParser.parseFreeMemory(output);
+                if (metrics.containsKey("usedPercent")) memPct = new BigDecimal(metrics.get("usedPercent").toString());
+                if (metrics.containsKey("used")) memMb = new BigDecimal(metrics.get("used").toString());
+            } catch (Exception e) {}
+        }
+        if (diskPct == null && ("HOST".equalsIgnoreCase(targetType) || needDisk)) {
+            try {
+                String output = commandExecutor.executeToString("df -h");
+                Map<String, Map<String, Object>> diskMetrics = metricParser.parseDiskUsage(output);
+                if (!diskMetrics.isEmpty()) {
+                    Map<String, Object> rootDisk = diskMetrics.get("/");
+                    if (rootDisk == null) rootDisk = diskMetrics.values().iterator().next();
+                    if (rootDisk.containsKey("usePercent")) diskPct = new BigDecimal(rootDisk.get("usePercent").toString());
+                }
+            } catch (Exception e) {}
+        }
+
+        try {
+            apiClient.sendServiceMetricData(agentId, apiKey, 
+                new ApiClient.ServiceMetricDataRequestDto(configId, cpu, memMb, memPct, diskPct, null, null, now)
+            );
+        } catch (Exception e) {
+            log.error("Service Metric 전송 실패", e);
         }
     }
 

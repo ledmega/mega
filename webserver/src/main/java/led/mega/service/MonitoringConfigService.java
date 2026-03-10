@@ -7,6 +7,8 @@ import led.mega.repository.AgentRepository;
 import led.mega.repository.ExceptionLogRepository;
 import led.mega.repository.MetricDataRepository;
 import led.mega.repository.MonitoringConfigRepository;
+import led.mega.repository.ServiceMetricDataRepository;
+import led.mega.entity.ServiceMetricData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class MonitoringConfigService {
     private final AgentRepository agentRepository;
     private final ExceptionLogRepository exceptionLogRepository;
     private final MetricDataRepository metricDataRepository;
+    private final ServiceMetricDataRepository serviceMetricDataRepository;
 
     /** 전체 설정 목록 + 에이전트 이름 채움 */
     public Flux<MonitoringConfigDto> getAll() {
@@ -52,6 +55,8 @@ public class MonitoringConfigService {
         MonitoringConfig entity = MonitoringConfig.builder()
                 .agentId(dto.getAgentId())
                 .serviceName(dto.getServiceName())
+                .targetType(dto.getTargetType() != null ? dto.getTargetType() : "HOST")
+                .targetName(dto.getTargetName())
                 .servicePath(dto.getServicePath())
                 .logPath(dto.getLogPath())
                 .collectItems(dto.getCollectItems() != null ? dto.getCollectItems() : "CPU,MEMORY,DISK")
@@ -68,6 +73,8 @@ public class MonitoringConfigService {
         return configRepository.findById(id)
                 .flatMap(entity -> {
                     entity.setServiceName(dto.getServiceName());
+                    entity.setTargetType(dto.getTargetType() != null ? dto.getTargetType() : "HOST");
+                    entity.setTargetName(dto.getTargetName());
                     entity.setServicePath(dto.getServicePath());
                     entity.setLogPath(dto.getLogPath());
                     entity.setCollectItems(dto.getCollectItems());
@@ -108,6 +115,8 @@ public class MonitoringConfigService {
                         .agentId(entity.getAgentId())
                         .agentName(agent.getName() != null ? agent.getName() : agent.getAgentId())
                         .serviceName(entity.getServiceName())
+                        .targetType(entity.getTargetType())
+                        .targetName(entity.getTargetName())
                         .servicePath(entity.getServicePath())
                         .logPath(entity.getLogPath())
                         .collectItems(entity.getCollectItems())
@@ -123,6 +132,8 @@ public class MonitoringConfigService {
                         .agentId(entity.getAgentId())
                         .agentName("(삭제된 에이전트)")
                         .serviceName(entity.getServiceName())
+                        .targetType(entity.getTargetType())
+                        .targetName(entity.getTargetName())
                         .servicePath(entity.getServicePath())
                         .logPath(entity.getLogPath())
                         .collectItems(entity.getCollectItems())
@@ -138,43 +149,22 @@ public class MonitoringConfigService {
                 .countByMonitoringConfigIdSince(entity.getId(), since)
                 .defaultIfEmpty(0L);
 
-        // 예외 건수까지 채운 후, CPU/MEM/DISK 메트릭은 각각 존재할 때만 DTO에 채운다.
+        // 예외 건수까지 채운 후, 서비스 메트릭(ServiceMetricData)을 하나만 조회해 DTO에 한 번에 채운다.
         return baseDto
                 .zipWith(recentCount)
                 .flatMap(tuple -> {
                     MonitoringConfigDto dto = tuple.getT1();
                     dto.setRecentExceptionCount(tuple.getT2());
 
-                    Mono<MonitoringConfigDto> withCpu = metricDataRepository
-                            .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "CPU")
-                            .next()
+                    return serviceMetricDataRepository
+                            .findTopByMonitoringConfigIdOrderByCollectedAtDesc(entity.getId())
                             .map(m -> {
-                                dto.setRecentCpu(m.getMetricValue());
+                                dto.setRecentCpu(m.getCpuUsagePercent());
+                                dto.setRecentMemory(m.getMemoryUsagePercent() != null ? m.getMemoryUsagePercent() : m.getMemoryUsageMb());
+                                dto.setRecentDisk(m.getDiskUsagePercent());
                                 return dto;
                             })
                             .switchIfEmpty(Mono.just(dto));
-
-                    Mono<MonitoringConfigDto> withMem = withCpu.flatMap(d ->
-                            metricDataRepository
-                                    .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "MEMORY")
-                                    .next()
-                                    .map(m -> {
-                                        d.setRecentMemory(m.getMetricValue());
-                                        return d;
-                                    })
-                                    .switchIfEmpty(Mono.just(d))
-                    );
-
-                    return withMem.flatMap(d ->
-                            metricDataRepository
-                                    .findLatestByMonitoringConfigIdAndMetricType(entity.getId(), "DISK")
-                                    .next()
-                                    .map(m -> {
-                                        d.setRecentDisk(m.getMetricValue());
-                                        return d;
-                                    })
-                                    .switchIfEmpty(Mono.just(d))
-                    );
                 });
     }
 }
