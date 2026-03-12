@@ -9,17 +9,18 @@ MEGA는 분산된 리눅스 서버 환경에서 시스템 자원(CPU, Memory, Di
 
 ### 2.1. Agent (에이전트)
 * **Linux 네이티브 명령어 기반 수집**: `top -bn1`, `cat /proc/stat`, `free -m`, `df -h` 등 리눅스 표준 명령어를 자체 스케줄러를 통해 실행 후, 파싱하여 데이터를 추출.
+  * **유연한 수집 주기 설정**: `application.properties`를 통해 메모리, CPU, 디스크, Exception 수집 주기를 독립적으로 설정 가능.
   * **Memory**: 사용률(%), 가용량(MB) 수집.
   * **CPU**: 점유율(User %) 수집.
   * **Disk**: 파티션별 모든 볼륨 사용률(%) 수집.
 * **에이전트 라이프사이클 관리**: `agent.sh` 스크립트를 통해 백그라운드 구동(start/stop/status) 가능.
 * **자동 식별 및 등록**: 부팅 시 `hostname` 및 IP 주소를 자동으로 탐지하여 서버에 등록 후 발급된 API키를 로컬 `.agent_id` 파일에 캐싱.
 * **동적 서비스 스케줄러 (P1)**: 서버에서 `monitoring_config` 목록을 Pull하여 신규/변경/삭제된 서비스 모니터링(예: Nginx, Docker) 작업을 실시간/동적으로 병렬 처리.
-* **로그 키워드 Tail 모니터링 (P2)**: Exception이나 특정 에러 문자열이 파일 포지션(Offset) 기준으로 추가될 때마다 즉각 파싱하여 Exception 이벤트로 발송.
+* **로그 키워드 및 다중 경로 모니터링 (P2)**: 설정된 여러 경로(`task.exception.log.paths`) 파일 포지션(Offset) 기준으로 추가될 때마다 즉각 파싱하여 Exception 이벤트로 발송.
 
 ### 2.2. Web Server (중앙 모니터링 서버)
 * **리액티브 비동기 스택**: Spring WebFlux, R2DBC 스택을 활용하여 서버 오버헤드 최소화.
-* **실시간 SSE (Server-Sent Events)**: `Sinks.Many`를 이용한 실시간(Real-time) 데이터 푸시 및 UI 깜박임 없는 차트 렌더링.
+* **실시간 SSE (Server-Sent Events) 통합**: 에이전트로부터 수집된 데이터(`Metric`, `Exception`, `Heartbeat`)를 저장하자마자 `SseService`를 통해 대시보드로 즉시 브로드캐스팅.
 * **보안 계층**: API Key 기반으로 에이전트를 인증, 웹 접근자는 Spring Security Form Login(CustomUserDetailsService)을 통해 인가된 사용자만 접근. (인증정보 분리)
 * **서비스 관리 CRUD API**: `MonitoringConfig` 엔티티 기반으로 서비스별 모니터링 설정(경로, 로그, 수집 항목, 인터벌)을 동적으로 등록/수정/삭제하는 환경 구축.
 * **시간대 픽스**: OS 기본 타임존과 독립적으로 KST(Asia/Seoul)를 강제 설정해 로그/메트릭 기록 일관성 도모.

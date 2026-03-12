@@ -7,7 +7,7 @@ MEGA는 분산된 리눅스 서버 환경에서 시스템 자원(CPU, Memory, Di
 
 시스템은 **Agent** 모듈과 **Web Server** 모듈로 구성됩니다.
 1. **Agent**: 각 리눅스 서버에 바이너리 형태로 독립 실행되며 시스템 명령어를 통해 데이터를 수집하여 Web Server의 REST API로 Push합니다. Java 8 기반으로 최소한의 의존성만 가집니다 (가벼움을 유지).
-2. **Web Server**: 에이전트로부터 수집된 데이터를 R2DBC 기반 비동기 Non-blocking으로 MariaDB에 적재하며, 접속해 있는 대시보드 브라우저들에게 **SSE (Server-Sent Events)**를 이용해 실시간으로 브로드캐스팅합니다. Java 17+ 및 Spring WebFlux 기반.
+2. **Web Server**: 에이전트로부터 수집된 데이터를 R2DBC 기반 비동기 Non-blocking으로 MariaDB에 적재하며, 접속해 있는 대시보드 브라우저들에게 **SSE (Server-Sent Events)**를 이용해 실시간으로 브로드캐스팅(Broadcasting)합니다. (기존 WebSocket 환경에서 WebFlux 최적화 SSE로 완전 전환)
 
 ### 2.1 주요 기술 스택 (Tech Stack)
 * **Backend Framework**: Java 21 (Web), Java 8 (Agent), Spring Boot 3.x, Spring WebFlux
@@ -20,17 +20,17 @@ MEGA는 분산된 리눅스 서버 환경에서 시스템 자원(CPU, Memory, Di
 ### 3.1 수집 흐름
 ```text
 [ Agent ] 
- ├──> 10초마다 host 정보 (/proc/stat, free, df) 파싱
- ├──> 60초마다 서버 설정(MonitoringConfig) Pull
- ├──> 등록된 서비스별 CPU/MEM/DISK 추가 메트릭 수집
- └──> 로그 파일 (logPath) 키워드 매칭 Tail 모니터링
+ ├──> 설정된 주기(Configurable Intervals)마다 host 정보 (/proc/stat, free, df) 파싱
+ ├──> 주기적인 서버 설정(MonitoringConfig) Pull 및 동적 스케줄링 반영
+ ├──> 서비스별 CPU/MEM/DISK 및 네트워크 메트릭 수집 (Docker/Process 모드 지원)
+ └──> 로그 파일 (Multi-path logPath) 키워드 매칭 및 Exception Tail 모니터링
       |
       v (HTTP POST /api/agents/{id}/metrics 또는 exceptions)
 [ Web Server ]
  ├──> Spring WebFlux REST Controller (Reactor Netty)
  ├──> ApiKey 인증 필터 (WebFilter)
- ├──> R2DBC 비동기 DB 인서트 (MariaDB)
- └──> Sinks.Many 브로드캐스트 (Flux) 통과
+ ├──> R2DBC 비동기 DB 인서트 (MariaDB Concurrent Insert)
+ └──> SseService (Sinks.Many) 를 통한 실시간 이벤트 발행 (Hot Publisher)
       |
       v (SSE Event Stream /api/sse/events)
 [ Dashboard ]

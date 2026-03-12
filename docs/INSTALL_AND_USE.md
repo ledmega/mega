@@ -33,6 +33,7 @@ FLUSH PRIVILEGES;
   `nohup java -jar build/libs/agent-1.0-SNAPSHOT.jar > /dev/null 2>&1 &`
 
 에이전트는 기동 즉시 웹서버를 목적지로 하여 스스로를 등록하며 API Key를 발급 받습니다. Web UI 대시보드 새로고침 시 이 에이전트 목록이 실시간으로 확인됩니다.
+또한, `agent/src/main/resources/application.properties` 파일 내의 `task.*` 설정을 통해 수집 주기와 모니터링할 로그 경로를 커스터마이징할 수 있습니다.
 
 ---
 ## 4. 로깅 및 타임존 (Troubleshooting)
