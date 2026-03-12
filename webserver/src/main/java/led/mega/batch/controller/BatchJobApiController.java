@@ -17,6 +17,12 @@ import java.util.Map;
 public class BatchJobApiController {
 
     private final BatchJobService batchJobService;
+    
+    /** 이용 가능한 Job 유형 목록 조회 (UI용) */
+    @GetMapping("/types")
+    public Mono<Map<String, String>> getJobTypes() {
+        return Mono.just(batchJobService.getAvailableJobTypes());
+    }
 
     /** 전체 목록 조회 */
     @GetMapping

@@ -35,12 +35,34 @@ public class BatchJobService {
 
     // 실행 중인 스케줄 Future 관리
     private final Map<Long, ScheduledFuture<?>> scheduledFutures = new ConcurrentHashMap<>();
+    
+    // 주입된 BatchTask 구현체들을 저장하는 맵
+    private final Map<String, BatchTask> tasks = new ConcurrentHashMap<>();
+
     private final ScheduledExecutorService executor =
             Executors.newScheduledThreadPool(4, r -> {
                 Thread t = new Thread(r, "batch-job-" + System.currentTimeMillis());
                 t.setDaemon(true);
                 return t;
             });
+
+    /** Spring에 등록된 모든 BatchTask를 자동 주입받아 맵에 저장 */
+    @jakarta.annotation.Autowired
+    public void setBatchTasks(java.util.List<BatchTask> taskList) {
+        taskList.forEach(task -> {
+            tasks.put(task.getJobType(), task);
+            log.info("[BatchJob] Task 등록: type={}, class={}", task.getJobType(), task.getClass().getSimpleName());
+        });
+    }
+
+    /** UI용 Job 유형 목록 반환 */
+    public Map<String, String> getAvailableJobTypes() {
+        Map<String, String> result = new java.util.LinkedHashMap<>();
+        tasks.values().stream()
+                .sorted(java.util.Comparator.comparing(BatchTask::getJobType))
+                .forEach(t -> result.put(t.getJobType(), t.getDisplayName()));
+        return result;
+    }
 
     // ───────────────────────────────────────────────────────────────────────
     // 서버 시작 시 초기화
@@ -176,21 +198,13 @@ public class BatchJobService {
         LocalDateTime threshold = LocalDateTime.now().minusDays(job.getRetentionDays());
         log.info("[BatchJob] 실행 시작: type={}, threshold={}", job.getJobType(), threshold);
 
-        Mono<Integer> action;
-        switch (job.getJobType()) {
-            case TYPE_METRIC_CLEANUP:
-                action = metricDataRepository.deleteByCollectedAtBefore(threshold);
-                break;
-            case TYPE_EXCEPTION_CLEANUP:
-                action = exceptionLogRepository.deleteByOccurredAtBefore(threshold);
-                break;
-            default:
-                return Mono.just("알 수 없는 Job 유형: " + job.getJobType());
+        BatchTask task = tasks.get(job.getJobType());
+        if (task == null) {
+            return Mono.just("미지원 Job 유형: " + job.getJobType());
         }
 
-        return action
-                .flatMap(deleted -> {
-                    String msg = String.format("%s 완료: %d건 삭제 (기준: %s 이전)", job.getJobType(), deleted, threshold.toLocalDate());
+        return task.execute(job, threshold)
+                .flatMap(msg -> {
                     log.info("[BatchJob] {}", msg);
                     return batchJobRepository.updateRunResult(job.getId(), LocalDateTime.now(), "SUCCESS", msg)
                             .thenReturn(msg);

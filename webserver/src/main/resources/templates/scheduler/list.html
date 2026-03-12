@@ -595,8 +595,7 @@
             <div class="form-row">
                 <label class="form-label">Job 유형 *</label>
                 <select class="form-select" id="fJobType" style="color:var(--text); background:var(--surface);">
-                    <option value="METRIC_DATA_CLEANUP">METRIC_DATA_CLEANUP (metric_data 삭제)</option>
-                    <option value="EXCEPTION_LOG_CLEANUP">EXCEPTION_LOG_CLEANUP (exception_log 삭제)</option>
+                    <!-- 서버에서 동적으로 로드됨 -->
                 </select>
             </div>
             <div class="form-row form-row-inline">
@@ -633,7 +632,23 @@
         let allJobs = [];
 
         // ── 초기 로드 ──────────────────────────────────────────────
-        window.addEventListener('load', loadJobs);
+        window.addEventListener('load', () => {
+            loadTypes();
+            loadJobs();
+        });
+
+        async function loadTypes() {
+            try {
+                const res = await fetch('/api/batch/jobs/types');
+                const types = await res.json();
+                const select = document.getElementById('fJobType');
+                select.innerHTML = Object.entries(types).map(([val, label]) => 
+                    `<option value="${val}">${val} (${label})</option>`
+                ).join('');
+            } catch (e) {
+                console.error('Job 유형 로드 실패:', e);
+            }
+        }
 
         async function loadJobs() {
             try {
