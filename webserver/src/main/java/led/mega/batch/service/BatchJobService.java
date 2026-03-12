@@ -6,8 +6,10 @@ import led.mega.batch.entity.BatchJob;
 import led.mega.batch.repository.BatchJobRepository;
 import led.mega.repository.ExceptionLogRepository;
 import led.mega.repository.MetricDataRepository;
+import led.mega.batch.task.BatchTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -47,7 +49,7 @@ public class BatchJobService {
             });
 
     /** Spring에 등록된 모든 BatchTask를 자동 주입받아 맵에 저장 */
-    @jakarta.annotation.Autowired
+    @Autowired
     public void setBatchTasks(java.util.List<BatchTask> taskList) {
         taskList.forEach(task -> {
             tasks.put(task.getJobType(), task);
