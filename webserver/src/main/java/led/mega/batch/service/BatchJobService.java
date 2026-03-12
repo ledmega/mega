@@ -119,7 +119,9 @@ public class BatchJobService {
                     existing.setJobType(req.getJobType());
                     existing.setDescription(req.getDescription());
                     existing.setIntervalMinutes(req.getIntervalMinutes());
+                    existing.setCronExpression(req.getCronExpression());
                     existing.setRetentionDays(req.getRetentionDays());
+                    existing.setJobConfig(req.getJobConfig());
                     existing.setEnabled(req.getEnabled());
                     existing.setUpdatedAt(LocalDateTime.now());
                     return batchJobRepository.save(existing);

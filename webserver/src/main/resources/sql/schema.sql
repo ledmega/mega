@@ -168,6 +168,8 @@ CREATE TABLE IF NOT EXISTS batch_job (
     last_run_at      DATETIME                            COMMENT '마지막 실행 시간',
     last_run_status  VARCHAR(20)                         COMMENT '마지막 실행 결과 (SUCCESS, FAILED, RUNNING)',
     last_run_message VARCHAR(500)                        COMMENT '마지막 실행 메시지 또는 오류',
+    cron_expression  VARCHAR(100)                        COMMENT 'Cron 표현식 (예: 0 0 23 * * ?)',
+    job_config       TEXT                                COMMENT '실행할 SQL이나 스크립트 내용',
     created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
     updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
     INDEX idx_bj_enabled  (enabled),
