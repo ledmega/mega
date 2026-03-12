@@ -598,15 +598,31 @@
                     <!-- 서버에서 동적으로 로드됨 -->
                 </select>
             </div>
-            <div class="form-row form-row-inline">
-                <div>
-                    <label class="form-label">실행 주기 (분) *</label>
-                    <input class="form-input" id="fIntervalMinutes" type="number" min="1" placeholder="60">
+            <div class="form-row">
+                <label class="form-label">스케줄 방식 *</label>
+                <div style="display:flex; gap:20px; font-size:14px; margin-bottom:10px;">
+                    <label style="cursor:pointer;"><input type="radio" name="scheduleType" value="INTERVAL" checked onchange="toggleScheduleFields()"> 단순 반복(분)</label>
+                    <label style="cursor:pointer;"><input type="radio" name="scheduleType" value="CRON" onchange="toggleScheduleFields()"> Cron 표현식</label>
                 </div>
-                <div id="retentionRow">
-                    <label class="form-label">데이터 보존 기간 (일) *</label>
-                    <input class="form-input" id="fRetentionDays" type="number" min="1" placeholder="7">
+                <div id="intervalInputRow">
+                    <input class="form-input" id="fIntervalMinutes" type="number" min="1" placeholder="예: 60 (분 단위)">
                 </div>
+                <div id="cronInputRow" style="display:none;">
+                    <input class="form-input" id="fCronExpression" placeholder="예: 0 0 23 * * ? (매일 23시)">
+                    <p style="font-size:11px; color:var(--muted); margin-top:4px;">초 분 시 일 월 요일 (Spring Cron 양식)</p>
+                </div>
+            </div>
+            
+            <div class="form-row" id="retentionRow">
+                <label class="form-label">데이터 보존 기간 (일) *</label>
+                <input class="form-input" id="fRetentionDays" type="number" min="0" placeholder="7">
+            </div>
+
+            <div class="form-row" id="sqlConfigRow" style="display:none;">
+                <label class="form-label">실행할 SQL 스크립트 (세미콜론 ; 구분) *</label>
+                <textarea class="form-input" id="fJobConfig" rows="6" 
+                    placeholder="INSERT INTO stats ...;&#10;DELETE FROM metric_data WHERE ...;"
+                    style="font-family:monospace; font-size:12px; line-height:1.5;"></textarea>
             </div>
             <div class="form-row">
                 <label class="form-label">설명</label>
@@ -656,16 +672,18 @@
         function toggleFields() {
             const type = document.getElementById('fJobType').value;
             const retentionRow = document.getElementById('retentionRow');
+            const sqlConfigRow = document.getElementById('sqlConfigRow');
             
             // _CLEANUP으로 끝나는 유형일 때만 '보존 기간' 표시
-            if (type.endsWith('_CLEANUP')) {
-                retentionRow.style.visibility = 'visible';
-                retentionRow.style.opacity = '1';
-            } else {
-                retentionRow.style.visibility = 'hidden';
-                retentionRow.style.opacity = '0';
-                document.getElementById('fRetentionDays').value = '0'; // 안 쓰는 필드 초기화
-            }
+            retentionRow.style.display = type.endsWith('_CLEANUP') ? 'block' : 'none';
+            // SQL 배치인 경우 에디터 표시
+            sqlConfigRow.style.display = type === 'DYNAMIC_SQL_BATCH' ? 'block' : 'none';
+        }
+
+        function toggleScheduleFields() {
+            const type = document.querySelector('input[name="scheduleType"]:checked').value;
+            document.getElementById('intervalInputRow').style.display = type === 'INTERVAL' ? 'block' : 'none';
+            document.getElementById('cronInputRow').style.display = type === 'CRON' ? 'block' : 'none';
         }
 
         async function loadJobs() {
@@ -817,15 +835,20 @@
 
         async function saveJob() {
             const id = document.getElementById('editId').value;
+            const scheduleType = document.querySelector('input[name="scheduleType"]:checked').value;
+            
             const body = {
                 jobName: document.getElementById('fJobName').value.trim(),
                 jobType: document.getElementById('fJobType').value,
-                intervalMinutes: parseInt(document.getElementById('fIntervalMinutes').value) || 60,
-                retentionDays: parseInt(document.getElementById('fRetentionDays').value) || 7,
+                intervalMinutes: scheduleType === 'INTERVAL' ? (parseInt(document.getElementById('fIntervalMinutes').value) || 60) : null,
+                cronExpression: scheduleType === 'CRON' ? document.getElementById('fCronExpression').value.trim() : null,
+                retentionDays: parseInt(document.getElementById('fRetentionDays').value) || 0,
+                jobConfig: document.getElementById('fJobConfig').value.trim(),
                 description: document.getElementById('fDescription').value.trim(),
                 enabled: document.getElementById('fEnabled').checked,
             };
             if (!body.jobName) { showToast('Job 이름을 입력해주세요.', 'error'); return; }
+            if (body.jobType === 'DYNAMIC_SQL_BATCH' && !body.jobConfig) { showToast('SQL 내용을 입력해주세요.', 'error'); return; }
 
             const url = id ? `/api/batch/jobs/${id}` : '/api/batch/jobs';
             const method = id ? 'PUT' : 'POST';

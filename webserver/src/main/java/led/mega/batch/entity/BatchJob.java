@@ -47,6 +47,12 @@ public class BatchJob {
     @Column("last_run_message")
     private String lastRunMessage;
 
+    @Column("cron_expression")
+    private String cronExpression; // 예: "0 0 23 * * ?" (매일 23시)
+
+    @Column("job_config")
+    private String jobConfig;      // 실행할 SQL이나 스크립트 내용
+
     @Column("created_at")
     private LocalDateTime createdAt;
 
