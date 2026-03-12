@@ -27,6 +27,7 @@ public class AgentHeartbeatService {
 
     private final AgentHeartbeatRepository heartbeatRepository;
     private final AgentRepository agentRepository;
+    private final SseService sseService;
 
     // [CHANGED] AgentHeartbeat → Mono<AgentHeartbeat>
     @Transactional
@@ -55,10 +56,15 @@ public class AgentHeartbeatService {
                             .flatMap(saved -> {
                                 agent.setStatus(finalStatus);
                                 agent.setLastHeartbeat(saved.getHeartbeatAt());
-                                return agentRepository.save(agent).thenReturn(saved);
+                                return agentRepository.save(agent)
+                                        .doOnNext(updatedAgent -> sseService.broadcastAgentStatus(agentId, updatedAgent))
+                                        .thenReturn(saved);
                             });
                 })
-                .doOnNext(h -> log.debug("하트비트 저장 완료: agentId={}, status={}", agentId, finalStatus));
+                .doOnNext(h -> {
+                    log.debug("하트비트 저장 완료: agentId={}, status={}", agentId, finalStatus);
+                    sseService.broadcastHeartbeat(agentId, h);
+                });
     }
 
     // [CHANGED] List<AgentHeartbeat> → Flux<AgentHeartbeat>

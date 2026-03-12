@@ -22,6 +22,15 @@ public class AgentConfig {
     private String ipAddress;
     private int heartbeatIntervalSeconds;
     
+    // 작업 주기 설정
+    private int memoryTaskIntervalSeconds;
+    private int diskTaskIntervalSeconds;
+    private int cpuTaskIntervalSeconds;
+    private int exceptionTaskIntervalSeconds;
+    
+    // Exception 로그 파일 경로
+    private String[] exceptionLogPaths;
+    
     private static AgentConfig instance;
     
     private AgentConfig() {
@@ -71,12 +80,31 @@ public class AgentConfig {
                 props.getProperty("heartbeat.interval.seconds", "30")
             );
             
+            // 작업 주기 설정
+            memoryTaskIntervalSeconds = Integer.parseInt(props.getProperty("task.memory.interval.seconds", "60"));
+            diskTaskIntervalSeconds = Integer.parseInt(props.getProperty("task.disk.interval.seconds", "600"));
+            cpuTaskIntervalSeconds = Integer.parseInt(props.getProperty("task.cpu.interval.seconds", "30"));
+            exceptionTaskIntervalSeconds = Integer.parseInt(props.getProperty("task.exception.interval.seconds", "600"));
+            
+            // 로그 파일 경로 설정
+            String paths = props.getProperty("task.exception.log.paths", "");
+            if (!paths.isEmpty()) {
+                exceptionLogPaths = paths.split(",");
+                for (int i = 0; i < exceptionLogPaths.length; i++) {
+                    exceptionLogPaths[i] = exceptionLogPaths[i].trim();
+                }
+            } else {
+                exceptionLogPaths = new String[0];
+            }
+            
             log.info("에이전트 설정 로드 완료");
             log.info("웹서버 URL: {}", webserverUrl);
             log.info("에이전트 이름: {}", agentName);
             log.info("호스트명: {}", hostname);
             log.info("IP 주소: {}", ipAddress);
             log.info("하트비트 간격: {}초", heartbeatIntervalSeconds);
+            log.info("메모리/디스크/CPU/Exception 주기: {}/{}/{}/{}초", 
+                    memoryTaskIntervalSeconds, diskTaskIntervalSeconds, cpuTaskIntervalSeconds, exceptionTaskIntervalSeconds);
             
         } catch (IOException e) {
             log.error("설정 파일 로드 실패", e);

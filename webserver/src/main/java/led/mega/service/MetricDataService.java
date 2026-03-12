@@ -28,6 +28,7 @@ public class MetricDataService {
 
     private final MetricDataRepository metricDataRepository;
     private final AgentRepository agentRepository;
+    private final SseService sseService;
     // [REMOVED] TaskRepository
 
     @Transactional
@@ -59,8 +60,10 @@ public class MetricDataService {
                     return metricDataRepository.save(metricData);
                 })
                 .map(this::toResponseDto)
-                .doOnNext(r -> log.debug("메트릭 데이터 저장 완료: agentId={}, metricType={}",
-                        agentId, r.getMetricType()));
+                .doOnNext(r -> {
+                    log.debug("메트릭 데이터 저장 완료: agentId={}, metricType={}", agentId, r.getMetricType());
+                    sseService.broadcastMetric(agentId, r);
+                });
     }
 
     public Flux<MetricDataResponseDto> getMetricDataByAgentId(Long agentId) {

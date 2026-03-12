@@ -28,6 +28,7 @@ public class ExceptionLogService {
 
     private final ExceptionLogRepository exceptionLogRepository;
     private final AgentRepository agentRepository;
+    private final SseService sseService;
     // [REMOVED] TaskRepository: task 엔티티 조회 불필요 (taskId Long 직접 사용)
 
     @Transactional
@@ -54,8 +55,10 @@ public class ExceptionLogService {
                     return exceptionLogRepository.save(exceptionLog);
                 })
                 .map(this::toResponseDto)
-                .doOnNext(r -> log.warn("Exception 로그 저장 완료: agentId={}, exceptionType={}",
-                        agentId, r.getExceptionType()));
+                .doOnNext(r -> {
+                    log.warn("Exception 로그 저장 완료: agentId={}, exceptionType={}", agentId, r.getExceptionType());
+                    sseService.broadcastException(agentId, r);
+                });
     }
 
     // [CHANGED] List → Flux, .stream().map().collect() → .map()

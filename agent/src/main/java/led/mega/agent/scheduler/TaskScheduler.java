@@ -99,7 +99,7 @@ public class TaskScheduler {
             } catch (Exception e) {
                 log.error("메모리 메트릭 수집 실패", e);
             }
-        }, 30, TimeUnit.SECONDS);
+        }, config.getMemoryTaskIntervalSeconds(), TimeUnit.SECONDS);
         
         // 10분마다 df -h 실행
         scheduleTask("disk-usage", () -> {
@@ -125,7 +125,7 @@ public class TaskScheduler {
             } catch (Exception e) {
                 log.error("디스크 메트릭 수집 실패", e);
             }
-        }, 1, TimeUnit.MINUTES);
+        }, config.getDiskTaskIntervalSeconds(), TimeUnit.SECONDS);
         
         // 30초마다 CPU 사용률 수집 (/proc/stat 델타 방식 - top보다 정확)
         scheduleTask("cpu-usage", () -> {
@@ -148,21 +148,21 @@ public class TaskScheduler {
             } catch (Exception e) {
                 log.error("CPU 메트릭 수집 실패", e);
             }
-        }, 30, TimeUnit.SECONDS);
+        }, config.getCpuTaskIntervalSeconds(), TimeUnit.SECONDS);
 
         
-        // 10분마다 로그 파일에서 Exception 파싱
+        // 설정된 경로에서 Exception 로그 파싱
         scheduleTask("exception-log", () -> {
             try {
-                // 일반적인 로그 파일 경로들
-                String[] logPaths = {
-                    "/var/log/app/application.log",
-                    "/var/log/app/error.log",
-                    "/opt/app/logs/application.log",
-                    "./logs/application.log"
-                };
+                String[] logPaths = config.getExceptionLogPaths();
+                if (logPaths == null || logPaths.length == 0) {
+                    log.debug("설정된 Exception 로그 경로가 없습니다.");
+                    return;
+                }
                 
                 for (String logPath : logPaths) {
+                    if (logPath == null || logPath.isEmpty()) continue;
+                    
                     List<LogParser.ExceptionInfo> exceptions = logParser.parseExceptions(logPath);
                     
                     for (LogParser.ExceptionInfo exceptionInfo : exceptions) {
@@ -182,7 +182,7 @@ public class TaskScheduler {
             } catch (Exception e) {
                 log.error("Exception 로그 수집 실패", e);
             }
-        }, 10, TimeUnit.MINUTES);
+        }, config.getExceptionTaskIntervalSeconds(), TimeUnit.SECONDS);
         
         log.info("모든 작업 스케줄 완료");
     }
