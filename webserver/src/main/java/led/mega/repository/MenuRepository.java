@@ -14,4 +14,6 @@ public interface MenuRepository extends ReactiveCrudRepository<Menu, Long> {
 
     @Query("SELECT * FROM menu ORDER BY sort_order ASC")
     Flux<Menu> findAllByOrderBySortOrder();
+
+    reactor.core.publisher.Mono<Menu> findByUrl(String url);
 }
