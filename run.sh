@@ -9,7 +9,8 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JDK_DIR="$PROJECT_DIR/jdk"
 PID_FILE="$PROJECT_DIR/mega.pid"
 LOG_DIR="$PROJECT_DIR/logs"
-LOG_FILE="$LOG_DIR/app.log"
+LOG_FILE="$LOG_DIR/mega.log"
+BOOT_LOG="$LOG_DIR/boot.log"
 
 export JAVA_HOME="$JDK_DIR"
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -54,7 +55,7 @@ do_start() {
         -Duser.language=ko \
         -Duser.country=KR \
         -jar "$JAR" \
-        >> "$LOG_FILE" 2>&1 &
+        > "$BOOT_LOG" 2>&1 &
 
     echo $! > "$PID_FILE"
     echo "[mega] 서버가 시작되었습니다. (PID: $(cat "$PID_FILE"))"
