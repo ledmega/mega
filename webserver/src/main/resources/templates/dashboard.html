@@ -390,6 +390,34 @@
         .nav-link:hover {
             color: white;
         }
+
+        /* [NEW] 시간 필터 스타일 */
+        .time-filter {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #666;
+        }
+
+        .filter-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .filter-btn.active {
+            background: #6366f1;
+            color: white;
+            border-color: #6366f1;
+            box-shadow: 0 2px 5px rgba(99, 102, 241, 0.3);
+        }
     </style>
     <!-- [NEW] Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -480,7 +508,15 @@
             <!-- 최근 메트릭 -->
             <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title">최근 메트릭 (실시간 차트 & 목록)</div>
+                    <div class="panel-title">기기별 메트릭 현황</div>
+                    <div class="time-filter">
+                        <button class="filter-btn active" onclick="changeTimeRange(0, this)">실시간</button>
+                        <button class="filter-btn" onclick="changeTimeRange(1, this)">1h</button>
+                        <button class="filter-btn" onclick="changeTimeRange(12, this)">12h</button>
+                        <button class="filter-btn" onclick="changeTimeRange(24, this)">1d</button>
+                        <button class="filter-btn" onclick="changeTimeRange(120, this)">5d</button>
+                        <button class="filter-btn" onclick="changeTimeRange(240, this)">10d</button>
+                    </div>
                 </div>
 
                 <!-- [NEW] 동적 실시간 차트 영역 (수집되는 모든 메트릭 자동 생성, 큰 화면 모드) -->
@@ -531,6 +567,7 @@
         let metrics = [];
         let exceptions = [];
         let agents = [];
+        let currentHours = 0; // 0: 실시간, >0: 역사적 데이터
 
         // [NEW] Chart.js 전역 변수: 수집되는 메트릭 이름(metricName)을 키값으로 하여 차트를 동적 관리
         let chartsMap = {};
@@ -678,14 +715,17 @@
 
                 const memChart = chartsMap['MEMORY_COMBINED'];
                 // 시간축 스케일을 맞추기 위해 가장 풍부한 배열 하나를 잡음
-                let usedPctData = memMetrics.filter(m => m.metricName === 'memory_usage_percent').slice(0, 250).reverse();
-                let availMbData = memMetrics.filter(m => m.metricName === 'available_memory').slice(0, 250).reverse();
+                const sliceSize = currentHours === 0 ? 250 : 2000;
+                let usedPctData = memMetrics.filter(m => m.metricName === 'memory_usage_percent').slice(0, sliceSize).reverse();
+                let availMbData = memMetrics.filter(m => m.metricName === 'available_memory').slice(0, sliceSize).reverse();
 
                 // X축 데이터 세팅
                 const baseData = usedPctData.length > availMbData.length ? usedPctData : availMbData;
                 memChart.data.labels = baseData.map(m => {
-                    const d = new Date(m.collectedAt); // 이미 로컬 시간(KST)이므로 Z 제거
-                    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                    const d = new Date(m.collectedAt);
+                    const isToday = new Date().toDateString() === d.toDateString();
+                    return (isToday ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') +
+                        d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                 });
 
                 memChart.data.datasets[0].data = usedPctData.map(m => m.metricValue ?? 0);
@@ -734,14 +774,17 @@
                         diskChart.data.datasets.push(dataset);
                     }
 
-                    let filtered = diskMetrics.filter(m => m.metricName === dName).slice(0, 250).reverse();
+                    const sliceSize = currentHours === 0 ? 250 : 2000;
+                    let filtered = diskMetrics.filter(m => m.metricName === dName).slice(0, sliceSize).reverse();
                     dataset.data = filtered.map(m => m.metricValue ?? 0);
 
                     // X축 기준은 첫 번째 데이터셋 기준으로 맞춤
                     if (idx === 0) {
                         diskChart.data.labels = filtered.map(m => {
-                            const d = new Date(m.collectedAt); // Z 제거
-                            return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                            const d = new Date(m.collectedAt);
+                            const isToday = new Date().toDateString() === d.toDateString();
+                            return (isToday ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') +
+                                d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                         });
                     }
                 });
@@ -778,12 +821,14 @@
                 let filtered = [...metrics].filter(m => m.metricName === mName);
                 filtered.reverse();
 
-                // 최근 250개 (에이전트 수집 주기에 따라 1~2시간 분량 표시)
-                const displayData = filtered.slice(-250);
+                // 실시간(0)일 때는 최근 250개, 범위 조회일 때는 전체(최대 2000개) 표시
+                const displayData = currentHours === 0 ? filtered.slice(-250) : filtered;
 
                 chartObj.data.labels = displayData.map(m => {
-                    const d = new Date(m.collectedAt); // Z 제거
-                    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                    const d = new Date(m.collectedAt);
+                    const isToday = new Date().toDateString() === d.toDateString();
+                    return (isToday ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') + 
+                           d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                 });
                 chartObj.data.datasets[0].data = displayData.map(m => m.metricValue ?? 0);
                 chartObj.update();
@@ -913,8 +958,9 @@
                 });
         }
 
-        function loadRecentMetrics() {
-            fetch('/api/metrics/recent')
+        function loadRecentMetrics(hours = 0) {
+            const url = hours > 0 ? `/api/metrics/recent?hours=${hours}` : '/api/metrics/recent';
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     metrics = data;
@@ -924,6 +970,16 @@
                 .catch(error => console.error('최근 메트릭 로드 실패:', error));
         }
 
+        function changeTimeRange(hours, btn) {
+            currentHours = hours;
+            // 버튼 활성화 표시
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // 데이터 재로드
+            loadRecentMetrics(hours);
+        }
+
         // ── 10초마다 차트 자동 갱신 (폴링) ──────────────────────────────────
         // SSE 이벤트가 없는 구간(수집 주기 사이)에도 최신 데이터를 유지하기 위해
         // 10초마다 /api/metrics/recent 를 polling 하여 새 데이터가 있으면 차트를 다시 그린다.
@@ -931,7 +987,8 @@
         function startChartPolling() {
             if (chartPollingTimer) return; // 중복 방지
             chartPollingTimer = setInterval(() => {
-                fetch('/api/metrics/recent')
+                const url = currentHours > 0 ? `/api/metrics/recent?hours=${currentHours}` : '/api/metrics/recent';
+                fetch(url)
                     .then(r => r.json())
                     .then(data => {
                         // 새 데이터가 실제로 추가됐을 때만 갱신 (불필요한 렌더링 방지)

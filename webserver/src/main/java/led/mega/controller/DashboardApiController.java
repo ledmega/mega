@@ -20,7 +20,10 @@ public class DashboardApiController {
     private final ExceptionLogService exceptionLogService;
 
     @GetMapping("/metrics/recent")
-    public Flux<MetricDataResponseDto> getRecentMetrics() {
+    public Flux<MetricDataResponseDto> getRecentMetrics(@org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "0") int hours) {
+        if (hours > 0) {
+            return metricDataService.getRecentMetrics(hours);
+        }
         return metricDataService.getRecentMetrics();
     }
 

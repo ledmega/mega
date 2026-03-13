@@ -107,6 +107,12 @@ public class MetricDataService {
                 .map(this::toResponseDto);
     }
 
+    public Flux<MetricDataResponseDto> getRecentMetrics(int hours) {
+        LocalDateTime startTime = LocalDateTime.now().minusHours(hours);
+        return metricDataRepository.findByCollectedAtAfterOrderByCollectedAtDesc(startTime)
+                .map(this::toResponseDto);
+    }
+
     /**
      * 오늘 00:00 이후 수집된 메트릭 개수 반환.
      */
