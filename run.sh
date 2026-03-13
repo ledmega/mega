@@ -141,9 +141,8 @@ do_log_alert() {
 }
 
 do_rebuild() {
-    echo "[mega] 소스 최신화 및 재빌드 중..."
+    echo "[mega] 재빌드 및 서버 적용 중..."
     cd "$PROJECT_DIR"
-    git pull
     [ -x gradlew ] || chmod +x gradlew
     ./gradlew :webserver:bootJar -x test --no-daemon
     JAR=$(find "$PROJECT_DIR/webserver/build/libs" -name "*.jar" ! -name "*plain*" | head -1)
@@ -178,8 +177,8 @@ case "$CMD" in
         echo "  log-agent  - 에이전트 통신 로그만 출력"
         echo "  log-sec    - 보안 및 인증 로그만 출력"
         echo "  log-alert  - 시스템 알림 및 경고 로그만 출력"
-        echo "  rebuild    - git pull → 재빌드 → 재시작"
-        echo "  update     - 소스 최신화(git pull)부터 빌드/재시작까지 한 번에 수행"
+        echo "  rebuild    - 재빌드 → 서버 재시작 (git pull은 수동으로 먼저 수행)"
+        echo "  update     - rebuild와 동일 (rebuild의 별칭)"
         exit 1
         ;;
 esac
