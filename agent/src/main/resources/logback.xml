@@ -88,19 +88,23 @@
     
     <logger name="led.mega.agent" level="DEBUG"/>
 
-    <!-- 데이터 전송 및 수집 관련 -->
-    <logger name="led.mega.agent.scheduler" level="DEBUG" additivity="true">
+    <!-- 데이터 수집 결과 및 파싱 관련 -->
+    <logger name="led.mega.agent.parser" level="DEBUG" additivity="true">
         <appender-ref ref="DATA_FILE"/>
-        <appender-ref ref="TASK_FILE"/>
     </logger>
 
-    <!-- 네트워크 클라이언트 및 하트비트 관련 -->
+    <!-- 네트워크 클라이언트 (데이터 전송 및 하트비트) -->
     <logger name="led.mega.agent.client" level="DEBUG" additivity="true">
         <appender-ref ref="NETWORK_FILE"/>
         <appender-ref ref="DATA_FILE"/>
     </logger>
 
-    <!-- 개별 테스크 실행기 -->
+    <!-- 테스크 스케줄링 및 수집 제어 -->
+    <logger name="led.mega.agent.scheduler" level="DEBUG" additivity="true">
+        <appender-ref ref="TASK_FILE"/>
+    </logger>
+
+    <!-- 개별 명령어 실행기 -->
     <logger name="led.mega.agent.executor" level="DEBUG" additivity="true">
         <appender-ref ref="TASK_FILE"/>
     </logger>
