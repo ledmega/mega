@@ -108,6 +108,7 @@ do_rebuild() {
     echo "[mega] 소스 최신화 및 재빌드 중..."
     cd "$PROJECT_DIR"
     git pull
+    [ -x gradlew ] || chmod +x gradlew
     ./gradlew :webserver:bootJar -x test --no-daemon
     JAR=$(find "$PROJECT_DIR/webserver/build/libs" -name "*.jar" ! -name "*plain*" | head -1)
     echo "[mega] 빌드 완료: $JAR"
