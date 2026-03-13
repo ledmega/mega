@@ -9,18 +9,16 @@ import led.mega.repository.MetricDataRepository;
 import led.mega.batch.task.BatchTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.support.CronTrigger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -41,12 +39,7 @@ public class BatchJobService {
     // 주입된 BatchTask 구현체들을 저장하는 맵
     private final Map<String, BatchTask> tasks = new ConcurrentHashMap<>();
 
-    private final ScheduledExecutorService executor =
-            Executors.newScheduledThreadPool(4, r -> {
-                Thread t = new Thread(r, "batch-job-" + System.currentTimeMillis());
-                t.setDaemon(true);
-                return t;
-            });
+    private final TaskScheduler taskScheduler;
 
     /** Spring에 등록된 모든 BatchTask를 자동 주입받아 맵에 저장 */
     @Autowired
@@ -83,7 +76,6 @@ public class BatchJobService {
     @PreDestroy
     public void destroy() {
         scheduledFutures.values().forEach(f -> f.cancel(false));
-        executor.shutdownNow();
         log.info("[BatchJob] 배치 스케줄러 종료");
     }
 
@@ -175,15 +167,36 @@ public class BatchJobService {
     // ───────────────────────────────────────────────────────────────────────
 
     private void scheduleJob(BatchJob job) {
-        long intervalMs = (long) job.getIntervalMinutes() * 60 * 1000;
-        ScheduledFuture<?> future = executor.scheduleAtFixedRate(
+        ScheduledFuture<?> future;
+        
+        if (job.getCronExpression() != null && !job.getCronExpression().trim().isEmpty()) {
+            // 1. Cron 방식 스케줄링
+            try {
+                future = taskScheduler.schedule(
+                    () -> executeJob(job).subscribe(),
+                    new CronTrigger(job.getCronExpression())
+                );
+                log.info("[BatchJob] Job 스케줄 등록 (Cron): id={}, name={}, cron={}", 
+                         job.getId(), job.getJobName(), job.getCronExpression());
+            } catch (Exception e) {
+                log.error("[BatchJob] Cron 표현식 오류: id={}, expr={}", job.getId(), job.getCronExpression(), e);
+                return;
+            }
+        } else if (job.getIntervalMinutes() != null && job.getIntervalMinutes() > 0) {
+            // 2. 고정 주기 방식 스케줄링
+            Duration duration = Duration.ofMinutes(job.getIntervalMinutes());
+            future = taskScheduler.scheduleAtFixedRate(
                 () -> executeJob(job).subscribe(),
-                intervalMs,   // 첫 실행은 interval 후 (즉시 실행은 runNow로)
-                intervalMs,
-                TimeUnit.MILLISECONDS
-        );
+                duration
+            );
+            log.info("[BatchJob] Job 스케줄 등록 (Interval): id={}, name={}, interval={}분", 
+                     job.getId(), job.getJobName(), job.getIntervalMinutes());
+        } else {
+            log.warn("[BatchJob] 스케줄 설정이 없는 Job입니다. 건너뜁니다: id={}, name={}", job.getId(), job.getJobName());
+            return;
+        }
+        
         scheduledFutures.put(job.getId(), future);
-        log.info("[BatchJob] Job 스케줄 등록: id={}, name={}, interval={}분", job.getId(), job.getJobName(), job.getIntervalMinutes());
     }
 
     private void cancelSchedule(Long jobId) {
@@ -199,8 +212,9 @@ public class BatchJobService {
     // ───────────────────────────────────────────────────────────────────────
 
     private Mono<String> executeJob(BatchJob job) {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(job.getRetentionDays());
-        log.info("[BatchJob] 실행 시작: type={}, threshold={}", job.getJobType(), threshold);
+        int retentionDays = job.getRetentionDays() != null ? job.getRetentionDays() : 0;
+        LocalDateTime threshold = LocalDateTime.now().minusDays(retentionDays);
+        log.info("[BatchJob] 실행 시작: type={}, name={}", job.getJobType(), job.getJobName());
 
         BatchTask task = tasks.get(job.getJobType());
         if (task == null) {
