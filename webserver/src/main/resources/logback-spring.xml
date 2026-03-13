@@ -57,6 +57,20 @@
         </rollingPolicy>
     </appender>
 
+    <!-- [NEW] 배치 로그 별도 저장 -->
+    <appender name="BATCH_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}-batch.log</file>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-batch-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
     <!-- Spring Framework 로그 레벨 -->
     <logger name="org.springframework" level="INFO"/>
     <logger name="org.springframework.security" level="DEBUG"/>
@@ -72,6 +86,9 @@
     
     <!-- 애플리케이션 패키지 로그 레벨 -->
     <logger name="led.mega" level="DEBUG"/>
+    <logger name="led.mega.batch" level="DEBUG" additivity="true">
+        <appender-ref ref="BATCH_FILE"/>
+    </logger>
     
     <!-- 루트 로거 설정 -->
     <root level="INFO">

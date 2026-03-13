@@ -104,6 +104,15 @@ do_log() {
     fi
 }
 
+do_log_batch() {
+    local batch_log="$LOG_DIR/mega-batch.log"
+    if [ -f "$batch_log" ]; then
+        tail -f "$batch_log"
+    else
+        echo "[mega] 배치 로그 파일이 없습니다: $batch_log"
+    fi
+}
+
 do_rebuild() {
     echo "[mega] 소스 최신화 및 재빌드 중..."
     cd "$PROJECT_DIR"
@@ -124,18 +133,20 @@ case "$CMD" in
     restart) do_stop; sleep 2; do_start ;;
     status)  do_status ;;
     log)     do_log ;;
+    log-batch) do_log_batch ;;
     rebuild) do_rebuild; do_stop; sleep 2; do_start ;;
     update)  do_rebuild; do_stop; sleep 2; do_start ;;
     *)
-        echo "사용법: $0 [start|stop|restart|status|log|rebuild|update]"
+        echo "사용법: $0 [start|stop|restart|status|log|log-batch|rebuild|update]"
         echo ""
-        echo "  start    - 서버 시작"
-        echo "  stop     - 서버 종료"
-        echo "  restart  - 서버 재시작"
-        echo "  status   - 실행 상태 확인"
-        echo "  log      - 실시간 로그 출력"
-        echo "  rebuild  - git pull → 재빌드 → 재시작"
-        echo "  update   - 소스 최신화(git pull)부터 빌드/재시작까지 한 번에 수행"
+        echo "  start      - 서버 시작"
+        echo "  stop       - 서버 종료"
+        echo "  restart    - 서버 재시작"
+        echo "  status     - 실행 상태 확인"
+        echo "  log        - 전체 실시간 로그 출력"
+        echo "  log-batch  - 배치 스케줄러 실시간 로그만 출력"
+        echo "  rebuild    - git pull → 재빌드 → 재시작"
+        echo "  update     - 소스 최신화(git pull)부터 빌드/재시작까지 한 번에 수행"
         exit 1
         ;;
 esac
