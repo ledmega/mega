@@ -113,6 +113,33 @@ do_log_batch() {
     fi
 }
 
+do_log_agent() {
+    local agent_log="$LOG_DIR/mega-agent.log"
+    if [ -f "$agent_log" ]; then
+        tail -f "$agent_log"
+    else
+        echo "[mega] 에이전트 로그 파일이 없습니다: $agent_log"
+    fi
+}
+
+do_log_security() {
+    local security_log="$LOG_DIR/mega-security.log"
+    if [ -f "$security_log" ]; then
+        tail -f "$security_log"
+    else
+        echo "[mega] 보안 로그 파일이 없습니다: $security_log"
+    fi
+}
+
+do_log_alert() {
+    local alert_log="$LOG_DIR/mega-alert.log"
+    if [ -f "$alert_log" ]; then
+        tail -f "$alert_log"
+    else
+        echo "[mega] 알림 로그 파일이 없습니다: $alert_log"
+    fi
+}
+
 do_rebuild() {
     echo "[mega] 소스 최신화 및 재빌드 중..."
     cd "$PROJECT_DIR"
@@ -132,19 +159,25 @@ case "$CMD" in
     stop)    do_stop ;;
     restart) do_stop; sleep 2; do_start ;;
     status)  do_status ;;
-    log)     do_log ;;
-    log-batch) do_log_batch ;;
-    rebuild) do_rebuild; do_stop; sleep 2; do_start ;;
+    log)        do_log ;;
+    log-batch)  do_log_batch ;;
+    log-agent)  do_log_agent ;;
+    log-sec)    do_log_security ;;
+    log-alert)  do_log_alert ;;
+    rebuild)    do_rebuild; do_stop; sleep 2; do_start ;;
     update)  do_rebuild; do_stop; sleep 2; do_start ;;
     *)
-        echo "사용법: $0 [start|stop|restart|status|log|log-batch|rebuild|update]"
+        echo "사용법: $0 [start|stop|restart|status|log|log-batch|log-agent|log-sec|log-alert|rebuild|update]"
         echo ""
         echo "  start      - 서버 시작"
         echo "  stop       - 서버 종료"
         echo "  restart    - 서버 재시작"
         echo "  status     - 실행 상태 확인"
         echo "  log        - 전체 실시간 로그 출력"
-        echo "  log-batch  - 배치 스케줄러 실시간 로그만 출력"
+        echo "  log-batch  - 배치 스케줄러 로그만 출력"
+        echo "  log-agent  - 에이전트 통신 로그만 출력"
+        echo "  log-sec    - 보안 및 인증 로그만 출력"
+        echo "  log-alert  - 시스템 알림 및 경고 로그만 출력"
         echo "  rebuild    - git pull → 재빌드 → 재시작"
         echo "  update     - 소스 최신화(git pull)부터 빌드/재시작까지 한 번에 수행"
         exit 1

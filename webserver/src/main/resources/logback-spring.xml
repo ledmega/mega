@@ -71,9 +71,53 @@
         </rollingPolicy>
     </appender>
 
+    <!-- [NEW] 에이전트 통신 로그 -->
+    <appender name="AGENT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}-agent.log</file>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-agent-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- [NEW] 보안 로그 -->
+    <appender name="SECURITY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}-security.log</file>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-security-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- [NEW] 알림 및 주요 이벤트 로그 -->
+    <appender name="ALERT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}-alert.log</file>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-alert-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
     <!-- Spring Framework 로그 레벨 -->
     <logger name="org.springframework" level="INFO"/>
-    <logger name="org.springframework.security" level="DEBUG"/>
+    <logger name="org.springframework.security" level="DEBUG" additivity="true">
+        <appender-ref ref="SECURITY_FILE"/>
+    </logger>
     <logger name="org.springframework.web" level="INFO"/>
     
     <!-- Hibernate/JPA 로그 레벨 -->
@@ -85,17 +129,30 @@
     <logger name="org.springframework.jdbc" level="INFO"/>
     
     <!-- 애플리케이션 패키지 로그 레벨 -->
-    <logger name="led.mega" level="DEBUG"/>
-    <logger name="led.mega.batch" level="DEBUG" additivity="true">
-        <appender-ref ref="BATCH_FILE"/>
-    </logger>
-    
-    <!-- 루트 로거 설정 -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
         <appender-ref ref="ERROR_FILE"/>
     </root>
+
+    <logger name="led.mega" level="DEBUG"/>
+    
+    <logger name="led.mega.batch" level="DEBUG" additivity="true">
+        <appender-ref ref="BATCH_FILE"/>
+        <appender-ref ref="ALERT_FILE"/> <!-- 배치는 알림 파일에도 기록 -->
+    </logger>
+
+    <logger name="led.mega.service.SseService" level="DEBUG" additivity="true">
+        <appender-ref ref="AGENT_FILE"/>
+    </logger>
+
+    <logger name="led.mega.controller.AgentApiController" level="DEBUG" additivity="true">
+        <appender-ref ref="AGENT_FILE"/>
+    </logger>
+
+    <logger name="led.mega.config.SecurityConfig" level="DEBUG" additivity="true">
+        <appender-ref ref="SECURITY_FILE"/>
+    </logger>
 
     <!-- 프로파일별 설정 -->
     <springProfile name="dev,local">
