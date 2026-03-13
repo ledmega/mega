@@ -40,6 +40,45 @@
             <maxHistory>30</maxHistory>
         </rollingPolicy>
     </appender>
+
+    <!-- [NEW] 데이터 수집 및 전송 로그 -->
+    <appender name="DATA_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/${LOG_FILE}-data.log</file>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss, Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/${LOG_FILE}-data-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- [NEW] 네트워크 및 통신 상태 로그 -->
+    <appender name="NETWORK_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/${LOG_FILE}-net.log</file>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss, Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/${LOG_FILE}-net-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- [NEW] 테스크 실행 로그 -->
+    <appender name="TASK_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/${LOG_FILE}-task.log</file>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss, Asia/Seoul} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/${LOG_FILE}-task-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
     
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
@@ -48,5 +87,22 @@
     </root>
     
     <logger name="led.mega.agent" level="DEBUG"/>
+
+    <!-- 데이터 전송 및 수집 관련 -->
+    <logger name="led.mega.agent.scheduler" level="DEBUG" additivity="true">
+        <appender-ref ref="DATA_FILE"/>
+        <appender-ref ref="TASK_FILE"/>
+    </logger>
+
+    <!-- 네트워크 클라이언트 및 하트비트 관련 -->
+    <logger name="led.mega.agent.client" level="DEBUG" additivity="true">
+        <appender-ref ref="NETWORK_FILE"/>
+        <appender-ref ref="DATA_FILE"/>
+    </logger>
+
+    <!-- 개별 테스크 실행기 -->
+    <logger name="led.mega.agent.executor" level="DEBUG" additivity="true">
+        <appender-ref ref="TASK_FILE"/>
+    </logger>
 </configuration>
 

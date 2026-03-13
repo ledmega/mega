@@ -10,7 +10,8 @@ JAVA_HOME="/home/a86223/ws/mega/jdk"
 JAVA_CMD="$JAVA_HOME/bin/java"
 JAR_FILE="mega-agent-0.0.1-SNAPSHOT.jar"
 PID_FILE="$AGENT_DIR/agent.pid"
-LOG_FILE="$AGENT_DIR/logs/agent_sys.log"
+LOG_FILE="$AGENT_DIR/logs/agent.log"
+BOOT_LOG="$AGENT_DIR/logs/agent_boot.log"
 
 export JAVA_HOME
 export PATH=$JAVA_HOME/bin:$PATH
@@ -39,7 +40,7 @@ function start() {
     mkdir -p "$AGENT_DIR/logs"
     
     cd "$AGENT_DIR" || exit 1
-    nohup $JAVA_CMD -jar "$JAR_FILE" > "$LOG_FILE" 2>&1 &
+    nohup $JAVA_CMD -jar "$JAR_FILE" > "$BOOT_LOG" 2>&1 &
     PID=$!
     echo $PID > "$PID_FILE"
     
@@ -107,6 +108,24 @@ function status() {
     fi
 }
 
+function show_log() {
+    local type=$1
+    local file=""
+    case $type in
+        data) file="$AGENT_DIR/logs/agent-data.log" ;;
+        net)  file="$AGENT_DIR/logs/agent-net.log" ;;
+        task) file="$AGENT_DIR/logs/agent-task.log" ;;
+        err)  file="$AGENT_DIR/logs/agent-error.log" ;;
+        *)    file="$AGENT_DIR/logs/agent.log" ;;
+    esac
+
+    if [ -f "$file" ]; then
+        tail -f "$file"
+    else
+        echo "⚠️  로그 파일이 존재하지 않습니다: $file"
+    fi
+}
+
 # 파라미터에 따른 분기
 case "$1" in
     start)
@@ -128,15 +147,19 @@ case "$1" in
     status)
         status
         ;;
+    log)
+        show_log $2
+        ;;
     *)
         echo "=========================================="
-        echo "사용법: ./agent.sh {start|stop|restart|rebuild|status}"
+        echo "사용법: ./agent.sh {start|stop|restart|rebuild|status|log [data|net|task|err]}"
         echo "=========================================="
         echo "  start   : 에이전트 실행"
         echo "  stop    : 에이전트 종료"
         echo "  restart : 에이전트 재시작"
         echo "  rebuild : Git 최신화 + 재빌드 후 에이전트 실행"
         echo "  status  : 에이전트 실행 상태 확인"
+        echo "  log     : 에이전트 로그 확인 (옵션: data, net, task, err)"
         echo "=========================================="
         exit 1
         ;;
