@@ -124,8 +124,9 @@ case "$CMD" in
     status)  do_status ;;
     log)     do_log ;;
     rebuild) do_rebuild; do_stop; sleep 2; do_start ;;
+    update)  do_rebuild; do_stop; sleep 2; do_start ;;
     *)
-        echo "사용법: $0 [start|stop|restart|status|log|rebuild]"
+        echo "사용법: $0 [start|stop|restart|status|log|rebuild|update]"
         echo ""
         echo "  start    - 서버 시작"
         echo "  stop     - 서버 종료"
@@ -133,6 +134,7 @@ case "$CMD" in
         echo "  status   - 실행 상태 확인"
         echo "  log      - 실시간 로그 출력"
         echo "  rebuild  - git pull → 재빌드 → 재시작"
+        echo "  update   - 소스 최신화(git pull)부터 빌드/재시작까지 한 번에 수행"
         exit 1
         ;;
 esac
