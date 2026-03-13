@@ -572,6 +572,17 @@
         // [NEW] Chart.js 전역 변수: 수집되는 메트릭 이름(metricName)을 키값으로 하여 차트를 동적 관리
         let chartsMap = {};
 
+        // [NEW] 데이터 샘플링 함수: 데이터가 너무 많으면 가독성을 위해 일정 간격으로 추출
+        function downsample(data, maxPoints = 250) {
+            if (data.length <= maxPoints) return data;
+            const factor = Math.ceil(data.length / maxPoints);
+            const sampled = [];
+            for (let i = 0; i < data.length; i += factor) {
+                sampled.push(data[i]);
+            }
+            return sampled;
+        }
+
         function getChartColor(idx) {
             const colors = ['#667eea', '#48bb78', '#ed8936', '#f56565', '#4fd1c5', '#9f7aea', '#ecc94b', '#f687b3', '#4299e1', '#a0aec0'];
             return colors[idx % colors.length];
@@ -719,8 +730,11 @@
                 let usedPctData = memMetrics.filter(m => m.metricName === 'memory_usage_percent').slice(0, sliceSize).reverse();
                 let availMbData = memMetrics.filter(m => m.metricName === 'available_memory').slice(0, sliceSize).reverse();
 
-                // X축 데이터 세팅
-                const baseData = usedPctData.length > availMbData.length ? usedPctData : availMbData;
+                // [NEW] 기간이 길어지면 샘플링 적용
+                const sampledUsed = downsample(usedPctData);
+                const sampledAvail = downsample(availMbData);
+                const baseData = sampledUsed.length > sampledAvail.length ? sampledUsed : sampledAvail;
+
                 memChart.data.labels = baseData.map(m => {
                     const d = new Date(m.collectedAt);
                     const isToday = new Date().toDateString() === d.toDateString();
@@ -728,8 +742,14 @@
                         d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                 });
 
-                memChart.data.datasets[0].data = usedPctData.map(m => m.metricValue ?? 0);
-                memChart.data.datasets[1].data = availMbData.map(m => m.metricValue ?? 0);
+                memChart.data.datasets[0].data = sampledUsed.map(m => m.metricValue ?? 0);
+                memChart.data.datasets[1].data = sampledAvail.map(m => m.metricValue ?? 0);
+                
+                // 데이터가 많으면 점(Point) 제거하여 선만 표시 (가독성)
+                const radius = baseData.length > 100 ? 0 : 2;
+                memChart.data.datasets[0].pointRadius = radius;
+                memChart.data.datasets[1].pointRadius = radius;
+
                 memChart.update();
             }
 
@@ -776,11 +796,15 @@
 
                     const sliceSize = currentHours === 0 ? 250 : 2000;
                     let filtered = diskMetrics.filter(m => m.metricName === dName).slice(0, sliceSize).reverse();
-                    dataset.data = filtered.map(m => m.metricValue ?? 0);
+                    
+                    // [NEW] 샘플링 적용
+                    const sampled = downsample(filtered);
+                    dataset.data = sampled.map(m => m.metricValue ?? 0);
+                    dataset.pointRadius = sampled.length > 100 ? 0 : 2;
 
                     // X축 기준은 첫 번째 데이터셋 기준으로 맞춤
                     if (idx === 0) {
-                        diskChart.data.labels = filtered.map(m => {
+                        diskChart.data.labels = sampled.map(m => {
                             const d = new Date(m.collectedAt);
                             const isToday = new Date().toDateString() === d.toDateString();
                             return (isToday ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') +
@@ -823,14 +847,18 @@
 
                 // 실시간(0)일 때는 최근 250개, 범위 조회일 때는 전체(최대 2000개) 표시
                 const displayData = currentHours === 0 ? filtered.slice(-250) : filtered;
+                
+                // [NEW] 샘플링 적용 (최대 250개까지만 표시하도록 조절)
+                const sampled = downsample(displayData);
 
-                chartObj.data.labels = displayData.map(m => {
+                chartObj.data.labels = sampled.map(m => {
                     const d = new Date(m.collectedAt);
                     const isToday = new Date().toDateString() === d.toDateString();
                     return (isToday ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') + 
                            d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
                 });
-                chartObj.data.datasets[0].data = displayData.map(m => m.metricValue ?? 0);
+                chartObj.data.datasets[0].data = sampled.map(m => m.metricValue ?? 0);
+                chartObj.data.datasets[0].pointRadius = sampled.length > 100 ? 0 : 2;
                 chartObj.update();
             });
         }
