@@ -13,9 +13,17 @@ MEGA는 분산된 리눅스 서버 환경에서 시스템 자원(CPU, Memory, Di
 * **Backend Framework**: Java 21 (Web), Java 8 (Agent), Spring Boot 3.x, Spring WebFlux
 * **Database**: MariaDB, R2DBC (Reactive Relational Database Connectivity)
 * **Frontend**: Vanilla JS (ES6), HTML5/CSS, Thymeleaf, Chart.js, SSE (Server-Sent Events)
+* **Scheduling System**: Spring `TaskScheduler` 기반 동적 스케줄링 (Cron 및 Interval 지원)
 * **Agent System**: Bash 쉘 스크립트 기반, Linux Standard tools (`top`, `/proc/stat`, `free`, `df`), 퓨어 자바 스레드 스케줄러.
 
-## 3. 데이터 흐름도
+## 3. 로깅 아키텍처 (Logging Architecture)
+시스템 가용성 및 트러블슈팅 효율을 위해 로그를 업무 도메인별로 분리 관리합니다.
+* **Batch Log**: 배치 작업의 주기적 실행 상태 및 데이터 관리 이력.
+* **Agent Log**: 에이전트의 연결 상태, 메트릭 수집 및 전송 과정.
+* **Security Log**: 로그인, 권한 오류, API 키 기반 인증 시도 정보.
+* **Alert Log**: 시스템 임계치 초과 및 배치 실패 등 주요 경고 알림.
+
+## 4. 데이터 흐름도
 
 ### 3.1 수집 흐름
 ```text

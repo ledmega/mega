@@ -20,17 +20,23 @@ FLUSH PRIVILEGES;
 ## 3. 모듈 빌드 및 실행
 
 ### 3.1 Web Server (Spring Boot WebFlux)
-웹서버 루트 디렉토리에서 아래 명령어로 서버를 기동합니다.
-* **빌드 및 실행**: `./gradlew :webserver:bootRun`
-* 접속 URL: `http://localhost:8080/`
+웹서버 루트 디렉토리에서 아래 명령어로 서버를 관리합니다.
+* **빌드 및 실행**: `./run.sh update` (또는 `rebuild`)
+* **로그 모니터링**: 
+    - 전체 로그: `./run.sh log`
+    - 배치 로그: `./run.sh log-batch`
+    - 에이전트 로그: `./run.sh log-agent`
+* **접속 URL**: `http://localhost:8080/`
 
 기본 관리자 계정은 회원가입(`/signup`) 화면을 통해 최초 1회 생성 후 웹 UI에 로그인할 수 있습니다.
 
 ### 3.2 Agent (Java Core)
 모니터링 대상이 되는 리눅스 서버 터미널에서 에이전트를 수행합니다.
-* **빌드 및 실행**: `./gradlew :agent:run`
-* **데몬으로 띄울 경우** (리눅스):
-  `nohup java -jar build/libs/agent-1.0-SNAPSHOT.jar > /dev/null 2>&1 &`
+* **빌드 및 실행**: `./agent.sh rebuild`
+* **로그 모니터링**:
+    - 데이터 로그: `./agent.sh log data`
+    - 네트워크 로그: `./agent.sh log net`
+    - 테스크 로그: `./agent.sh log task`
 
 에이전트는 기동 즉시 웹서버를 목적지로 하여 스스로를 등록하며 API Key를 발급 받습니다. Web UI 대시보드 새로고침 시 이 에이전트 목록이 실시간으로 확인됩니다.
 또한, `agent/src/main/resources/application.properties` 파일 내의 `task.*` 설정을 통해 수집 주기와 모니터링할 로그 경로를 커스터마이징할 수 있습니다.
