@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AgentHeartbeat {
+public class AgentHeartbeat implements org.springframework.data.domain.Persistable<String> {
 
     @Id
     @Column("hb_id")
@@ -23,6 +23,10 @@ public class AgentHeartbeat {
     @Column("agent_id")
     private String agentId;
 
+    @org.springframework.data.annotation.Transient
+    @Builder.Default
+    private boolean isNew = false;
+
     private AgentStatus status;
     @Column("heartbeat_at")
     private LocalDateTime heartbeatAt;
@@ -30,4 +34,14 @@ public class AgentHeartbeat {
     @CreatedDate
     @Column("created_at")
     private LocalDateTime createdAt;
+
+    @Override
+    public String getId() {
+        return hbId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew || hbId == null;
+    }
 }

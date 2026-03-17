@@ -44,6 +44,7 @@ public class AgentHeartbeatService {
                             .status(finalStatus)
                             .heartbeatAt(requestDto.getHeartbeatAt() != null
                                     ? requestDto.getHeartbeatAt() : LocalDateTime.now())
+                            .isNew(true)
                             .build();
 
                     return heartbeatRepository.save(heartbeat)
