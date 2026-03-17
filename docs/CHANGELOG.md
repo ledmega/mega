@@ -3,7 +3,7 @@
 ## 2026-03-17 - CS AI 자동화 시스템 구축 및 버그 수정
 
 ### 🤖 신규: CS 자동화 시스템 (AI 고객 상담 자동화)
-* **`CsBotService`** 구현: FAQ 키워드 매칭 → OpenAI RAG 기반 답변 초안 생성 전체 흐름 완성.
+* **`CsBotService`** 고도화: 단순 AI 답변에서 **RAG (Retrieval-Augmented Generation)** 로직으로 업그레이드. 유입된 문의 키워드로 관련 FAQ를 검색하여 AI(Gemini) 모델의 Context로 주입함으로써 우리 데이터에 기반한 정확한 답변 초안 생성.
 * **CS 어드민 대시보드** (`/cs/dashboard`): 상담 내역(채팅 뷰), FAQ 관리 CRUD, 시뮬레이터 3탭 UI 구현.
 * **`CsSimulationController`**: 외부 연동 없이 문의 유입부터 AI 처리까지 E2E 테스트 가능한 시뮬레이터 API.
 * **`CsAdminController`**: CS 대시보드 페이지 뷰 컨트롤러.

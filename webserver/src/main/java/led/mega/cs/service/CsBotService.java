@@ -113,74 +113,84 @@ public class CsBotService {
     }
 
     private Mono<CsBotResponseDto> handleAiDraft(CsConversation conversation, String question) {
-        log.info("[CS-BOT] Native AI Draft Start: convId={}", conversation.getCsConvId());
+        log.info("[CS-BOT] RAG-based AI Draft Start: convId={}", conversation.getCsConvId());
 
-        return Mono.fromCallable(() -> {
-            RestClient restClient = RestClient.builder().build();
-            
-            // 1. OpenAI 호환 엔드포인트 URL
-            String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
+        // 1. 관련 FAQ 데이터를 검색하여 Context 생성
+        return faqRepository.searchFaq(question.substring(0, Math.min(question.length(), 10)))
+                .take(5) // 가급적 연관된 상위 5개만 추출
+                .collectList()
+                .flatMap(faqs -> {
+                    String contextText = faqs.stream()
+                            .map(f -> String.format("Q: %s\nA: %s", f.getQuestion(), f.getAnswer()))
+                            .reduce("", (a, b) -> a + "\n---\n" + b);
 
-            // 2. 모델 리스트에서 확인된 유효한 최신 모델명 사용
-            Map<String, Object> requestBody = Map.of(
-                "model", "gemini-flash-latest",
-                "messages", List.of(
-                    Map.of("role", "system", "content", "당신은 CS 상담사 지원 AI입니다. FAQ를 참고해 답변 초안을 작성하세요."),
-                    Map.of("role", "user", "content", question)
-                )
-            );
+                    log.info("[CS-BOT] Found {} relevant FAQs for context", faqs.size());
 
-            log.info("[CS-BOT] Requesting Gemini with model: gemini-flash-latest");
-            if (apiKey == null || apiKey.isEmpty()) {
-                log.error("[CS-BOT] API Key is missing! Please set GEMINI_API_KEY env variable.");
-                throw new RuntimeException("API Key is missing");
-            }
-            log.info("[CS-BOT] Using API Key starting with: {}...", apiKey.substring(0, Math.min(apiKey.length(), 8)));
+                    return Mono.fromCallable(() -> {
+                        RestClient restClient = RestClient.builder().build();
+                        String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
 
-            // 3. Authorization 헤더와 x-goog-api-key 헤더를 모두 사용하여 인증 성공률을 극대화함
-            Map response = restClient.post()
-                    .uri(url)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("x-goog-api-key", apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
-                    .retrieve()
-                    .body(Map.class);
+                        String systemPrompt = "당신은 CS 상담사 지원 AI입니다. 아래 제공된 [참고 FAQ 데이터]를 바탕으로 사용자 질문에 대한 정확하고 친절한 답변 초안을 작성하세요.\n" +
+                                "만약 제공된 데이터에 답이 없다면, 아는 선에서 정중히 답변하고 '상담사 확인이 필요합니다'라고 덧붙여주세요.\n\n" +
+                                "[참고 FAQ 데이터]\n" + contextText;
 
-            if (response == null || !response.containsKey("choices")) {
-                throw new RuntimeException("Invalid response from Gemini API");
-            }
+                        Map<String, Object> requestBody = Map.of(
+                            "model", "gemini-flash-latest",
+                            "messages", List.of(
+                                Map.of("role", "system", "content", systemPrompt),
+                                Map.of("role", "user", "content", question)
+                            )
+                        );
 
-            List choices = (List) response.get("choices");
-            Map firstChoice = (Map) choices.get(0);
-            Map message = (Map) firstChoice.get("message");
-            return (String) message.get("content");
-        })
-        .subscribeOn(Schedulers.boundedElastic())
-        .flatMap(aiDraft -> {
-            CsMessage draft = CsMessage.builder()
-                    .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
-                    .csConvId(conversation.getCsConvId())
-                    .senderType("BOT")
-                    .content(aiDraft)
-                    .isDraft(true)
-                    .createdAt(LocalDateTime.now())
-                    .isNew(true).build();
+                        if (apiKey == null || apiKey.isEmpty()) {
+                            log.error("[CS-BOT] API Key is missing!");
+                            throw new RuntimeException("API Key is missing");
+                        }
 
-            return messageRepository.save(draft)
-                    .then(updateConversationStatus(conversation, "PROCESSING"))
-                    .thenReturn(CsBotResponseDto.builder()
+                        Map response = restClient.post()
+                                .uri(url)
+                                .header("Authorization", "Bearer " + apiKey)
+                                .header("x-goog-api-key", apiKey)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .body(requestBody)
+                                .retrieve()
+                                .body(Map.class);
+
+                        if (response == null || !response.containsKey("choices")) {
+                            throw new RuntimeException("Invalid response from Gemini API");
+                        }
+
+                        List choices = (List) response.get("choices");
+                        Map firstChoice = (Map) choices.get(0);
+                        Map message = (Map) firstChoice.get("message");
+                        return (String) message.get("content");
+                    })
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .flatMap(aiDraft -> {
+                        CsMessage draft = CsMessage.builder()
+                                .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
+                                .csConvId(conversation.getCsConvId())
+                                .senderType("BOT")
+                                .content(aiDraft)
+                                .isDraft(true)
+                                .createdAt(LocalDateTime.now())
+                                .isNew(true).build();
+
+                        return messageRepository.save(draft)
+                                .then(updateConversationStatus(conversation, "PROCESSING"))
+                                .thenReturn(CsBotResponseDto.builder()
+                                        .conversationId(conversation.getCsConvId())
+                                        .resultType("DRAFT_CREATED")
+                                        .botReply(aiDraft)
+                                        .aiProcessed(true).build());
+                    });
+                })
+                .onErrorResume(e -> {
+                    log.error("[CS-BOT] AI 호출 실패: {}", e.getMessage());
+                    return Mono.just(CsBotResponseDto.builder()
                             .conversationId(conversation.getCsConvId())
-                            .resultType("DRAFT_CREATED")
-                            .botReply(aiDraft)
-                            .aiProcessed(true).build());
-        })
-        .onErrorResume(e -> {
-            log.error("[CS-BOT] AI 호출 실패: {}", e.getMessage());
-            return Mono.just(CsBotResponseDto.builder()
-                    .conversationId(conversation.getCsConvId())
-                    .resultType("ESCALATED").build());
-        });
+                            .resultType("ESCALATED").build());
+                });
     }
 
     private Mono<CsConversation> updateConversationStatus(CsConversation conversation, String newStatus) {
