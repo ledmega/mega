@@ -42,8 +42,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
-	// [API] Spring AI Google Gemini (Google AI Studio API Key)
-	implementation 'org.springframework.ai:spring-ai-google-ai-gemini-spring-boot-starter'
+	// [API] Spring AI - Gemini OpenAI 호환 엔드포인트 사용 (가장 안정적)
+	implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
 
 	// [KEPT] JDBC 드라이버 - DatabaseInitializer가 DriverManager로 직접 사용
 	implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
