@@ -43,7 +43,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 	// [API] Spring AI - Native Gemini 스타터
-	implementation 'org.springframework.ai:spring-ai-google-ai-spring-boot-starter'
+	implementation 'org.springframework.ai:spring-ai-google-ai-gemini-spring-boot-starter'
 	// [API] Spring AI - OpenAI 스타터 (백업용)
 	implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
 
