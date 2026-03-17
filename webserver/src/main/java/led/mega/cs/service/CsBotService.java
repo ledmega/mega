@@ -116,26 +116,34 @@ public class CsBotService {
         log.info("[CS-BOT] Native AI Draft Start: convId={}", conversation.getCsConvId());
 
         return Mono.fromCallable(() -> {
-            // 라이브러리를 쓰지 않고 직접 구글이 권장하는 OpenAI 호환 본문을 작성합니다.
             RestClient restClient = RestClient.builder().build();
             
-            // 제미나이 가이드에 따른 완벽한 URL
-            String url = "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=" + apiKey;
+            // 1. OpenAI 호환 엔드포인트 URL
+            String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
 
+            // 2. 모델 리스트에서 확인된 유효한 최신 모델명 사용 (gemini-1.5-flash 대신 gemini-flash-latest)
             Map<String, Object> requestBody = Map.of(
-                "model", "gemini-1.5-flash",
+                "model", "gemini-flash-latest",
                 "messages", List.of(
-                    Map.of("role", "system", "content", "당신은 CS 보조입니다."),
+                    Map.of("role", "system", "content", "당신은 CS 상담사 지원 AI입니다. FAQ를 참고해 답변 초안을 작성하세요."),
                     Map.of("role", "user", "content", question)
                 )
             );
 
+            log.info("[CS-BOT] Requesting Gemini with model: gemini-flash-latest");
+
+            // 3. Authorization 헤더를 Bearer 방식으로 명시적 추가
             Map response = restClient.post()
                     .uri(url)
+                    .header("Authorization", "Bearer " + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()
                     .body(Map.class);
+
+            if (response == null || !response.containsKey("choices")) {
+                throw new RuntimeException("Invalid response from Gemini API");
+            }
 
             List choices = (List) response.get("choices");
             Map firstChoice = (Map) choices.get(0);
