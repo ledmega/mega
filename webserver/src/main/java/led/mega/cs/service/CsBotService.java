@@ -14,21 +14,17 @@ import led.mega.service.SseService;
 import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
-/**
- * CS 메시징 AI 자동화 엔진.
- * 모든 Spring AI 버전에서 호환되는 OpenAiChatModel 기반 호출 방식.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,7 +35,9 @@ public class CsBotService {
     private final CsMessageRepository messageRepository;
     private final CsInboundDataRepository inboundDataRepository;
     private final SseService sseService;
-    private final OpenAiChatModel chatModel;
+
+    @Value("${spring.ai.openai.api-key}")
+    private String apiKey;
 
     public Mono<CsBotResponseDto> processInbound(CsInboundRequestDto request) {
         return inboundDataRepository.save(createInboundEntity(request))
@@ -73,7 +71,7 @@ public class CsBotService {
     }
 
     private Mono<CsBotResponseDto> processMessage(CsConversation conversation, CsInboundRequestDto request) {
-        CsMessage userMessage = CsMessage.builder()
+        CsMessage userMsg = CsMessage.builder()
                 .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
                 .csConvId(conversation.getCsConvId())
                 .senderType("USER")
@@ -83,85 +81,92 @@ public class CsBotService {
                 .isNew(true)
                 .build();
 
-        return messageRepository.save(userMessage)
+        return messageRepository.save(userMsg)
                 .flatMap(saved -> tryFaqMatch(conversation, request.getContent()))
                 .doOnNext(result -> sseService.broadcastCsEvent(conversation.getCsConvId(), result));
     }
 
     private Mono<CsBotResponseDto> tryFaqMatch(CsConversation conversation, String question) {
-        return faqRepository.searchFaq(extractPrimaryKeyword(question))
+        return faqRepository.searchFaq(question.substring(0, Math.min(question.length(), 5)))
                 .next()
                 .flatMap(faq -> handleFaqMatch(conversation, question, faq))
                 .switchIfEmpty(Mono.defer(() -> handleAiDraft(conversation, question)));
     }
 
     private Mono<CsBotResponseDto> handleFaqMatch(CsConversation conversation, String question, CsFaq faq) {
-        CsMessage botMessage = CsMessage.builder()
+        CsMessage botMsg = CsMessage.builder()
                 .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
                 .csConvId(conversation.getCsConvId())
                 .senderType("BOT")
                 .content(faq.getAnswer())
                 .isDraft(false)
                 .createdAt(LocalDateTime.now())
-                .isNew(true)
-                .build();
+                .isNew(true).build();
 
-        return messageRepository.save(botMessage)
+        return messageRepository.save(botMsg)
                 .then(updateConversationStatus(conversation, "COMPLETED"))
                 .thenReturn(CsBotResponseDto.builder()
                         .conversationId(conversation.getCsConvId())
                         .resultType("AUTO_REPLIED")
                         .botReply(faq.getAnswer())
-                        .faqMatched(true)
-                        .matchedFaqId(faq.getCsFaqId())
-                        .aiProcessed(false)
-                        .statusMessage("FAQ 자동 답변이 완료되었습니다.")
-                        .build());
+                        .faqMatched(true).build());
     }
 
     private Mono<CsBotResponseDto> handleAiDraft(CsConversation conversation, String question) {
-        log.info("[CS-BOT] AI 초안 생성 시작: convId={}", conversation.getCsConvId());
+        log.info("[CS-BOT] Native AI Draft Start: convId={}", conversation.getCsConvId());
 
-        return faqRepository.findByUseYn("Y")
-                .collectList()
-                .flatMap(faqList -> {
-                    String systemPrompt = "당신은 CS 상담사 지원 AI입니다. FAQ를 참고해 답변 초안을 작성하세요.\n\n[FAQ]\n" + faqList;
+        return Mono.fromCallable(() -> {
+            // 라이브러리를 쓰지 않고 직접 구글이 권장하는 OpenAI 호환 본문을 작성합니다.
+            RestClient restClient = RestClient.builder().build();
+            
+            // 제미나이 가이드에 따른 완벽한 URL
+            String url = "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=" + apiKey;
 
-                    return Mono.fromCallable(() -> {
-                                Prompt prompt = new Prompt(List.of(new SystemMessage(systemPrompt), new UserMessage(question)));
-                                return chatModel.call(prompt).getResult().getOutput().getContent();
-                            })
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .flatMap(aiDraft -> {
-                                CsMessage draft = CsMessage.builder()
-                                        .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
-                                        .csConvId(conversation.getCsConvId())
-                                        .senderType("BOT")
-                                        .content(aiDraft)
-                                        .isDraft(true)
-                                        .createdAt(LocalDateTime.now())
-                                        .isNew(true)
-                                        .build();
+            Map<String, Object> requestBody = Map.of(
+                "model", "gemini-1.5-flash",
+                "messages", List.of(
+                    Map.of("role", "system", "content", "당신은 CS 보조입니다."),
+                    Map.of("role", "user", "content", question)
+                )
+            );
 
-                                return messageRepository.save(draft)
-                                        .then(updateConversationStatus(conversation, "PROCESSING"))
-                                        .thenReturn(CsBotResponseDto.builder()
-                                                .conversationId(conversation.getCsConvId())
-                                                .resultType("DRAFT_CREATED")
-                                                .botReply(aiDraft)
-                                                .faqMatched(false)
-                                                .aiProcessed(true)
-                                                .statusMessage("AI 초안 생성 완료")
-                                                .build());
-                            })
-                            .onErrorResume(e -> {
-                                log.error("[CS-BOT] AI 호출 에러: {}", e.getMessage());
-                                return Mono.just(CsBotResponseDto.builder()
-                                        .conversationId(conversation.getCsConvId())
-                                        .resultType("ESCALATED")
-                                        .statusMessage("상담사 직접 배정").build());
-                            });
-                });
+            Map response = restClient.post()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(Map.class);
+
+            List choices = (List) response.get("choices");
+            Map firstChoice = (Map) choices.get(0);
+            Map message = (Map) firstChoice.get("message");
+            return (String) message.get("content");
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .flatMap(aiDraft -> {
+            CsMessage draft = CsMessage.builder()
+                    .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
+                    .csConvId(conversation.getCsConvId())
+                    .senderType("BOT")
+                    .content(aiDraft)
+                    .isDraft(true)
+                    .createdAt(LocalDateTime.now())
+                    .isNew(true).build();
+
+            return messageRepository.save(draft)
+                    .then(updateConversationStatus(conversation, "PROCESSING"))
+                    .thenReturn(CsBotResponseDto.builder()
+                            .conversationId(conversation.getCsConvId())
+                            .resultType("DRAFT_CREATED")
+                            .botReply(aiDraft)
+                            .aiProcessed(true).build());
+        })
+        .onErrorResume(e -> {
+            log.error("[CS-BOT] AI 호출 실패: {}", e.getMessage());
+            return Mono.just(CsBotResponseDto.builder()
+                    .conversationId(conversation.getCsConvId())
+                    .resultType("ESCALATED").build());
+        });
     }
 
     private Mono<CsConversation> updateConversationStatus(CsConversation conversation, String newStatus) {
@@ -169,9 +174,5 @@ public class CsBotService {
         conversation.setUpdatedAt(LocalDateTime.now());
         conversation.setNew(false);
         return conversationRepository.save(conversation);
-    }
-
-    private String extractPrimaryKeyword(String question) {
-        return (question == null || question.isBlank()) ? "" : question.substring(0, Math.min(question.length(), 5));
     }
 }
