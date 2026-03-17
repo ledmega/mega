@@ -1,12 +1,12 @@
 // 웹서버 모듈 빌드 설정
 
 plugins {
-	id 'org.springframework.boot' version '3.4.3' // 안정적인 최신 버전으로 수정
+	id 'org.springframework.boot' version '3.4.3'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
 ext {
-	set('springAiVersion', "1.0.0-M5") // 존재하는 마일스톤 버전
+	set('springAiVersion', "1.0.0-M5")
 }
 
 java {
@@ -28,7 +28,6 @@ dependencyManagement {
 }
 
 dependencies {
-	// [REACTIVE] spring-boot-starter-web → spring-boot-starter-webflux
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
 	implementation 'org.mariadb:r2dbc-mariadb'
@@ -39,9 +38,9 @@ dependencies {
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 	
 	// [API] Spring AI - OpenAI 스타터 (Gemini 호환 모드용)
+	// 가장 범용적으로 작동하는 OpenAI 스타터를 통해 Gemini를 연동합니다.
 	implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
 
-	// [KEPT] JDBC 드라이버
 	implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

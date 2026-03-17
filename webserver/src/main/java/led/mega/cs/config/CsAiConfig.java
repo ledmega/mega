@@ -24,13 +24,15 @@ public class CsAiConfig {
     public OpenAiChatModel openAiChatModel(
             @Value("${spring.ai.openai.api-key}") String apiKey,
             @Value("${spring.ai.openai.base-url}") String baseUrl,
+            @Value("${spring.ai.openai.chat.completions-path}") String completionsPath,
             @Value("${spring.ai.openai.chat.options.model}") String modelName) {
 
         log.info("[CS-BOT-CONFIG] Initializing Gemini via OpenAI Compatibility Mode...");
-        log.info("[CS-BOT-CONFIG] Target URL: {}", baseUrl);
+        log.info("[CS-BOT-CONFIG] Target URL: {}{}", baseUrl, completionsPath);
         log.info("[CS-BOT-CONFIG] Target Model: {}", modelName);
 
-        // API 생성 (URL에 /v1이 붙지 않도록 properties에서 조절됨)
+        // OpenAiApi 생성
+        // 핵심: baseUrl을 그대로 넘겨주고, properties에서 정의한 completionsPath가 반영되도록 함.
         OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey);
 
         // Options 설정
