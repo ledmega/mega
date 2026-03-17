@@ -49,6 +49,7 @@ public class AgentService {
                             .status(AgentStatus.ONLINE)
                             .apiKey(generateApiKey())
                             .lastHeartbeat(LocalDateTime.now())
+                            .isNew(true)
                             .build();
                     return agentRepository.save(agent);
                 }))

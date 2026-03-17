@@ -36,6 +36,7 @@ public class TaskService {
                             .logPattern(requestDto.getLogPattern())
                             .intervalSeconds(requestDto.getIntervalSeconds())
                             .enabled(requestDto.getEnabled() != null ? requestDto.getEnabled() : true)
+                            .isNew(true)
                             .build();
                     return taskRepository.save(task);
                 })

@@ -3,6 +3,8 @@ package led.mega.entity;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -15,11 +17,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ServiceMetricData {
+public class ServiceMetricData implements Persistable<String> {
 
     @Id
     @Column("svc_metric_id")
     private String svcMetricId;
+
+    @Transient
+    @Builder.Default
+    private boolean isNew = false;
     
     @Column("agent_id")
     private String agentId;
@@ -45,4 +51,14 @@ public class ServiceMetricData {
     @CreatedDate
     @Column("created_at")
     private LocalDateTime createdAt;
+
+    @Override
+    public String getId() {
+        return svcMetricId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew || svcMetricId == null;
+    }
 }

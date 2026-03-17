@@ -62,6 +62,7 @@ public class MonitoringConfigService {
                 .intervalSeconds(dto.getIntervalSeconds() != null ? dto.getIntervalSeconds() : 30)
                 .enabled(dto.getEnabled() != null ? dto.getEnabled() : true)
                 .description(dto.getDescription())
+                .isNew(true)
                 .build();
         return configRepository.save(entity).flatMap(this::toDto);
     }

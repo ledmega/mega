@@ -51,6 +51,7 @@ public class MetricDataService {
                             .rawData(requestDto.getRawData())
                             .collectedAt(requestDto.getCollectedAt() != null
                                     ? requestDto.getCollectedAt() : LocalDateTime.now())
+                            .isNew(true)
                             .build();
                     return metricDataRepository.save(metricData);
                 })

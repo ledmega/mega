@@ -45,6 +45,7 @@ public class ExceptionLogService {
                             .fullStackTrace(requestDto.getFullStackTrace())
                             .occurredAt(requestDto.getOccurredAt() != null
                                     ? requestDto.getOccurredAt() : LocalDateTime.now())
+                            .isNew(true)
                             .build();
                     return exceptionLogRepository.save(exceptionLog);
                 })

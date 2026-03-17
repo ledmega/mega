@@ -28,6 +28,7 @@ public class ServiceMetricDataService {
                 .networkRxBytes(dto.getNetworkRxBytes())
                 .networkTxBytes(dto.getNetworkTxBytes())
                 .collectedAt(dto.getCollectedAt())
+                .isNew(true)
                 .build();
                 
         return serviceMetricDataRepository.save(entity)

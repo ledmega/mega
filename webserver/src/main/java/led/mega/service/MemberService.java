@@ -41,6 +41,7 @@ public class MemberService {
                             .phone(signupDto.getPhone())
                             .role(MemberRole.ROLE_USER)
                             .status(MemberStatus.ACTIVE)
+                            .isNew(true)
                             .build();
                     return memberRepository.save(member);
                 })
