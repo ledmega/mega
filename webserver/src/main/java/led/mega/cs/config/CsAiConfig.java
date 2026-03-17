@@ -26,6 +26,11 @@ public class CsAiConfig {
     }
 
     @Bean
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
+    }
+
+    @Bean
     @Primary
     public OpenAiChatModel openAiChatModel(
             @Value("${spring.ai.openai.api-key}") String apiKey) {

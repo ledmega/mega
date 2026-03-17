@@ -15,11 +15,10 @@ import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
+import java.time.Duration;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +34,7 @@ public class CsBotService {
     private final CsMessageRepository messageRepository;
     private final CsInboundDataRepository inboundDataRepository;
     private final SseService sseService;
+    private final WebClient.Builder webClientBuilder;
 
     @Value("${spring.ai.openai.api-key}")
     private String apiKey;
@@ -126,64 +126,62 @@ public class CsBotService {
 
                     log.info("[CS-BOT] Found {} relevant FAQs for context", faqs.size());
 
-                    return Mono.fromCallable(() -> {
-                        RestClient restClient = RestClient.builder().build();
-                        String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
+                    String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
 
-                        String systemPrompt = "당신은 CS 상담사 지원 AI입니다. 아래 제공된 [참고 FAQ 데이터]를 바탕으로 사용자 질문에 대한 정확하고 친절한 답변 초안을 작성하세요.\n" +
-                                "만약 제공된 데이터에 답이 없다면, 아는 선에서 정중히 답변하고 '상담사 확인이 필요합니다'라고 덧붙여주세요.\n\n" +
-                                "[참고 FAQ 데이터]\n" + contextText;
+                    String systemPrompt = "당신은 CS 상담사 지원 AI입니다. 아래 제공된 [참고 FAQ 데이터]를 바탕으로 사용자 질문에 대한 정확하고 친절한 답변 초안을 작성하세요.\n" +
+                            "만약 제공된 데이터에 답이 없다면, 아는 선에서 정중히 답변하고 '상담사 확인이 필요합니다'라고 덧붙여주세요.\n\n" +
+                            "[참고 FAQ 데이터]\n" + contextText;
 
-                        Map<String, Object> requestBody = Map.of(
-                            "model", "gemini-flash-latest",
-                            "messages", List.of(
-                                Map.of("role", "system", "content", systemPrompt),
-                                Map.of("role", "user", "content", question)
-                            )
-                        );
+                    Map<String, Object> requestBody = Map.of(
+                        "model", "gemini-1.5-flash",
+                        "messages", List.of(
+                            Map.of("role", "system", "content", systemPrompt),
+                            Map.of("role", "user", "content", question)
+                        )
+                    );
 
-                        if (apiKey == null || apiKey.isEmpty()) {
-                            log.error("[CS-BOT] API Key is missing! .env 파일에 GEMINI_API_KEY가 설정되어 있는지 확인해주세요.");
-                            throw new RuntimeException("GEMINI_API_KEY environment variable is not set");
-                        }
+                    if (apiKey == null || apiKey.isEmpty()) {
+                        log.error("[CS-BOT] API Key is missing! .env 파일에 GEMINI_API_KEY가 설정되어 있는지 확인해주세요.");
+                        return Mono.error(new RuntimeException("GEMINI_API_KEY environment variable is not set"));
+                    }
 
-                        Map response = restClient.post()
-                                .uri(url)
-                                .header("Authorization", "Bearer " + apiKey)
-                                .header("x-goog-api-key", apiKey)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .body(requestBody)
-                                .retrieve()
-                                .body(Map.class);
+                    return webClientBuilder.build()
+                            .post()
+                            .uri(url)
+                            .header("Authorization", "Bearer " + apiKey)
+                            .header("x-goog-api-key", apiKey)
+                            .bodyValue(requestBody)
+                            .retrieve()
+                            .bodyToMono(Map.class)
+                            .timeout(Duration.ofSeconds(60)) // 60초 타임아웃 설정
+                            .map(response -> {
+                                if (response == null || !response.containsKey("choices")) {
+                                    throw new RuntimeException("Invalid response from Gemini API");
+                                }
 
-                        if (response == null || !response.containsKey("choices")) {
-                            throw new RuntimeException("Invalid response from Gemini API");
-                        }
+                                List choices = (List) response.get("choices");
+                                Map firstChoice = (Map) choices.get(0);
+                                Map message = (Map) firstChoice.get("message");
+                                return (String) message.get("content");
+                            });
+                })
+                .flatMap(aiDraft -> {
+                    CsMessage draft = CsMessage.builder()
+                            .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
+                            .csConvId(conversation.getCsConvId())
+                            .senderType("BOT")
+                            .content(aiDraft)
+                            .isDraft(true)
+                            .createdAt(LocalDateTime.now())
+                            .isNew(true).build();
 
-                        List choices = (List) response.get("choices");
-                        Map firstChoice = (Map) choices.get(0);
-                        Map message = (Map) firstChoice.get("message");
-                        return (String) message.get("content");
-                    })
-                    .subscribeOn(Schedulers.boundedElastic())
-                    .flatMap(aiDraft -> {
-                        CsMessage draft = CsMessage.builder()
-                                .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
-                                .csConvId(conversation.getCsConvId())
-                                .senderType("BOT")
-                                .content(aiDraft)
-                                .isDraft(true)
-                                .createdAt(LocalDateTime.now())
-                                .isNew(true).build();
-
-                        return messageRepository.save(draft)
-                                .then(updateConversationStatus(conversation, "PROCESSING"))
-                                .thenReturn(CsBotResponseDto.builder()
-                                        .conversationId(conversation.getCsConvId())
-                                        .resultType("DRAFT_CREATED")
-                                        .botReply(aiDraft)
-                                        .aiProcessed(true).build());
-                    });
+                    return messageRepository.save(draft)
+                            .then(updateConversationStatus(conversation, "PROCESSING"))
+                            .thenReturn(CsBotResponseDto.builder()
+                                    .conversationId(conversation.getCsConvId())
+                                    .resultType("DRAFT_CREATED")
+                                    .botReply(aiDraft)
+                                    .aiProcessed(true).build());
                 })
                 .onErrorResume(e -> {
                     log.error("[CS-BOT] AI 호출 실패: {}", e.getMessage());
