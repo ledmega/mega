@@ -24,7 +24,7 @@ public class CsAdminController {
     public Mono<String> csDashboard(Model model, Authentication auth) {
         model.addAttribute("isLoggedIn", auth != null && auth.isAuthenticated());
         model.addAttribute("username", auth != null ? auth.getName() : "");
-        return menuService.getMenuList()
+        return menuService.getEnabledMenus()
                 .collectList()
                 .doOnNext(menus -> model.addAttribute("menus", menus))
                 .thenReturn("cs/dashboard");
