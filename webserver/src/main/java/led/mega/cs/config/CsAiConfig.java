@@ -20,10 +20,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Spring AI ChatClient 빈 설정.
+ * Spring AI의 강제 모델명 변조 및 URL 오류를 최종 단계에서 강제 교정합니다.
  */
 @Configuration
 public class CsAiConfig {
@@ -34,48 +35,42 @@ public class CsAiConfig {
     public OpenAiChatModel openAiChatModel(
             @Value("${spring.ai.openai.api-key}") String apiKey,
             @Value("${spring.ai.openai.chat.options.model}") String modelName,
-            WebClient.Builder webClientBuilder) { // Reactive Builder 주입
+            WebClient.Builder webClientBuilder) {
 
-        log.info("==========================================================");
-        log.info("[CS-BOT-CONFIG] Gemini Ultimate Interceptor Initializing...");
-        log.info("[CS-BOT-CONFIG] Target Model: {}", modelName);
-        log.info("==========================================================");
+        log.info("[CS-BOT-CONFIG] Gemini Last-mile Guard Interceptor Initializing...");
 
-        // 1. Spring AI를 속이기 위한 가짜 내부 도메인
-        String dummyBaseUrl = "https://internal-proxy.local/v1beta/openai";
-        String realHost = "generativelanguage.googleapis.com";
+        // 1. 가짜 도메인 (Spring AI의 자동 감지를 피함)
+        String dummyBaseUrl = "https://gemini-proxy.internal/v1beta/openai";
+        String realBaseUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
-        // 2. 도메인 스왑 인터셉터 설정 (RestClient용)
+        // 2. 최종 병기 인터셉터: URL과 JSON 바디를 직접 수정
         RestClient.Builder restClientBuilder = RestClient.builder()
                 .requestInterceptor(new ClientHttpRequestInterceptor() {
                     @Override
                     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-                        URI uri = request.getURI();
-                        if (uri.getHost().equals("internal-proxy.local")) {
-                            try {
-                                URI newUri = new URI(
-                                        uri.getScheme(),
-                                        uri.getUserInfo(),
-                                        realHost,
-                                        uri.getPort(),
-                                        uri.getPath(),
-                                        uri.getQuery(),
-                                        uri.getFragment()
-                                );
-                                request = new HttpRequestWrapper(request) {
-                                    @Override
-                                    public URI getURI() { return newUri; }
-                                };
-                            } catch (URISyntaxException e) {
-                                throw new IOException("URI Swap Failed", e);
+                        
+                        // ✅ URL 보정: Spring AI가 만든 엉뚱한 URL을 버리고 우리가 원하는 정확한 URL로 교체
+                        HttpRequest secureRequest = new HttpRequestWrapper(request) {
+                            @Override
+                            public URI getURI() {
+                                return URI.create(realBaseUrl);
                             }
+                        };
+
+                        // ✅ 바디 보정: JSON 내의 "models/" 접두사를 강제로 삭제
+                        String jsonBody = new String(body, StandardCharsets.UTF_8);
+                        if (jsonBody.contains("models/")) {
+                            String fixedBody = jsonBody.replace("models/", "");
+                            log.debug("[CS-BOT-CONFIG] Stripped 'models/' from JSON body");
+                            body = fixedBody.getBytes(StandardCharsets.UTF_8);
                         }
-                        return execution.execute(request, body);
+
+                        log.info("[CS-BOT-CONFIG] Sending request to: {}", realBaseUrl);
+                        return execution.execute(secureRequest, body);
                     }
                 });
 
-        // 3. OpenAiApi 생성 (RestClient.Builder와 WebClient.Builder 둘 다 전달)
-        // M6 버전의 생성자 형식을 맞춥니다.
+        // 3. OpenAiApi 생성 (가짜 도메인 전달)
         OpenAiApi openAiApi = new OpenAiApi(dummyBaseUrl, apiKey, restClientBuilder, webClientBuilder);
 
         // 4. ChatOptions 설정
