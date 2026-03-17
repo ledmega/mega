@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class AgentResponseDto {
     
-    private Long id;
-    private String agentId;
+    private String id;
+    private String agentRefId; // 기존 agentId (고유 식별코드)
     private String name;
     private String hostname;
     private String ipAddress;
@@ -25,4 +25,3 @@ public class AgentResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-

@@ -7,9 +7,8 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
 @Repository
-public interface ServiceMetricDataRepository extends ReactiveCrudRepository<ServiceMetricData, Long> {
+public interface ServiceMetricDataRepository extends ReactiveCrudRepository<ServiceMetricData, String> {
 
     @Query("SELECT * FROM service_metric_data WHERE monitoring_config_id = :configId ORDER BY collected_at DESC LIMIT 1")
-    Mono<ServiceMetricData> findTopByMonitoringConfigIdOrderByCollectedAtDesc(Long configId);
-
+    Mono<ServiceMetricData> findTopByMonitoringConfigIdOrderByCollectedAtDesc(String configId);
 }

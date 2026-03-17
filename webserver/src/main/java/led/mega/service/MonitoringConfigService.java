@@ -1,14 +1,12 @@
 package led.mega.service;
 
 import led.mega.dto.MonitoringConfigDto;
-import led.mega.entity.MetricData;
 import led.mega.entity.MonitoringConfig;
 import led.mega.repository.AgentRepository;
 import led.mega.repository.ExceptionLogRepository;
-import led.mega.repository.MetricDataRepository;
 import led.mega.repository.MonitoringConfigRepository;
 import led.mega.repository.ServiceMetricDataRepository;
-import led.mega.entity.ServiceMetricData;
+import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +21,6 @@ public class MonitoringConfigService {
     private final MonitoringConfigRepository configRepository;
     private final AgentRepository agentRepository;
     private final ExceptionLogRepository exceptionLogRepository;
-    private final MetricDataRepository metricDataRepository;
     private final ServiceMetricDataRepository serviceMetricDataRepository;
 
     /** 전체 설정 목록 + 에이전트 이름 채움 */
@@ -33,19 +30,19 @@ public class MonitoringConfigService {
     }
 
     /** 특정 에이전트의 설정 목록 */
-    public Flux<MonitoringConfigDto> getByAgentId(Long agentId) {
+    public Flux<MonitoringConfigDto> getByAgentId(String agentId) {
         return configRepository.findByAgentId(agentId)
                 .flatMap(this::toDto);
     }
 
     /** 단건 조회 */
-    public Mono<MonitoringConfigDto> getById(Long id) {
+    public Mono<MonitoringConfigDto> getById(String id) {
         return configRepository.findById(id)
                 .flatMap(this::toDto);
     }
 
     /** 활성화된 설정만 조회 (Agent가 Pull할 때 사용) */
-    public Flux<MonitoringConfigDto> getActiveByAgentId(Long agentId) {
+    public Flux<MonitoringConfigDto> getActiveByAgentId(String agentId) {
         return configRepository.findActiveByAgentId(agentId)
                 .flatMap(this::toDto);
     }
@@ -53,6 +50,7 @@ public class MonitoringConfigService {
     /** 생성 */
     public Mono<MonitoringConfigDto> create(MonitoringConfigDto dto) {
         MonitoringConfig entity = MonitoringConfig.builder()
+                .configId(IdGenerator.generate(IdGenerator.CONFIG))
                 .agentId(dto.getAgentId())
                 .serviceName(dto.getServiceName())
                 .targetType(dto.getTargetType() != null ? dto.getTargetType() : "HOST")
@@ -69,7 +67,7 @@ public class MonitoringConfigService {
     }
 
     /** 수정 */
-    public Mono<MonitoringConfigDto> update(Long id, MonitoringConfigDto dto) {
+    public Mono<MonitoringConfigDto> update(String id, MonitoringConfigDto dto) {
         return configRepository.findById(id)
                 .flatMap(entity -> {
                     entity.setServiceName(dto.getServiceName());
@@ -88,12 +86,12 @@ public class MonitoringConfigService {
     }
 
     /** 삭제 */
-    public Mono<Void> delete(Long id) {
+    public Mono<Void> delete(String id) {
         return configRepository.deleteById(id);
     }
 
     /** 활성화/비활성화 토글 */
-    public Mono<MonitoringConfigDto> toggleEnabled(Long id) {
+    public Mono<MonitoringConfigDto> toggleEnabled(String id) {
         return configRepository.findById(id)
                 .flatMap(entity -> {
                     entity.setEnabled(!entity.getEnabled());
@@ -102,16 +100,12 @@ public class MonitoringConfigService {
                 .flatMap(this::toDto);
     }
 
-    // ------------------------------------------------------------------
-    // Private helper
-    // ------------------------------------------------------------------
     private Mono<MonitoringConfigDto> toDto(MonitoringConfig entity) {
-        // 최근 24시간 예외 건수
         java.time.LocalDateTime since = java.time.LocalDateTime.now().minusDays(1);
 
         Mono<MonitoringConfigDto> baseDto = agentRepository.findById(entity.getAgentId())
                 .map(agent -> MonitoringConfigDto.builder()
-                        .id(entity.getId())
+                        .id(entity.getConfigId())
                         .agentId(entity.getAgentId())
                         .agentName(agent.getName() != null ? agent.getName() : agent.getAgentId())
                         .serviceName(entity.getServiceName())
@@ -128,7 +122,7 @@ public class MonitoringConfigService {
                         .updatedAt(entity.getUpdatedAt())
                         .build())
                 .defaultIfEmpty(MonitoringConfigDto.builder()
-                        .id(entity.getId())
+                        .id(entity.getConfigId())
                         .agentId(entity.getAgentId())
                         .agentName("(삭제된 에이전트)")
                         .serviceName(entity.getServiceName())
@@ -146,10 +140,9 @@ public class MonitoringConfigService {
                         .build());
 
         Mono<Long> recentCount = exceptionLogRepository
-                .countByMonitoringConfigIdSince(entity.getId(), since)
+                .countByMonitoringConfigIdSince(entity.getConfigId(), since)
                 .defaultIfEmpty(0L);
 
-        // 예외 건수까지 채운 후, 서비스 메트릭(ServiceMetricData)을 하나만 조회해 DTO에 한 번에 채운다.
         return baseDto
                 .zipWith(recentCount)
                 .flatMap(tuple -> {
@@ -157,7 +150,7 @@ public class MonitoringConfigService {
                     dto.setRecentExceptionCount(tuple.getT2());
 
                     return serviceMetricDataRepository
-                            .findTopByMonitoringConfigIdOrderByCollectedAtDesc(entity.getId())
+                            .findTopByMonitoringConfigIdOrderByCollectedAtDesc(entity.getConfigId())
                             .map(m -> {
                                 dto.setRecentCpu(m.getCpuUsagePercent());
                                 dto.setRecentMemory(m.getMemoryUsagePercent() != null ? m.getMemoryUsagePercent() : m.getMemoryUsageMb());

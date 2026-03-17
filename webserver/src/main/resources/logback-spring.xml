@@ -99,19 +99,21 @@
         </rollingPolicy>
     </appender>
 
-    <!-- [NEW] 알림 및 주요 이벤트 로그 -->
-    <appender name="ALERT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/${LOG_FILE_NAME}-alert.log</file>
+    <!-- [NEW] CS 및 AI 서비스 로그 -->
+    <appender name="CS_AI_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}-cs-ai.log</file>
         <encoder>
             <pattern>${FILE_LOG_PATTERN}</pattern>
             <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-alert-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-cs-ai-%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
             <totalSizeCap>5GB</totalSizeCap>
         </rollingPolicy>
     </appender>
+
+    <!-- [NEW] 알림 및 주요 이벤트 로그 -->
 
     <!-- Spring Framework 로그 레벨 -->
     <logger name="org.springframework" level="INFO"/>
@@ -152,6 +154,17 @@
 
     <logger name="led.mega.config.SecurityConfig" level="DEBUG" additivity="true">
         <appender-ref ref="SECURITY_FILE"/>
+    </logger>
+
+    <!-- [NEW] CS & AI 관련 로그 설정 -->
+    <logger name="led.mega.service.CsBotService" level="DEBUG" additivity="true">
+        <appender-ref ref="CS_AI_FILE"/>
+    </logger>
+    <logger name="led.mega.controller.TalkDreamWebhookController" level="DEBUG" additivity="true">
+        <appender-ref ref="CS_AI_FILE"/>
+    </logger>
+    <logger name="led.mega.controller.CsSimulationController" level="DEBUG" additivity="true">
+        <appender-ref ref="CS_AI_FILE"/>
     </logger>
 
     <!-- 프로파일별 설정 -->

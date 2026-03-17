@@ -1,17 +1,12 @@
 package led.mega.service;
 
-// [REACTIVE] 핵심 변경점
-// - .agent(agent).task(task) → .agentId(agentId).taskId(taskId)
-// - TaskRepository 제거 (taskId Long 직접 사용)
-// - MetricType 파싱 오류: throw → Mono.error
-// - @Query에서 MetricType enum → .name() 문자열로 전달
-
 import led.mega.dto.MetricDataRequestDto;
 import led.mega.dto.MetricDataResponseDto;
 import led.mega.entity.MetricData;
 import led.mega.entity.MetricType;
 import led.mega.repository.AgentRepository;
 import led.mega.repository.MetricDataRepository;
+import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,10 +24,9 @@ public class MetricDataService {
     private final MetricDataRepository metricDataRepository;
     private final AgentRepository agentRepository;
     private final SseService sseService;
-    // [REMOVED] TaskRepository
 
     @Transactional
-    public Mono<MetricDataResponseDto> saveMetricData(Long agentId, MetricDataRequestDto requestDto) {
+    public Mono<MetricDataResponseDto> saveMetricData(String agentId, MetricDataRequestDto requestDto) {
         MetricType metricType;
         try {
             metricType = MetricType.valueOf(requestDto.getMetricType().toUpperCase());
@@ -46,6 +40,7 @@ public class MetricDataService {
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
                 .flatMap(agent -> {
                     MetricData metricData = MetricData.builder()
+                            .metricId(IdGenerator.generate(IdGenerator.METRIC))
                             .agentId(agentId)
                             .taskId(requestDto.getTaskId())
                             .monitoringConfigId(requestDto.getMonitoringConfigId())
@@ -66,32 +61,31 @@ public class MetricDataService {
                 });
     }
 
-    public Flux<MetricDataResponseDto> getMetricDataByAgentId(Long agentId) {
+    public Flux<MetricDataResponseDto> getMetricDataByAgentId(String agentId) {
         return metricDataRepository.findByAgentId(agentId).map(this::toResponseDto);
     }
 
     public Flux<MetricDataResponseDto> getMetricDataByAgentIdAndTimeRange(
-            Long agentId, LocalDateTime startTime, LocalDateTime endTime) {
+            String agentId, LocalDateTime startTime, LocalDateTime endTime) {
         return metricDataRepository.findByAgentIdAndCollectedAtBetween(agentId, startTime, endTime)
                 .map(this::toResponseDto);
     }
 
-    public Flux<MetricDataResponseDto> getMetricDataByAgentIdAndType(Long agentId, MetricType metricType) {
+    public Flux<MetricDataResponseDto> getMetricDataByAgentIdAndType(String agentId, MetricType metricType) {
         return metricDataRepository.findByAgentIdAndMetricType(agentId, metricType).map(this::toResponseDto);
     }
 
     public Flux<MetricDataResponseDto> getMetricDataByAgentIdAndTypeAndTimeRange(
-            Long agentId, MetricType metricType, LocalDateTime startTime, LocalDateTime endTime) {
-        // [CHANGED] MetricType enum → .name() 문자열 전달 (@Query 네이티브 SQL 파라미터)
+            String agentId, MetricType metricType, LocalDateTime startTime, LocalDateTime endTime) {
         return metricDataRepository.findByAgentIdAndMetricTypeAndCollectedAtBetween(
                 agentId, metricType.name(), startTime, endTime).map(this::toResponseDto);
     }
 
     private MetricDataResponseDto toResponseDto(MetricData metricData) {
         return MetricDataResponseDto.builder()
-                .id(metricData.getId())
-                .agentId(metricData.getAgentId())  // [CHANGED] .getAgent().getId() → .getAgentId()
-                .taskId(metricData.getTaskId())    // [CHANGED] .getTask().getId()  → .getTaskId()
+                .id(metricData.getMetricId())
+                .agentId(metricData.getAgentId())
+                .taskId(metricData.getTaskId())
                 .metricType(metricData.getMetricType())
                 .metricName(metricData.getMetricName())
                 .metricValue(metricData.getMetricValue())
@@ -113,12 +107,8 @@ public class MetricDataService {
                 .map(this::toResponseDto);
     }
 
-    /**
-     * 오늘 00:00 이후 수집된 메트릭 개수 반환.
-     */
     public Mono<Long> getTodayMetricCount() {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
         return metricDataRepository.countByCollectedAtAfter(startOfDay);
     }
 }
-

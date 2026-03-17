@@ -32,7 +32,7 @@ public class BatchJobApiController {
 
     /** 단건 조회 */
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<BatchJob>> findById(@PathVariable Long id) {
+    public Mono<ResponseEntity<BatchJob>> findById(@PathVariable String id) {
         return batchJobService.findById(id)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
@@ -47,7 +47,7 @@ public class BatchJobApiController {
 
     /** 수정 */
     @PutMapping("/{id}")
-    public Mono<ResponseEntity<BatchJob>> update(@PathVariable Long id, @RequestBody BatchJob job) {
+    public Mono<ResponseEntity<BatchJob>> update(@PathVariable String id, @RequestBody BatchJob job) {
         return batchJobService.update(id, job)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
@@ -56,13 +56,13 @@ public class BatchJobApiController {
     /** 삭제 */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> delete(@PathVariable Long id) {
+    public Mono<Void> delete(@PathVariable String id) {
         return batchJobService.delete(id);
     }
 
     /** 활성화/비활성화 토글 */
     @PatchMapping("/{id}/toggle")
-    public Mono<ResponseEntity<BatchJob>> toggle(@PathVariable Long id) {
+    public Mono<ResponseEntity<BatchJob>> toggle(@PathVariable String id) {
         return batchJobService.toggleEnabled(id)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
@@ -70,7 +70,7 @@ public class BatchJobApiController {
 
     /** 즉시 실행 */
     @PostMapping("/{id}/run")
-    public Mono<ResponseEntity<Map<String, String>>> runNow(@PathVariable Long id) {
+    public Mono<ResponseEntity<Map<String, String>>> runNow(@PathVariable String id) {
         return batchJobService.runNow(id)
                 .map(msg -> ResponseEntity.ok(Map.of("message", msg)))
                 .defaultIfEmpty(ResponseEntity.notFound().build());

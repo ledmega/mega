@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class TaskResponseDto {
     
-    private Long id;
-    private Long agentId;
+    private String id;
+    private String agentId;
     private String taskName;
     private TaskType taskType;
     private String command;
@@ -26,4 +26,3 @@ public class TaskResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-

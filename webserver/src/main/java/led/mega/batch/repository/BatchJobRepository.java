@@ -9,7 +9,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 
-public interface BatchJobRepository extends ReactiveCrudRepository<BatchJob, Long> {
+public interface BatchJobRepository extends ReactiveCrudRepository<BatchJob, String> {
 
     Flux<BatchJob> findByEnabledTrueOrderByJobNameAsc();
 
@@ -20,10 +20,10 @@ public interface BatchJobRepository extends ReactiveCrudRepository<BatchJob, Lon
     Mono<Boolean> existsByJobName(String jobName);
 
     @Modifying
-    @Query("UPDATE batch_job SET last_run_at = :lastRunAt, last_run_status = :status, last_run_message = :message WHERE id = :id")
-    Mono<Integer> updateRunResult(Long id, LocalDateTime lastRunAt, String status, String message);
+    @Query("UPDATE batch_job SET last_run_at = :lastRunAt, last_run_status = :status, last_run_message = :message WHERE batch_job_id = :id")
+    Mono<Integer> updateRunResult(String id, LocalDateTime lastRunAt, String status, String message);
 
     @Modifying
-    @Query("UPDATE batch_job SET enabled = :enabled WHERE id = :id")
-    Mono<Integer> updateEnabled(Long id, Boolean enabled);
+    @Query("UPDATE batch_job SET enabled = :enabled WHERE batch_job_id = :id")
+    Mono<Integer> updateEnabled(String id, Boolean enabled);
 }

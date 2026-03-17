@@ -1,15 +1,10 @@
 package led.mega.entity;
 
-// [REACTIVE] JPA → R2DBC 전환
-// - @Entity, @GeneratedValue, @Column, @Enumerated 제거 (jakarta.persistence.*)
-// - @Table, @Id → Spring Data R2DBC 어노테이션 사용
-// - @CreationTimestamp, @UpdateTimestamp → @CreatedDate, @LastModifiedDate (Spring Data)
-// - @OneToMany 컬렉션 전부 제거 (R2DBC는 관계 매핑 미지원 - 서비스 레이어에서 별도 조회)
-
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
@@ -23,27 +18,32 @@ import java.time.LocalDateTime;
 public class Agent {
 
     @Id
-    private Long id;
-
+    @Column("agent_id")
     private String agentId;
+
+    @Column("agent_ref_id")
+    private String agentRefId; // 고유 에이전트 식별코드
+
     private String name;
     private String hostname;
+    @Column("ip_address")
     private String ipAddress;
+    @Column("os_type")
     private String osType;
 
     @Builder.Default
     private AgentStatus status = AgentStatus.OFFLINE;
 
+    @Column("last_heartbeat")
     private LocalDateTime lastHeartbeat;
+    @Column("api_key")
     private String apiKey;
 
     @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
-
-    // [REMOVED] @OneToMany tasks, metricDataList, exceptionLogs, heartbeats
-    // R2DBC는 관계 매핑 지원 안 함 → 필요 시 Repository에서 별도 조회
 }
-

@@ -3,6 +3,7 @@ package led.mega.service;
 import led.mega.dto.ServiceMetricDataRequestDto;
 import led.mega.entity.ServiceMetricData;
 import led.mega.repository.ServiceMetricDataRepository;
+import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,8 +16,9 @@ public class ServiceMetricDataService {
 
     private final ServiceMetricDataRepository serviceMetricDataRepository;
 
-    public Mono<Void> saveServiceMetric(Long agentId, ServiceMetricDataRequestDto dto) {
+    public Mono<Void> saveServiceMetric(String agentId, ServiceMetricDataRequestDto dto) {
         ServiceMetricData entity = ServiceMetricData.builder()
+                .svcMetricId(IdGenerator.generate(IdGenerator.SVC_METRIC))
                 .agentId(agentId)
                 .monitoringConfigId(dto.getMonitoringConfigId())
                 .cpuUsagePercent(dto.getCpuUsagePercent())

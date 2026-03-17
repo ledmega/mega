@@ -1,13 +1,10 @@
 package led.mega.entity;
 
-// [REACTIVE] JPA → R2DBC 전환
-// - jakarta.persistence.* → Spring Data R2DBC 어노테이션
-// - @Enumerated 제거: R2DBC는 Enum을 name() 문자열로 자동 변환
-
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
@@ -21,7 +18,8 @@ import java.time.LocalDateTime;
 public class Member {
 
     @Id
-    private Long id;
+    @Column("member_id")
+    private String memberId;
 
     private String email;
     private String password;
@@ -36,11 +34,13 @@ public class Member {
     private MemberStatus status = MemberStatus.ACTIVE;
 
     @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 
+    @Column("last_login_at")
     private LocalDateTime lastLoginAt;
 }
-

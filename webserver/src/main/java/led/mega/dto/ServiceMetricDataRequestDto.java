@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Data
 public class ServiceMetricDataRequestDto {
     @NotNull(message = "모니터링 설정 ID는 필수입니다")
-    private Long monitoringConfigId;
+    private String monitoringConfigId;
     
     // 수집된 단위 지표들
     private BigDecimal cpuUsagePercent;

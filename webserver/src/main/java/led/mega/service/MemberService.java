@@ -1,11 +1,5 @@
 package led.mega.service;
 
-// [REACTIVE] 핵심 변경점
-// - Page<T>       → Flux<T>   (R2DBC는 Page 미지원)
-// - Pageable      제거
-// - Map<Role,Long> → Flux<Map.Entry<Role,Long>>  or  Mono<Map<Role,Long>>
-// - Member        → Mono<Member>
-
 import led.mega.dto.MemberDetailDto;
 import led.mega.dto.MemberUpdateDto;
 import led.mega.dto.SignupDto;
@@ -13,6 +7,7 @@ import led.mega.entity.Member;
 import led.mega.entity.MemberRole;
 import led.mega.entity.MemberStatus;
 import led.mega.repository.MemberRepository;
+import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,6 +33,7 @@ public class MemberService {
                 .flatMap(exists -> {
                     if (exists) return Mono.error(new IllegalArgumentException("이미 사용 중인 이메일입니다."));
                     Member member = Member.builder()
+                            .memberId(IdGenerator.generate(IdGenerator.MEMBER))
                             .email(signupDto.getEmail())
                             .password(passwordEncoder.encode(signupDto.getPassword()))
                             .name(signupDto.getName())
@@ -51,18 +47,16 @@ public class MemberService {
                 .doOnNext(m -> log.info("회원가입 완료: {}", m.getEmail()));
     }
 
-    // [CHANGED] Member → Mono<Member>
     public Mono<Member> findByEmail(String email) {
         return memberRepository.findByEmail(email)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("회원을 찾을 수 없습니다.")));
     }
 
-    public Mono<Member> findById(Long id) {
+    public Mono<Member> findById(String id) {
         return memberRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("회원을 찾을 수 없습니다. id: " + id)));
     }
 
-    // [CHANGED] Page<MemberDetailDto> → Flux<MemberDetailDto>, Pageable 제거
     public Flux<MemberDetailDto> getMemberPage(String search) {
         if (search != null && !search.isBlank()) {
             String term = search.trim();
@@ -72,12 +66,12 @@ public class MemberService {
         return memberRepository.findAll().map(MemberDetailDto::from);
     }
 
-    public Mono<MemberDetailDto> getMemberDetail(Long id) {
+    public Mono<MemberDetailDto> getMemberDetail(String id) {
         return findById(id).map(MemberDetailDto::from);
     }
 
     @Transactional
-    public Mono<MemberDetailDto> updateMember(Long id, MemberUpdateDto dto, boolean isAdmin) {
+    public Mono<MemberDetailDto> updateMember(String id, MemberUpdateDto dto, boolean isAdmin) {
         return findById(id)
                 .flatMap(member -> {
                     if (dto.getName() != null) member.setName(dto.getName());
@@ -94,7 +88,7 @@ public class MemberService {
     }
 
     @Transactional
-    public Mono<MemberDetailDto> updateStatus(Long id, MemberStatus status) {
+    public Mono<MemberDetailDto> updateStatus(String id, MemberStatus status) {
         return findById(id)
                 .flatMap(member -> {
                     member.setStatus(status);
@@ -104,8 +98,6 @@ public class MemberService {
                 .doOnNext(m -> log.info("회원 상태 변경: id={}, status={}", m.getId(), status));
     }
 
-    // [CHANGED] Map<MemberRole,Long> → Mono<Map<MemberRole,Long>>
-    // collectMap: Flux<Map.Entry> → Mono<Map>
     public Mono<Map<MemberRole, Long>> getMemberCountByRole() {
         return Flux.fromArray(MemberRole.values())
                 .flatMap(role -> memberRepository.countByRole(role)
@@ -114,14 +106,13 @@ public class MemberService {
                         () -> new EnumMap<>(MemberRole.class));
     }
 
-    // [CHANGED] Page<MemberDetailDto> → Flux<MemberDetailDto>
     public Flux<MemberDetailDto> getMembersByRole(MemberRole role) {
         return memberRepository.findByRoleOrderByCreatedAtDesc(role.name())
                 .map(MemberDetailDto::from);
     }
 
     @Transactional
-    public Mono<MemberDetailDto> updateRole(Long id, MemberRole role) {
+    public Mono<MemberDetailDto> updateRole(String id, MemberRole role) {
         return findById(id)
                 .flatMap(member -> {
                     member.setRole(role);
@@ -131,5 +122,3 @@ public class MemberService {
                 .doOnNext(m -> log.info("회원 역할 변경: id={}, role={}", m.getId(), role));
     }
 }
-
-

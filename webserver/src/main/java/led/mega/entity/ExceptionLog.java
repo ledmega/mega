@@ -1,13 +1,9 @@
 package led.mega.entity;
 
-// [REACTIVE] JPA → R2DBC 전환
-// - @ManyToOne Agent agent → Long agentId
-// - @ManyToOne Task task   → Long taskId
-// - 서비스에서 agentId/taskId로 별도 조회하면 됨
-
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
@@ -21,24 +17,32 @@ import java.time.LocalDateTime;
 public class ExceptionLog {
 
     @Id
-    private Long id;
+    @Column("ex_log_id")
+    private String exLogId;
 
-    // [CHANGED] @ManyToOne Agent agent → Long agentId
-    private Long agentId;
-    // [CHANGED] @ManyToOne Task task   → Long taskId
-    private Long taskId;
-    /** 서비스 모니터링 설정 ID (서비스별 예외 시 사용) */
-    private Long monitoringConfigId;
+    @Column("agent_id")
+    private String agentId;
+    @Column("task_id")
+    private String taskId;
+    @Column("monitoring_config_id")
+    private String monitoringConfigId;
 
+    @Column("log_file_path")
     private String logFilePath;
+    @Column("exception_type")
     private String exceptionType;
+    @Column("exception_message")
     private String exceptionMessage;
+    @Column("context_before")
     private String contextBefore;
+    @Column("context_after")
     private String contextAfter;
+    @Column("full_stack_trace")
     private String fullStackTrace;
+    @Column("occurred_at")
     private LocalDateTime occurredAt;
 
     @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }
-

@@ -22,6 +22,7 @@ gradle.properties
 # 4. 프로젝트 내에 설치한 JDK 및 실행 파일 (용량이 큼)
 jdk/
 java-17-openjdk-*/
+openjdk-*/
 run.ps1
 mega.pid
 logs/

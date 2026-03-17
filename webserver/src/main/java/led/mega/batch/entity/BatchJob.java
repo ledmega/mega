@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
 public class BatchJob {
 
     @Id
-    private Long id;
+    @Column("batch_job_id")
+    private String batchJobId;
 
     @Column("job_name")
     private String jobName;

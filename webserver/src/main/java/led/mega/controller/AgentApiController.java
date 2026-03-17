@@ -1,14 +1,5 @@
 package led.mega.controller;
 
-// [REACTIVE] REST API Controller 전환 핵심 요약
-//
-// MVC (기존):                          WebFlux (reactive):
-// ResponseEntity<T>                 → Mono<ResponseEntity<T>>
-// ResponseEntity<List<T>>           → Flux<T>  (WebFlux가 Flux를 JSON 배열로 직렬화)
-// try-catch + return                → .onErrorReturn(ResponseEntity.badRequest().build())
-// ResponseEntity.ok(service.get())  → service.get().map(ResponseEntity::ok)
-// 동기 인증 확인                      → Mono 체이닝으로 비동기 처리
-
 import jakarta.validation.Valid;
 import led.mega.dto.*;
 import led.mega.entity.Agent;
@@ -34,15 +25,11 @@ public class AgentApiController {
     private final ExceptionLogService exceptionLogService;
     private final AgentHeartbeatService heartbeatService;
 
-    // [CHANGED] ResponseEntity<List<T>> → Flux<T>
-    // WebFlux는 Flux를 자동으로 JSON 배열로 직렬화
     @GetMapping
     public Flux<AgentResponseDto> getAllAgents() {
         return agentService.getAllAgents();
     }
 
-    // [CHANGED] ResponseEntity<T> → Mono<ResponseEntity<T>>
-    // [CHANGED] try-catch → .onErrorReturn(badRequest)
     @PostMapping("/register")
     public Mono<ResponseEntity<AgentRegisterResponseDto>> registerAgent(
             @Valid @RequestBody AgentRegisterDto registerDto) {
@@ -52,15 +39,13 @@ public class AgentApiController {
                         Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<AgentRegisterResponseDto>build()));
     }
 
-    // [CHANGED] void → Mono<ResponseEntity<Void>>
-    // [CHANGED] 동기 에이전트 인증 → Mono 체이닝
     @PostMapping("/{agentId}/heartbeat")
     public Mono<ResponseEntity<Void>> sendHeartbeat(
             @PathVariable String agentId,
             @Valid @RequestBody HeartbeatRequestDto requestDto,
             Authentication authentication) {
         return getAuthenticatedAgentMono(authentication, agentId)
-                .flatMap(agent -> heartbeatService.saveHeartbeat(agent.getId(), requestDto))
+                .flatMap(agent -> heartbeatService.saveHeartbeat(agent.getAgentId(), requestDto))
                 .<ResponseEntity<Void>>thenReturn(ResponseEntity.<Void>ok().build())
                 .doOnError(e -> log.error("[API] 하트비트 처리 중 오류 발생: {}", e.getMessage(), e))
                 .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<Void>build()));
@@ -72,7 +57,7 @@ public class AgentApiController {
             @Valid @RequestBody MetricDataRequestDto requestDto,
             Authentication authentication) {
         return getAuthenticatedAgentMono(authentication, agentId)
-                .flatMap(agent -> metricDataService.saveMetricData(agent.getId(), requestDto))
+                .flatMap(agent -> metricDataService.saveMetricData(agent.getAgentId(), requestDto))
                 .<ResponseEntity<MetricDataResponseDto>>map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
                 .doOnError(e -> log.error("[API] 일반 메트릭 수집 처리 중 오류 발생: {}", e.getMessage(), e))
                 .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<MetricDataResponseDto>build()));
@@ -84,7 +69,7 @@ public class AgentApiController {
             @Valid @RequestBody led.mega.dto.ServiceMetricDataRequestDto requestDto,
             Authentication authentication) {
         return getAuthenticatedAgentMono(authentication, agentId)
-                .flatMap(agent -> serviceMetricDataService.saveServiceMetric(agent.getId(), requestDto))
+                .flatMap(agent -> serviceMetricDataService.saveServiceMetric(agent.getAgentId(), requestDto))
                 .<ResponseEntity<Void>>thenReturn(ResponseEntity.status(HttpStatus.CREATED).build())
                 .doOnError(e -> log.error("[API] 서비스 메트릭 수집 처리 중 오류 발생: {}", e.getMessage(), e))
                 .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<Void>build()));
@@ -96,18 +81,18 @@ public class AgentApiController {
             @Valid @RequestBody ExceptionLogRequestDto requestDto,
             Authentication authentication) {
         return getAuthenticatedAgentMono(authentication, agentId)
-                .flatMap(agent -> exceptionLogService.saveExceptionLog(agent.getId(), requestDto))
+                .flatMap(agent -> exceptionLogService.saveExceptionLog(agent.getAgentId(), requestDto))
                 .<ResponseEntity<ExceptionLogResponseDto>>map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
                 .onErrorResume(IllegalArgumentException.class, e -> 
                         Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).<ExceptionLogResponseDto>build()));
     }
 
-    // [CHANGED] 동기 메서드 → Mono 반환 (에러도 Mono.error로)
     private Mono<Agent> getAuthenticatedAgentMono(Authentication authentication, String agentId) {
         if (authentication == null || !(authentication.getPrincipal() instanceof Agent authenticatedAgent)) {
             return Mono.error(new IllegalArgumentException("인증이 필요합니다."));
         }
-        if (!authenticatedAgent.getAgentId().equals(agentId)) {
+        // agentId URL 파라미터가 agentRefId(기존 biz ID)일 가능성이 높으므로 agentRefId와 비교
+        if (!authenticatedAgent.getAgentRefId().equals(agentId) && !authenticatedAgent.getAgentId().equals(agentId)) {
             return Mono.error(new IllegalArgumentException("에이전트 ID가 일치하지 않습니다."));
         }
         return Mono.just(authenticatedAgent);

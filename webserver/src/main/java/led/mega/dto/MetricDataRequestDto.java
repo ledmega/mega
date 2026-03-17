@@ -12,9 +12,9 @@ import java.time.LocalDateTime;
 @Data
 public class MetricDataRequestDto {
 
-    private Long taskId;
+    private String taskId;
     /** 서비스 모니터링 설정 ID (서비스별 CPU/MEM/DISK 수집 시 사용) */
-    private Long monitoringConfigId;
+    private String monitoringConfigId;
     
     @NotBlank(message = "메트릭 타입은 필수입니다")
     @Size(max = 50, message = "메트릭 타입은 50자 이하여야 합니다")
@@ -34,4 +34,3 @@ public class MetricDataRequestDto {
     @NotNull(message = "수집 시간은 필수입니다")
     private LocalDateTime collectedAt;
 }
-

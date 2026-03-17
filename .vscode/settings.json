@@ -2,7 +2,6 @@
     // 터미널 인코딩 설정 (한글 로그 출력을 위해)
     "terminal.integrated.encoding": "utf8",
     "terminal.integrated.defaultProfile.windows": "PowerShell",
-    
     // PowerShell 프로파일 설정 (한글 인코딩 자동 설정)
     "terminal.integrated.profiles.windows": {
         "PowerShell": {
@@ -14,25 +13,22 @@
             ]
         }
     },
-    
     // 터미널 환경 변수 설정
     "terminal.integrated.env.windows": {
         "PYTHONIOENCODING": "utf-8",
         "JAVA_TOOL_OPTIONS": "-Dfile.encoding=UTF-8"
     },
-    
     // 파일 인코딩 설정
     "files.encoding": "utf8",
     "files.autoGuessEncoding": true,
-    
     // Java 관련 설정
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
-    "java.jdt.ls.java.home": "e:\\ws\\mega\\java-17-openjdk-17.0.18.0.8-1.win.jdk.x86_64",
+    "java.jdt.ls.java.home": "E:\\ws\\mega\\openjdk-21+35_windows-x64_bin\\jdk-21",
     "java.configuration.runtimes": [
         {
-            "name": "JavaSE-17",
-            "path": "e:\\ws\\mega\\java-17-openjdk-17.0.18.0.8-1.win.jdk.x86_64",
+            "name": "JavaSE-21",
+            "path": "E:\\ws\\mega\\openjdk-21+35_windows-x64_bin\\jdk-21",
             "default": true
         }
     ]

@@ -1,17 +1,11 @@
 package led.mega.service;
 
-// [REACTIVE] 핵심 변경점
-// - ExceptionLogResponseDto → Mono<ExceptionLogResponseDto>
-// - List<ExceptionLogResponseDto> → Flux<ExceptionLogResponseDto>
-// - long → Mono<Long>
-// - .agent(agent).task(task) → .agentId(agentId).taskId(taskId)  (엔티티 직접 참조 제거)
-// - Task 조회 불필요: requestDto.getTaskId()를 바로 사용
-
 import led.mega.dto.ExceptionLogRequestDto;
 import led.mega.dto.ExceptionLogResponseDto;
 import led.mega.entity.ExceptionLog;
 import led.mega.repository.AgentRepository;
 import led.mega.repository.ExceptionLogRepository;
+import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,17 +23,17 @@ public class ExceptionLogService {
     private final ExceptionLogRepository exceptionLogRepository;
     private final AgentRepository agentRepository;
     private final SseService sseService;
-    // [REMOVED] TaskRepository: task 엔티티 조회 불필요 (taskId Long 직접 사용)
 
     @Transactional
-    public Mono<ExceptionLogResponseDto> saveExceptionLog(Long agentId, ExceptionLogRequestDto requestDto) {
+    public Mono<ExceptionLogResponseDto> saveExceptionLog(String agentId, ExceptionLogRequestDto requestDto) {
         return agentRepository.findById(agentId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
                 .flatMap(agent -> {
                     // 서비스별 예외는 monitoring_config_id에 저장, task_id는 FK 위반 방지로 null
-                    Long configId = requestDto.getMonitoringConfigId() != null
+                    String configId = requestDto.getMonitoringConfigId() != null
                             ? requestDto.getMonitoringConfigId() : requestDto.getTaskId();
                     ExceptionLog exceptionLog = ExceptionLog.builder()
+                            .exLogId(IdGenerator.generate(IdGenerator.EXCEPTION))
                             .agentId(agentId)
                             .taskId(null)
                             .monitoringConfigId(configId)
@@ -61,13 +55,12 @@ public class ExceptionLogService {
                 });
     }
 
-    // [CHANGED] List → Flux, .stream().map().collect() → .map()
-    public Flux<ExceptionLogResponseDto> getExceptionLogsByAgentId(Long agentId) {
+    public Flux<ExceptionLogResponseDto> getExceptionLogsByAgentId(String agentId) {
         return exceptionLogRepository.findByAgentId(agentId).map(this::toResponseDto);
     }
 
     public Flux<ExceptionLogResponseDto> getExceptionLogsByAgentIdAndTimeRange(
-            Long agentId, LocalDateTime startTime, LocalDateTime endTime) {
+            String agentId, LocalDateTime startTime, LocalDateTime endTime) {
         return exceptionLogRepository.findByAgentIdAndOccurredAtBetween(agentId, startTime, endTime)
                 .map(this::toResponseDto);
     }
@@ -82,16 +75,15 @@ public class ExceptionLogService {
                 .map(this::toResponseDto);
     }
 
-    // [CHANGED] long → Mono<Long>
-    public Mono<Long> countExceptionLogsSince(Long agentId, LocalDateTime since) {
+    public Mono<Long> countExceptionLogsSince(String agentId, LocalDateTime since) {
         return exceptionLogRepository.countByAgentIdSince(agentId, since);
     }
 
     private ExceptionLogResponseDto toResponseDto(ExceptionLog exceptionLog) {
         return ExceptionLogResponseDto.builder()
-                .id(exceptionLog.getId())
-                .agentId(exceptionLog.getAgentId())   // [CHANGED] .getAgent().getId() → .getAgentId()
-                .taskId(exceptionLog.getTaskId())     // [CHANGED] .getTask().getId()  → .getTaskId()
+                .id(exceptionLog.getExLogId())
+                .agentId(exceptionLog.getAgentId())
+                .taskId(exceptionLog.getTaskId())
                 .logFilePath(exceptionLog.getLogFilePath())
                 .exceptionType(exceptionLog.getExceptionType())
                 .exceptionMessage(exceptionLog.getExceptionMessage())
@@ -102,9 +94,9 @@ public class ExceptionLogService {
                 .createdAt(exceptionLog.getCreatedAt())
                 .build();
     }
+
     public Flux<ExceptionLogResponseDto> getRecentExceptions() {
         return exceptionLogRepository.findTop10ByOrderByOccurredAtDesc()
                 .map(this::toResponseDto);
     }
 }
-

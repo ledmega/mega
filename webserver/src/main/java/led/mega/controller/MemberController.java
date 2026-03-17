@@ -1,15 +1,6 @@
 package led.mega.controller;
 
-// [REACTIVE] Thymeleaf MemberController 전환
-//
-// 주요 변경사항:
-// - RedirectAttributes 사용 불가 (WebFlux 미지원) → URL 파라미터로 대체
-// - Pageable 제거 → Flux 기반 전체 목록
-// - canAccessMember()가 DB 조회 포함 → Mono<Boolean>으로 전환
-// - 반환타입: DB 조회 있는 메서드 → Mono<String>, 없는 메서드 → String
-
 import jakarta.validation.Valid;
-import led.mega.dto.MemberDetailDto;
 import led.mega.dto.MemberUpdateDto;
 import led.mega.dto.SignupDto;
 import led.mega.entity.MemberStatus;
@@ -17,7 +8,6 @@ import led.mega.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -37,9 +27,6 @@ public class MemberController {
         return "signup";
     }
 
-    // [CHANGED] String → Mono<String>
-    // [CHANGED] try-catch → onErrorResume
-    // [REMOVED] RedirectAttributes → URL 파라미터 (?success=true)
     @PostMapping("/signup")
     public Mono<String> signup(@Valid @ModelAttribute SignupDto signupDto,
                                BindingResult bindingResult,
@@ -60,32 +47,27 @@ public class MemberController {
                 });
     }
 
-    // [CHANGED] String → Mono<String>
-    // [CHANGED] Member member = findByEmail(...) [블로킹] → findByEmail().map()
     @GetMapping("/members/me")
     public Mono<String> myProfile(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) {
             return Mono.just("redirect:/login");
         }
         return memberService.findByEmail(auth.getName())
-                .map(member -> "redirect:/members/" + member.getId())
+                .map(member -> "redirect:/members/" + member.getMemberId())
                 .onErrorReturn("redirect:/login");
     }
 
-    // [CHANGED] Page → Flux (Thymeleaf-WebFlux가 Flux를 자동 subscribe)
-    // [REMOVED] Pageable 파라미터
     @GetMapping("/members")
     public Mono<String> list(@RequestParam(required = false) String search,
                              Model model, Authentication auth) {
         if (!isAdmin(auth)) return Mono.just("redirect:/dashboard");
-        model.addAttribute("memberPage", memberService.getMemberPage(search)); // Flux
+        model.addAttribute("memberPage", memberService.getMemberPage(search));
         model.addAttribute("search", search);
         return Mono.just("members/list");
     }
 
-    // [CHANGED] canAccessMember(Mono) → Mono<String> 반환
     @GetMapping("/members/{id}")
-    public Mono<String> detail(@PathVariable Long id, Model model, Authentication auth) {
+    public Mono<String> detail(@PathVariable String id, Model model, Authentication auth) {
         return canAccessMemberMono(id, auth)
                 .flatMap(canAccess -> {
                     if (!canAccess) return Mono.just("redirect:/dashboard");
@@ -100,7 +82,7 @@ public class MemberController {
     }
 
     @GetMapping("/members/{id}/edit")
-    public Mono<String> editForm(@PathVariable Long id, Model model, Authentication auth) {
+    public Mono<String> editForm(@PathVariable String id, Model model, Authentication auth) {
         return canAccessMemberMono(id, auth)
                 .flatMap(canAccess -> {
                     if (!canAccess) return Mono.just("redirect:/dashboard");
@@ -122,7 +104,7 @@ public class MemberController {
     }
 
     @PostMapping("/members/{id}/edit")
-    public Mono<String> edit(@PathVariable Long id,
+    public Mono<String> edit(@PathVariable String id,
                              @Valid @ModelAttribute MemberUpdateDto memberUpdateDto,
                              BindingResult bindingResult,
                              Model model,
@@ -152,9 +134,8 @@ public class MemberController {
                 });
     }
 
-    // [REMOVED] RedirectAttributes → URL 파라미터로 처리
     @PostMapping("/members/{id}/status")
-    public Mono<String> updateStatus(@PathVariable Long id,
+    public Mono<String> updateStatus(@PathVariable String id,
                                      @RequestParam MemberStatus status,
                                      Authentication auth) {
         if (!isAdmin(auth)) return Mono.just("redirect:/dashboard");
@@ -169,14 +150,11 @@ public class MemberController {
                 .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN"));
     }
 
-    // [CHANGED] boolean canAccessMember() → Mono<Boolean> (DB 조회 포함)
-    private Mono<Boolean> canAccessMemberMono(Long memberId, Authentication auth) {
+    private Mono<Boolean> canAccessMemberMono(String memberId, Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) return Mono.just(false);
         if (isAdmin(auth)) return Mono.just(true);
         return memberService.findByEmail(auth.getName())
-                .map(current -> current.getId().equals(memberId))
+                .map(current -> current.getMemberId().equals(memberId))
                 .onErrorReturn(false);
     }
 }
-
-

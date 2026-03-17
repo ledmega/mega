@@ -11,8 +11,8 @@ import java.time.LocalDateTime;
 @Builder
 public class MonitoringConfigDto {
 
-    private Long   id;
-    private Long   agentId;
+    private String id;
+    private String agentId;
     private String agentName;      // 화면 표시용 (조인 없이 서비스에서 채움)
 
     private String serviceName;

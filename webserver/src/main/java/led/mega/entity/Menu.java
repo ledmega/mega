@@ -4,6 +4,7 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
@@ -17,21 +18,28 @@ import java.time.LocalDateTime;
 public class Menu {
 
     @Id
-    private Long id;
+    @Column("menu_id")
+    private String menuId;
 
     private String name;
     private String url;
     private String icon;
+    @Column("sort_order")
     private int sortOrder;
-    private Long parentId;
+    @Column("parent_id")
+    private String parentId;
+    @Column("required_role")
     private String requiredRole;
 
     @Builder.Default
+    @Column("is_enabled")
     private boolean isEnabled = true;
 
     @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 }

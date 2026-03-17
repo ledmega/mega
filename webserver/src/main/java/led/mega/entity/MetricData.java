@@ -1,12 +1,9 @@
 package led.mega.entity;
 
-// [REACTIVE] JPA → R2DBC 전환
-// - @ManyToOne Agent agent → Long agentId
-// - @ManyToOne Task task   → Long taskId
-
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
@@ -21,23 +18,29 @@ import java.time.LocalDateTime;
 public class MetricData {
 
     @Id
-    private Long id;
+    @Column("metric_id")
+    private String metricId;
 
-    // [CHANGED] @ManyToOne Agent agent → Long agentId
-    private Long agentId;
-    // [CHANGED] @ManyToOne Task task   → Long taskId
-    private Long taskId;
-    /** 서비스 모니터링 설정 ID (서비스별 메트릭 시 사용) */
-    private Long monitoringConfigId;
+    @Column("agent_id")
+    private String agentId;
+    @Column("task_id")
+    private String taskId;
+    @Column("monitoring_config_id")
+    private String monitoringConfigId;
 
+    @Column("metric_type")
     private MetricType metricType;
+    @Column("metric_name")
     private String metricName;
+    @Column("metric_value")
     private BigDecimal metricValue;
     private String unit;
+    @Column("raw_data")
     private String rawData;
+    @Column("collected_at")
     private LocalDateTime collectedAt;
 
     @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 }
-

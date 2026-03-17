@@ -4,6 +4,7 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
@@ -17,33 +18,45 @@ import java.time.LocalDateTime;
 public class MonitoringConfig {
 
     @Id
-    private Long id;
+    @Column("config_id")
+    private String configId;
 
-    private Long agentId;              // agent 테이블 FK
+    @Column("agent_id")
+    private String agentId;
 
-    private String serviceName;        // 서비스 이름 (예: Nginx-Docker)
+    @Column("service_name")
+    private String serviceName;
     @Builder.Default
-    private String targetType = "HOST"; // HOST, PROCESS, DOCKER
-    private String targetName;         // 타겟 식별자 (프로세스명 또는 컨테이너명)
-    private String servicePath;        // 서비스 경로 (예: /home/user/apps/mega-api)
-    private String logPath;            // 로그 파일 경로 (예: /var/log/nginx/access.log)
+    @Column("target_type")
+    private String targetType = "HOST";
+    @Column("target_name")
+    private String targetName;
+    @Column("service_path")
+    private String servicePath;
+    @Column("log_path")
+    private String logPath;
 
     @Builder.Default
-    private String collectItems = "CPU,MEMORY,DISK"; // 수집 항목 CSV (CPU,MEMORY,DISK,LOG)
+    @Column("collect_items")
+    private String collectItems = "CPU,MEMORY,DISK";
 
-    private String logKeywords;        // 로그 감시 키워드 CSV (Error,404,Exception)
+    @Column("log_keywords")
+    private String logKeywords;
 
     @Builder.Default
-    private Integer intervalSeconds = 30; // 수집 주기 (초)
+    @Column("interval_seconds")
+    private Integer intervalSeconds = 30;
 
     @Builder.Default
-    private Boolean enabled = true;    // 활성화 여부
+    private Boolean enabled = true;
 
-    private String description;        // 비고/설명
+    private String description;
 
     @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 }

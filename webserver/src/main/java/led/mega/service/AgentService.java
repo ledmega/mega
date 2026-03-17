@@ -1,20 +1,12 @@
 package led.mega.service;
 
-// [REACTIVE] 블로킹 → 논블로킹 전환 핵심 패턴
-// - T           → Mono<T>      : 단건 결과
-// - List<T>     → Flux<T>      : 다건 결과
-// - void        → Mono<Void>   : 반환값 없는 비동기
-// - orElseThrow → switchIfEmpty(Mono.error(...))
-// - if 체크     → flatMap 내부 Mono.error(...)
-// - .stream()   → .map()  (Flux는 스트림 연산 내장)
-// - @Transactional: R2dbcTransactionManager 통해 반응형 트랜잭션 적용
-
 import led.mega.dto.AgentRegisterDto;
 import led.mega.dto.AgentRegisterResponseDto;
 import led.mega.dto.AgentResponseDto;
 import led.mega.entity.Agent;
 import led.mega.entity.AgentStatus;
 import led.mega.repository.AgentRepository;
+import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,7 +26,7 @@ public class AgentService {
 
     @Transactional
     public Mono<AgentRegisterResponseDto> registerAgent(AgentRegisterDto registerDto) {
-        return agentRepository.findByAgentId(registerDto.getAgentId())
+        return agentRepository.findByAgentRefId(registerDto.getAgentId())
                 .flatMap(existingAgent -> {
                     // 이미 존재하면 정보 업데이트
                     existingAgent.setName(registerDto.getName());
@@ -48,7 +40,8 @@ public class AgentService {
                 .switchIfEmpty(Mono.defer(() -> {
                     // 존재하지 않으면 신규 생성
                     Agent agent = Agent.builder()
-                            .agentId(registerDto.getAgentId())
+                            .agentId(IdGenerator.generate(IdGenerator.AGENT))
+                            .agentRefId(registerDto.getAgentId())
                             .name(registerDto.getName())
                             .hostname(registerDto.getHostname())
                             .ipAddress(registerDto.getIpAddress())
@@ -60,30 +53,26 @@ public class AgentService {
                     return agentRepository.save(agent);
                 }))
                 .map(saved -> AgentRegisterResponseDto.builder()
-                        .id(saved.getId())
-                        .agentId(saved.getAgentId())
+                        .id(saved.getAgentId())
+                        .agentRefId(saved.getAgentRefId())
                         .status(saved.getStatus())
                         .apiKey(saved.getApiKey())
                         .build())
-                .doOnNext(r -> log.info("에이전트 등록/업데이트 완료: agentId={}", r.getAgentId()));
+                .doOnNext(r -> log.info("에이전트 등록/업데이트 완료: agentRefId={}", r.getAgentRefId()));
     }
 
-    // [CHANGED] AgentResponseDto → Mono<AgentResponseDto>
-    // [CHANGED] orElseThrow → switchIfEmpty(Mono.error(...))
-    public Mono<AgentResponseDto> getAgent(Long id) {
+    public Mono<AgentResponseDto> getAgent(String id) {
         return agentRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + id)))
                 .map(this::toResponseDto);
     }
 
-    public Mono<AgentResponseDto> getAgentByAgentId(String agentId) {
-        return agentRepository.findByAgentId(agentId)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. agentId: " + agentId)))
+    public Mono<AgentResponseDto> getAgentByAgentRefId(String agentRefId) {
+        return agentRepository.findByAgentRefId(agentRefId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. agentRefId: " + agentRefId)))
                 .map(this::toResponseDto);
     }
 
-    // [CHANGED] List<AgentResponseDto> → Flux<AgentResponseDto>
-    // [CHANGED] .stream().map().collect() → .map() (Flux는 스트림 연산 내장)
     public Flux<AgentResponseDto> getAllAgents() {
         return agentRepository.findAll().map(this::toResponseDto);
     }
@@ -92,8 +81,6 @@ public class AgentService {
         return agentRepository.findByStatus(status).map(this::toResponseDto);
     }
 
-    // [CHANGED] Agent → Mono<Agent>
-    // [CHANGED] .stream().filter().findFirst().orElseThrow → .filter().next().switchIfEmpty
     public Mono<Agent> findByApiKey(String apiKey) {
         return agentRepository.findAll()
                 .filter(agent -> apiKey.equals(agent.getApiKey()))
@@ -101,10 +88,8 @@ public class AgentService {
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("유효하지 않은 API 키입니다.")));
     }
 
-    // [CHANGED] void → Mono<Void>
-    // [CHANGED] 동기 orElseThrow → flatMap 체이닝
     @Transactional
-    public Mono<Void> updateHeartbeat(Long agentId, LocalDateTime heartbeatAt) {
+    public Mono<Void> updateHeartbeat(String agentId, LocalDateTime heartbeatAt) {
         return agentRepository.findById(agentId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
                 .flatMap(agent -> {
@@ -112,11 +97,11 @@ public class AgentService {
                     agent.setStatus(AgentStatus.ONLINE);
                     return agentRepository.save(agent);
                 })
-                .then(); // [CHANGED] save 결과 버리고 Mono<Void> 반환
+                .then();
     }
 
     @Transactional
-    public Mono<Void> updateStatus(Long agentId, AgentStatus status) {
+    public Mono<Void> updateStatus(String agentId, AgentStatus status) {
         return agentRepository.findById(agentId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
                 .flatMap(agent -> {
@@ -132,8 +117,8 @@ public class AgentService {
 
     private AgentResponseDto toResponseDto(Agent agent) {
         return AgentResponseDto.builder()
-                .id(agent.getId())
-                .agentId(agent.getAgentId())
+                .id(agent.getAgentId())
+                .agentRefId(agent.getAgentRefId())
                 .name(agent.getName())
                 .hostname(agent.getHostname())
                 .ipAddress(agent.getIpAddress())
@@ -145,4 +130,3 @@ public class AgentService {
                 .build();
     }
 }
-

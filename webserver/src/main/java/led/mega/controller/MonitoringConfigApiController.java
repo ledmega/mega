@@ -26,19 +26,19 @@ public class MonitoringConfigApiController {
 
     /** 에이전트 별 목록 */
     @GetMapping("/agent/{agentId}")
-    public Flux<MonitoringConfigDto> getByAgent(@PathVariable Long agentId) {
+    public Flux<MonitoringConfigDto> getByAgent(@PathVariable String agentId) {
         return configService.getByAgentId(agentId);
     }
 
     /** 에이전트 별 활성 설정 목록 (Agent가 주기적으로 Pull) */
     @GetMapping("/agent/{agentId}/active")
-    public Flux<MonitoringConfigDto> getActiveByAgent(@PathVariable Long agentId) {
+    public Flux<MonitoringConfigDto> getActiveByAgent(@PathVariable String agentId) {
         return configService.getActiveByAgentId(agentId);
     }
 
     /** 단건 조회 */
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<MonitoringConfigDto>> getById(@PathVariable Long id) {
+    public Mono<ResponseEntity<MonitoringConfigDto>> getById(@PathVariable String id) {
         return configService.getById(id)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
@@ -54,7 +54,7 @@ public class MonitoringConfigApiController {
 
     /** 수정 */
     @PutMapping("/{id}")
-    public Mono<ResponseEntity<MonitoringConfigDto>> update(@PathVariable Long id,
+    public Mono<ResponseEntity<MonitoringConfigDto>> update(@PathVariable String id,
                                                             @RequestBody MonitoringConfigDto dto) {
         return configService.update(id, dto)
                 .map(ResponseEntity::ok)
@@ -63,14 +63,14 @@ public class MonitoringConfigApiController {
 
     /** 삭제 */
     @DeleteMapping("/{id}")
-    public Mono<ResponseEntity<Void>> delete(@PathVariable Long id) {
+    public Mono<ResponseEntity<Void>> delete(@PathVariable String id) {
         return configService.delete(id)
                 .then(Mono.just(ResponseEntity.<Void>noContent().build()));
     }
 
     /** 활성화/비활성화 토글 */
     @PatchMapping("/{id}/toggle")
-    public Mono<ResponseEntity<MonitoringConfigDto>> toggle(@PathVariable Long id) {
+    public Mono<ResponseEntity<MonitoringConfigDto>> toggle(@PathVariable String id) {
         return configService.toggleEnabled(id)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());

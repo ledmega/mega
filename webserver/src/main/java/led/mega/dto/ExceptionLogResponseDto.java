@@ -13,9 +13,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ExceptionLogResponseDto {
     
-    private Long id;
-    private Long agentId;
-    private Long taskId;
+    private String id;
+    private String agentId;
+    private String taskId;
     private String logFilePath;
     private String exceptionType;
     private String exceptionMessage;
@@ -25,4 +25,3 @@ public class ExceptionLogResponseDto {
     private LocalDateTime occurredAt;
     private LocalDateTime createdAt;
 }
-

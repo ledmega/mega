@@ -4,7 +4,6 @@ import led.mega.entity.Menu;
 import led.mega.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -34,7 +33,7 @@ public class MenuController {
     }
 
     @PostMapping("/delete/{id}")
-    public Mono<String> delete(@PathVariable Long id, Authentication auth) {
+    public Mono<String> delete(@PathVariable String id, Authentication auth) {
         if (!isAdmin(auth)) return Mono.just("redirect:/dashboard");
         
         return menuService.deleteMenu(id)

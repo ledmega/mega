@@ -1,8 +1,5 @@
 package led.mega.controller;
 
-// [REACTIVE] ResponseEntity<List<T>> → Flux<T>
-//            try-catch enum 파싱 → .onErrorReturn(Flux.empty())
-
 import led.mega.dto.MetricDataResponseDto;
 import led.mega.entity.MetricType;
 import led.mega.service.MetricDataService;
@@ -22,27 +19,26 @@ public class MetricApiController {
 
     private final MetricDataService metricDataService;
 
-    // [CHANGED] ResponseEntity<List<T>> → Flux<T>
     @GetMapping
-    public Flux<MetricDataResponseDto> getMetrics(@PathVariable Long agentId) {
+    public Flux<MetricDataResponseDto> getMetrics(@PathVariable String agentId) {
         return metricDataService.getMetricDataByAgentId(agentId);
     }
 
     @GetMapping("/type/{metricType}")
     public Flux<MetricDataResponseDto> getMetricsByType(
-            @PathVariable Long agentId,
+            @PathVariable String agentId,
             @PathVariable String metricType) {
         try {
             MetricType type = MetricType.valueOf(metricType.toUpperCase());
             return metricDataService.getMetricDataByAgentIdAndType(agentId, type);
         } catch (IllegalArgumentException e) {
-            return Flux.empty(); // [CHANGED] ResponseEntity.status(400) → Flux.empty()
+            return Flux.empty();
         }
     }
 
     @GetMapping("/range")
     public Flux<MetricDataResponseDto> getMetricsByTimeRange(
-            @PathVariable Long agentId,
+            @PathVariable String agentId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
         return metricDataService.getMetricDataByAgentIdAndTimeRange(agentId, startTime, endTime);
@@ -50,7 +46,7 @@ public class MetricApiController {
 
     @GetMapping("/type/{metricType}/range")
     public Flux<MetricDataResponseDto> getMetricsByTypeAndTimeRange(
-            @PathVariable Long agentId,
+            @PathVariable String agentId,
             @PathVariable String metricType,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
@@ -62,4 +58,3 @@ public class MetricApiController {
         }
     }
 }
-

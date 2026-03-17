@@ -12,9 +12,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AgentRegisterResponseDto {
     
-    private Long id;
-    private String agentId;
+    private String id;
+    private String agentRefId;
     private AgentStatus status;
     private String apiKey;
 }
-

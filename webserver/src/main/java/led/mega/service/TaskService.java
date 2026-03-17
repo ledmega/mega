@@ -1,15 +1,11 @@
 package led.mega.service;
 
-// [REACTIVE] 핵심 변경점
-// - .agent(agent) → .agentId(agentId)
-// - void deleteTask → Mono<Void>
-// - 모든 단건 반환 T → Mono<T>, 목록 반환 List<T> → Flux<T>
-
 import led.mega.dto.TaskRequestDto;
 import led.mega.dto.TaskResponseDto;
 import led.mega.entity.Task;
 import led.mega.repository.AgentRepository;
 import led.mega.repository.TaskRepository;
+import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,12 +22,13 @@ public class TaskService {
     private final AgentRepository agentRepository;
 
     @Transactional
-    public Mono<TaskResponseDto> createTask(Long agentId, TaskRequestDto requestDto) {
+    public Mono<TaskResponseDto> createTask(String agentId, TaskRequestDto requestDto) {
         return agentRepository.findById(agentId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("에이전트를 찾을 수 없습니다. id: " + agentId)))
                 .flatMap(agent -> {
                     Task task = Task.builder()
-                            .agentId(agentId) // [CHANGED] .agent(agent) → .agentId(agentId)
+                            .taskId(IdGenerator.generate(IdGenerator.TASK))
+                            .agentId(agentId)
                             .taskName(requestDto.getTaskName())
                             .taskType(requestDto.getTaskType())
                             .command(requestDto.getCommand())
@@ -46,22 +43,22 @@ public class TaskService {
                 .doOnNext(r -> log.info("작업 생성 완료: taskId={}, taskName={}", r.getId(), r.getTaskName()));
     }
 
-    public Mono<TaskResponseDto> getTask(Long id) {
+    public Mono<TaskResponseDto> getTask(String id) {
         return taskRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id)))
                 .map(this::toResponseDto);
     }
 
-    public Flux<TaskResponseDto> getTasksByAgentId(Long agentId) {
+    public Flux<TaskResponseDto> getTasksByAgentId(String agentId) {
         return taskRepository.findByAgentId(agentId).map(this::toResponseDto);
     }
 
-    public Flux<TaskResponseDto> getEnabledTasksByAgentId(Long agentId) {
+    public Flux<TaskResponseDto> getEnabledTasksByAgentId(String agentId) {
         return taskRepository.findByAgentIdAndEnabled(agentId, true).map(this::toResponseDto);
     }
 
     @Transactional
-    public Mono<TaskResponseDto> updateTask(Long id, TaskRequestDto requestDto) {
+    public Mono<TaskResponseDto> updateTask(String id, TaskRequestDto requestDto) {
         return taskRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id)))
                 .flatMap(task -> {
@@ -78,9 +75,8 @@ public class TaskService {
                 .doOnNext(r -> log.info("작업 수정 완료: taskId={}", r.getId()));
     }
 
-    // [CHANGED] void → Mono<Void>
     @Transactional
-    public Mono<Void> deleteTask(Long id) {
+    public Mono<Void> deleteTask(String id) {
         return taskRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id)))
                 .flatMap(task -> taskRepository.delete(task))
@@ -88,7 +84,7 @@ public class TaskService {
     }
 
     @Transactional
-    public Mono<TaskResponseDto> toggleTask(Long id, Boolean enabled) {
+    public Mono<TaskResponseDto> toggleTask(String id, Boolean enabled) {
         return taskRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("작업을 찾을 수 없습니다. id: " + id)))
                 .flatMap(task -> {
@@ -101,8 +97,8 @@ public class TaskService {
 
     private TaskResponseDto toResponseDto(Task task) {
         return TaskResponseDto.builder()
-                .id(task.getId())
-                .agentId(task.getAgentId())  // [CHANGED] .getAgent().getId() → .getAgentId()
+                .id(task.getTaskId())
+                .agentId(task.getAgentId())
                 .taskName(task.getTaskName())
                 .taskType(task.getTaskType())
                 .command(task.getCommand())
@@ -115,4 +111,3 @@ public class TaskService {
                 .build();
     }
 }
-

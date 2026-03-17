@@ -15,9 +15,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class MetricDataResponseDto {
     
-    private Long id;
-    private Long agentId;
-    private Long taskId;
+    private String id;
+    private String agentId;
+    private String taskId;
     private MetricType metricType;
     private String metricName;
     private BigDecimal metricValue;
@@ -26,4 +26,3 @@ public class MetricDataResponseDto {
     private LocalDateTime collectedAt;
     private LocalDateTime createdAt;
 }
-

@@ -14,9 +14,7 @@ import java.time.LocalDateTime;
 public class WebSocketMessageDto {
     
     private String type;  // METRIC, EXCEPTION, HEARTBEAT, AGENT_STATUS
-    private Long agentId;
-    private String agentIdStr;
+    private String agentId;
     private Object data;
     private LocalDateTime timestamp;
 }
-

@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 public class MemberDetailDto {
-    private Long id;
+    private String id;
     private String email;
     private String name;
     private String nickname;
@@ -27,7 +27,7 @@ public class MemberDetailDto {
 
     public static MemberDetailDto from(Member member) {
         return MemberDetailDto.builder()
-                .id(member.getId())
+                .id(member.getMemberId())
                 .email(member.getEmail())
                 .name(member.getName())
                 .nickname(member.getNickname())
