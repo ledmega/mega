@@ -2,6 +2,8 @@ package led.mega.entity;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.time.LocalDateTime;
@@ -12,11 +14,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CsFaq {
+public class CsFaq implements Persistable<String> {
 
     @Id
     @Column("cs_faq_id")
     private String csFaqId;
+
+    @Transient
+    @Builder.Default
+    private boolean isNew = false;
 
     private String category; // 배정, 장애, 단순문의 등
 
@@ -34,4 +40,14 @@ public class CsFaq {
 
     @Column("updated_at")
     private LocalDateTime updatedAt;
+
+    @Override
+    public String getId() {
+        return csFaqId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew || csFaqId == null;
+    }
 }

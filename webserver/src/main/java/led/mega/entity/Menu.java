@@ -4,6 +4,8 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -15,11 +17,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Menu {
+public class Menu implements Persistable<String> {
 
     @Id
     @Column("menu_id")
     private String menuId;
+
+    @Transient
+    @Builder.Default
+    private boolean isNew = false;
 
     private String name;
     private String url;
@@ -42,4 +48,14 @@ public class Menu {
     @LastModifiedDate
     @Column("updated_at")
     private LocalDateTime updatedAt;
+
+    @Override
+    public String getId() {
+        return menuId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew || menuId == null;
+    }
 }

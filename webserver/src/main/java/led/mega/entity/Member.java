@@ -4,6 +4,8 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -15,11 +17,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Member {
+public class Member implements Persistable<String> {
 
     @Id
     @Column("member_id")
     private String memberId;
+
+    @Transient
+    @Builder.Default
+    private boolean isNew = false;
 
     private String email;
     private String password;
@@ -43,4 +49,14 @@ public class Member {
 
     @Column("last_login_at")
     private LocalDateTime lastLoginAt;
+
+    @Override
+    public String getId() {
+        return memberId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew || memberId == null;
+    }
 }

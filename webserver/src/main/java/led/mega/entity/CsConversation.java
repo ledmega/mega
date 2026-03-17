@@ -2,6 +2,8 @@ package led.mega.entity;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.time.LocalDateTime;
@@ -12,11 +14,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CsConversation {
+public class CsConversation implements Persistable<String> {
 
     @Id
     @Column("cs_conv_id")
     private String csConvId;
+
+    @Transient
+    @Builder.Default
+    private boolean isNew = false;
 
     @Column("external_id")
     private String externalId; // 톡드림 ID, 이메일 주소 등 발신 식별자
@@ -32,4 +38,14 @@ public class CsConversation {
 
     @Column("updated_at")
     private LocalDateTime updatedAt;
+
+    @Override
+    public String getId() {
+        return csConvId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew || csConvId == null;
+    }
 }

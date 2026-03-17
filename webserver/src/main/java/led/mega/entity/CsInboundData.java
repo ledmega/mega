@@ -2,6 +2,8 @@ package led.mega.entity;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import java.time.LocalDateTime;
@@ -12,11 +14,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CsInboundData {
+public class CsInboundData implements Persistable<String> {
 
     @Id
     @Column("cs_inbound_id")
     private String csInboundId;
+
+    @Transient
+    @Builder.Default
+    private boolean isNew = false;
 
     private String source; // EMAIL, REDMINE, TALKDREAM
 
@@ -36,4 +42,14 @@ public class CsInboundData {
 
     @Column("processed_at")
     private LocalDateTime processedAt;
+
+    @Override
+    public String getId() {
+        return csInboundId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew || csInboundId == null;
+    }
 }
