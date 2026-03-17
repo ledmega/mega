@@ -14,28 +14,20 @@ import led.mega.service.SseService;
 import led.mega.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * CS 메시징 AI 자동화의 핵심 엔진.
- * <p>
- * 처리 흐름:
- * 1. 수신 데이터를 cs_inbound_data 에 Raw 저장 (감사 추적)
- * 2. 기존 열린 상담 세션이 있으면 재사용, 없으면 신규 세션 생성
- * 3. 사용자 메시지를 cs_message 에 저장
- * 4. FAQ 키워드 매칭 시도
- *    - 매칭 성공: 즉시 BOT 답변 저장 → AUTO_REPLIED
- *    - 매칭 실패: OpenAI 호출 → 초안 메시지 저장 → DRAFT_CREATED
- * 5. SSE를 통해 관리자 페이지에 실시간 알림
- *
- * [중요] Spring AI의 ChatClient.call().content()는 blocking 호출이므로
- * Reactor 스레드(epoll)에서 직접 호출하면 IllegalStateException 발생.
- * → Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic()) 으로 오프로드.
+ * M2 버전에 최적화된 OpenAiChatModel 직접 호출 방식입니다.
  */
 @Slf4j
 @Service
@@ -47,11 +39,8 @@ public class CsBotService {
     private final CsMessageRepository messageRepository;
     private final CsInboundDataRepository inboundDataRepository;
     private final SseService sseService;
-    private final ChatClient chatClient;
+    private final OpenAiChatModel chatModel;
 
-    /**
-     * 외부 문의 유입 시 호출되는 메인 엔트리포인트.
-     */
     public Mono<CsBotResponseDto> processInbound(CsInboundRequestDto request) {
         log.info("[CS-BOT] 문의 수신 - source={}, externalId={}", request.getSource(), request.getExternalId());
 
@@ -70,9 +59,6 @@ public class CsBotService {
                 .flatMap(conversation -> processMessage(conversation, request));
     }
 
-    /**
-     * 기존 열린 상담 세션을 찾거나 신규 세션을 생성합니다.
-     */
     private Mono<CsConversation> resolveOrCreateConversation(CsInboundRequestDto request) {
         return conversationRepository.findByExternalIdAndStatusNot(request.getExternalId(), "COMPLETED")
                 .switchIfEmpty(
@@ -92,9 +78,6 @@ public class CsBotService {
                 );
     }
 
-    /**
-     * 사용자 메시지를 저장하고, FAQ 매칭 또는 AI 초안을 생성합니다.
-     */
     private Mono<CsBotResponseDto> processMessage(CsConversation conversation, CsInboundRequestDto request) {
         CsMessage userMessage = CsMessage.builder()
                 .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))
@@ -115,9 +98,6 @@ public class CsBotService {
                 });
     }
 
-    /**
-     * FAQ 키워드 매칭을 먼저 시도하고, 실패하면 OpenAI에 요청합니다.
-     */
     private Mono<CsBotResponseDto> tryFaqMatch(CsConversation conversation, String question) {
         String keyword = extractPrimaryKeyword(question);
 
@@ -127,9 +107,6 @@ public class CsBotService {
                 .switchIfEmpty(Mono.defer(() -> handleAiDraft(conversation, question)));
     }
 
-    /**
-     * FAQ 매칭 성공 시: BOT 메시지 저장 후 AUTO_REPLIED 반환
-     */
     private Mono<CsBotResponseDto> handleFaqMatch(CsConversation conversation, String question, CsFaq faq) {
         log.info("[CS-BOT] FAQ 매칭 성공: faqId={}, category={}", faq.getCsFaqId(), faq.getCategory());
 
@@ -156,13 +133,6 @@ public class CsBotService {
                         .build());
     }
 
-    /**
-     * FAQ 매칭 실패 시: OpenAI 호출로 답변 초안 생성.
-     *
-     * ✅ chatClient.call().content()는 blocking 호출이므로
-     *    Mono.fromCallable + subscribeOn(Schedulers.boundedElastic())으로
-     *    Reactor epoll 스레드 밖에서 실행합니다.
-     */
     private Mono<CsBotResponseDto> handleAiDraft(CsConversation conversation, String question) {
         log.info("[CS-BOT] FAQ 매칭 실패. AI 초안 생성 시작: convId={}", conversation.getCsConvId());
 
@@ -185,14 +155,14 @@ public class CsBotService {
                             %s
                             """.formatted(faqContext.toString().isBlank() ? "현재 등록된 FAQ가 없습니다." : faqContext);
 
-                    // ✅ blocking 호출 → boundedElastic 스레드 풀에서 실행
-                    return Mono.fromCallable(() ->
-                                    chatClient.prompt()
-                                            .system(systemPrompt)
-                                            .user(question)
-                                            .call()
-                                            .content()
-                            )
+                    // ✅ M2 버전에 맞는 Prompt 생성 및 호출 (blocking 오프로드)
+                    return Mono.fromCallable(() -> {
+                                Prompt prompt = new Prompt(List.of(
+                                        new SystemMessage(systemPrompt),
+                                        new UserMessage(question)
+                                ));
+                                return chatModel.call(prompt).getResult().getOutput().getContent();
+                            })
                             .subscribeOn(Schedulers.boundedElastic())
                             .flatMap(aiDraft -> {
                                 CsMessage draftMessage = CsMessage.builder()
@@ -231,20 +201,13 @@ public class CsBotService {
                 });
     }
 
-    /**
-     * 상담 세션 상태를 업데이트합니다.
-     * isNew=false → R2DBC가 UPDATE 쿼리로 처리
-     */
     private Mono<CsConversation> updateConversationStatus(CsConversation conversation, String newStatus) {
         conversation.setStatus(newStatus);
         conversation.setUpdatedAt(LocalDateTime.now());
-        conversation.setNew(false); // 기존 레코드 → UPDATE
+        conversation.setNew(false);
         return conversationRepository.save(conversation);
     }
 
-    /**
-     * 질문에서 핵심 키워드를 추출합니다.
-     */
     private String extractPrimaryKeyword(String question) {
         if (question == null || question.isBlank()) return "";
         String[] tokens = question.split("[\\s\\p{Punct}]+");
