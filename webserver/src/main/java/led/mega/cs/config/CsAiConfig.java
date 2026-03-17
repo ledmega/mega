@@ -39,9 +39,10 @@ public class CsAiConfig {
             @Value("${spring.ai.openai.base-url}") String baseUrl,
             RestClient.Builder restClientBuilder) {
 
-        log.info("[CS-BOT-CONFIG] Final Configuration for Gemini Integration...");
+        log.info("[CS-BOT-CONFIG] Applying final URL fix from Gemini's advice...");
         
-        OpenAiApi openAiApi = new OpenAiApi("https://generativelanguage.googleapis.com/v1beta/openai", apiKey, restClientBuilder, WebClient.builder());
+        // Base URL은 인터셉터에서 완전히 무시하고 재정의할 예정이므로 기본값만 유지
+        OpenAiApi openAiApi = new OpenAiApi("https://generativelanguage.googleapis.com", apiKey, restClientBuilder, WebClient.builder());
 
         OpenAiChatOptions options = new OpenAiChatOptions();
         options.setModel("gemini-1.5-flash");
@@ -60,20 +61,20 @@ public class CsAiConfig {
         @Override
         public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
             
-            // 1. 구글이 요구하는 '완벽한' 엔드포인트 URL 생성
-            // 주안점: /v1/ 을 포함하고 쿼리 파라미터로 key를 전달함
-            String finalUrl = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions?key=" + apiKey;
+            // 제미나이 답변(v1beta 또는 v1 안정화 버전)을 적용한 최종 엔드포인트
+            // 경로에서 /openai 를 완전히 제거함
+            String finalUrl = "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=" + apiKey;
             
             HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(finalUrl));
 
-            // 2. 바디 수술: 모델명 필드의 어떤 방해물도 제거하고 순수하게 전달
+            // 바디 로그 및 모델명 체크
             String bodyStr = new String(body, StandardCharsets.UTF_8);
-            String fixedBodyStr = bodyStr.replace("models/gemini-1.5-flash", "gemini-1.5-flash");
             
-            // 3. 로그 출력 (보안을 위해 Key 제외)
-            log.info("[CS-BOT-CONFIG] Target URL: https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions?key=***");
-            log.info("[CS-BOT-CONFIG] Corrected Body Check: {}", fixedBodyStr.contains("gemini-1.5-flash"));
+            // 혹시라도 models/ 가 붙어있다면 제거 (제미나이 가이드 준수)
+            String fixedBodyStr = bodyStr.replace("models/gemini-1.5-flash", "gemini-1.5-flash");
 
+            log.info("[CS-BOT-CONFIG] Sending request to Gemini's suggested URL: {}", finalUrl.split("key=")[0] + "key=***");
+            
             return execution.execute(redirectedRequest, fixedBodyStr.getBytes(StandardCharsets.UTF_8));
         }
     }
