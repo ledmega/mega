@@ -18,9 +18,6 @@ import org.slf4j.LoggerFactory;
 public class CsAiConfig {
     private static final Logger log = LoggerFactory.getLogger(CsAiConfig.class);
 
-    /**
-     * Spring AI 자동 설정이 요구하는 RestClient.Builder 빈을 수동으로 제공합니다.
-     */
     @Bean
     public RestClient.Builder restClientBuilder() {
         return RestClient.builder();
@@ -33,10 +30,10 @@ public class CsAiConfig {
             @Value("${spring.ai.openai.base-url}") String baseUrl,
             @Value("${spring.ai.openai.chat.options.model}") String modelName) {
 
-        log.info("[CS-BOT-CONFIG] Initializing Gemini via OpenAI Compatibility Mode (M2 Stable)...");
-        log.info("[CS-BOT-CONFIG] Target URL: {}", baseUrl);
+        log.info("[CS-BOT-CONFIG] Initializing Gemini via OpenAI Compatibility Mode...");
+        log.info("[CS-BOT-CONFIG] Target URL Base: {}", baseUrl);
 
-        // OpenAiApi 생성
+        // OpenAiApi 생성 (URL 뒤에 /v1이 붙지 않도록 properties 설정을 따름)
         OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey);
 
         // Options 설정
