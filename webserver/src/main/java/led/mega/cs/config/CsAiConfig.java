@@ -25,19 +25,25 @@ import java.nio.charset.StandardCharsets;
 public class CsAiConfig {
     private static final Logger log = LoggerFactory.getLogger(CsAiConfig.class);
 
+    /**
+     * Spring AI 자동 설정 및 기타 컴포넌트가 요구하는 RestClient.Builder 빈을 제공합니다.
+     */
+    @Bean
+    public RestClient.Builder restClientBuilder() {
+        return RestClient.builder();
+    }
+
     @Bean
     @Primary
     public OpenAiChatModel openAiChatModel(
             @Value("${spring.ai.openai.api-key}") String apiKey) {
 
-        log.info("[CS-BOT-CONFIG] Applying Gemini Advisor's 'Method B' Strategy...");
+        log.info("[CS-BOT-CONFIG] Initializing AI with Full Isolation & Context Support...");
         
-        // 1. 격리된 빌더와 인터셉터 설정
+        // 격리된 전략을 위해 'new' 빌더를 사용 (컨텍스트 빈과 분리)
         RestClient.Builder isolatedBuilder = RestClient.builder()
                 .requestInterceptor(new GeminiFinalInterceptor(apiKey));
 
-        // 2. 가짜 주소를 사용하여 Spring AI의 자동 모델명 접두사(models/) 추가 로직을 차단함
-        // 이 주소는 인터셉터에서 제미나이가 알려준 진짜 주소로 교체됩니다.
         OpenAiApi openAiApi = new OpenAiApi("https://Internal-Proxy.Custom", apiKey, isolatedBuilder, WebClient.builder());
 
         OpenAiChatOptions options = new OpenAiChatOptions();
@@ -57,20 +63,17 @@ public class CsAiConfig {
         @Override
         public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
             
-            // 3. 제미나이 답변에 따른 최적의 URL 구성
-            // /openai 경로나 중복된 v1을 제거하고 구글이 모델을 찾을 수 있는 정석 경로로 유도함
+            // 제미나이 가이드에 따른 정석 경로
             String finalUrl = "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=" + apiKey;
             
             HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(finalUrl));
 
-            // 4. 모델명 강제 정규화 (models/ 접두사 제거)
             String bodyStr = new String(body, StandardCharsets.UTF_8);
             String fixedBodyStr = bodyStr.replace("models/gemini-1.5-flash", "gemini-1.5-flash");
             
-            log.info("[CS-BOT-CONFIG] Redirecting to Gemini Advisor's Fixed URL: {}", finalUrl.split("key=")[0] + "key=***");
-            if (!bodyStr.equals(fixedBodyStr)) {
-                log.info("[CS-BOT-CONFIG] Successfully stripped 'models/' prefix from body.");
-            }
+            log.info("[CS-BOT-CONFIG] Sending to: {}, BodyFixed: {}", 
+                    "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=***", 
+                    !bodyStr.equals(fixedBodyStr));
 
             return execution.execute(redirectedRequest, fixedBodyStr.getBytes(StandardCharsets.UTF_8));
         }
