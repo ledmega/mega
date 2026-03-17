@@ -157,13 +157,16 @@
     </logger>
 
     <!-- [NEW] CS & AI 관련 로그 설정 -->
-    <logger name="led.mega.service.CsBotService" level="DEBUG" additivity="true">
+    <logger name="led.mega.cs" level="DEBUG" additivity="true">
         <appender-ref ref="CS_AI_FILE"/>
     </logger>
-    <logger name="led.mega.controller.TalkDreamWebhookController" level="DEBUG" additivity="true">
+    <logger name="led.mega.cs.service.CsBotService" level="DEBUG" additivity="true">
         <appender-ref ref="CS_AI_FILE"/>
     </logger>
-    <logger name="led.mega.controller.CsSimulationController" level="DEBUG" additivity="true">
+    <logger name="led.mega.cs.controller.TalkDreamWebhookController" level="DEBUG" additivity="true">
+        <appender-ref ref="CS_AI_FILE"/>
+    </logger>
+    <logger name="led.mega.cs.controller.CsSimulationController" level="DEBUG" additivity="true">
         <appender-ref ref="CS_AI_FILE"/>
     </logger>
 
