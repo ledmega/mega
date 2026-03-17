@@ -78,6 +78,7 @@ public class SecurityConfig {
                         "/api/exceptions/recent",
                         "/api/agents").permitAll()
                 .pathMatchers("/api/agents/register").permitAll()
+                .pathMatchers("/api/cs/**").authenticated()
                 .pathMatchers("/api/**").authenticated()
                 .anyExchange().authenticated()
             )

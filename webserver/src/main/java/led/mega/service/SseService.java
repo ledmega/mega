@@ -56,4 +56,10 @@ public class SseService {
                 .type("AGENT_STATUS").agentId(agentId).data(statusData)
                 .timestamp(LocalDateTime.now()).build());
     }
+
+    public void broadcastCsEvent(String conversationId, Object csEventData) {
+        publish(WebSocketMessageDto.builder()
+                .type("CS_EVENT").agentId(conversationId).data(csEventData)
+                .timestamp(LocalDateTime.now()).build());
+    }
 }
