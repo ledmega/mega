@@ -1,9 +1,23 @@
-# MEGA Project - Changelog (2026-03-12 ~ 2026-03-13)
+# MEGA Project - Changelog
 
-## 🚀 주요 하이라이트
-이번 업데이트에서는 배치 스케줄러의 유연성을 극대화하고, 대시보드의 데이터 시각화 품질을 대폭 개선하였으며, 대규모 시스템 운영을 위한 업무별 로그 분리 및 관리 최적화를 진행하였습니다.
+## 2026-03-17 - CS AI 자동화 시스템 구축 및 버그 수정
+
+### 🤖 신규: CS 자동화 시스템 (AI 고객 상담 자동화)
+* **`CsBotService`** 구현: FAQ 키워드 매칭 → OpenAI RAG 기반 답변 초안 생성 전체 흐름 완성.
+* **CS 어드민 대시보드** (`/cs/dashboard`): 상담 내역(채팅 뷰), FAQ 관리 CRUD, 시뮬레이터 3탭 UI 구현.
+* **`CsSimulationController`**: 외부 연동 없이 문의 유입부터 AI 처리까지 E2E 테스트 가능한 시뮬레이터 API.
+* **`CsAdminController`**: CS 대시보드 페이지 뷰 컨트롤러.
+* **`CsAiConfig`**: Spring AI `ChatClient` 빈 등록.
+* **`SseService`**: `CS_EVENT` 타입 실시간 브로드캐스팅 메서드 추가.
+
+### 🐛 버그 수정
+* **`AgentHeartbeat` HTTP 500 에러**: `Persistable` 인터페이스 미구현으로 R2DBC가 신규 하트비트를 UPDATE로 처리하던 문제 수정. `isNew=true` 설정 추가.
+* **에이전트 ID 불일치 (Agent ID Mismatch)**: `ApiClient.RegisterResponse`의 `agentId` 필드가 서버 응답 필드명(`agentRefId`)과 달라 null이 저장되던 문제 수정. `@SerializedName` 어노테이션 추가.
 
 ---
+
+## 2026-03-12 ~ 2026-03-13 - 배치 스케줄러 고도화 및 로그 분리
+
 
 ## 1. 배치 스케줄러 고도화 (Batch Scheduling)
 *   **Cron 표현식 지원**: 기존의 고정 주기(Interval) 방식 외에 복잡한 스케줄링이 가능한 **Cron 표현식**을 지원합니다. (예: 매일 밤 11시 수행 등)

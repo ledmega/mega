@@ -32,7 +32,19 @@ MEGA는 분산된 리눅스 서버 환경에서 시스템 자원(CPU, Memory, Di
 * **깜박임 없는 실시간 업데이트 (Flicker-free)**: `Chart.js`의 `.update()` 및 `DOM` Text Node 교체 방식을 통해 렌더링 부하 없는 10초 주기 매끄러운 Refresh 반영.
 * **Service 목록 UI 풀 폴링**: 대시보드 뿐만 아니라 `/services` 전체 목록 페이지에서도 SSE 또는 AJAX Polling을 통해 상태 배지 및 최신 지표 실시간 감시 가능.
 
+### 2.4. CS 자동화 시스템 (AI 기반 고객 상담 자동화)
+> 상세 내용은 [CS_AI_DEVELOPMENT_GUIDE.md](./CS_AI_DEVELOPMENT_GUIDE.md) 참고.
+
+* **CsBotService (핵심 엔진)**: 문의 유입 시 FAQ 키워드 매칭 → 즉시 자동 답변(`AUTO_REPLIED`) 또는 OpenAI RAG 기반 초안 생성(`DRAFT_CREATED`) → SSE 실시간 알림.
+* **CS 어드민 대시보드** (`/cs/dashboard`): 상담 내역 조회(채팅 형태 메시지 히스토리), FAQ 관리(등록/수정/삭제), 시뮬레이터(외부 연동 없이 전체 흐름 테스트) 3탭 구성.
+* **데이터 모델**: `cs_faq`, `cs_conversation`, `cs_message`, `cs_inbound_data`, `cs_report` 테이블.
+* **ID 체계**: `FAQ...`, `CON...`, `MSG...`, `INB...`, `RPT...` Prefix 기반 String ID.
+* **시뮬레이터 API** (`/api/cs/simulate/inbound`): 개발·QA 환경에서 가상 문의를 발생시켜 봇 처리 흐름 E2E 검증 가능.
+
 ## 3. 남은 작업 (Backlog)
 - [x] 전역 Navigation UI 통일 (Dashboard, Admin Pages 공통 디자인 적용 요소 구축)
-- [ ] 현재 대부분의 코어 시스템 완료. 추가 권한 체계 정교화 및 알럿(Slack/이메일) 트리거 시스템.
-- [ ] 시스템 메모리 누수 방어를 위한 Agent/Webserver 자원 사용량 최적화 (Profiling).
+- [x] CS 자동화 시스템 - 데이터 모델, CsBotService, 시뮬레이터, 어드민 대시보드 UI 구현
+- [ ] CS 자동화 - TalkDream(카카오 알림톡) 실제 웹훅 연동
+- [ ] CS 자동화 - CsReportService (일/주/월 통계 자동 배치)
+- [ ] 추가 권한 체계 정교화 및 알럿(Slack/이메일) 트리거 시스템
+- [ ] 시스템 메모리 누수 방어를 위한 Agent/Webserver 자원 사용량 최적화 (Profiling)
