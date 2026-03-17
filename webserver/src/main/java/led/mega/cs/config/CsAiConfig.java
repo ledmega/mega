@@ -11,7 +11,9 @@ import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.support.HttpRequestWrapper;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,10 +38,10 @@ public class CsAiConfig {
             @Value("${spring.ai.openai.base-url}") String baseUrl,
             RestClient.Builder restClientBuilder) {
 
-        log.info("[CS-BOT-CONFIG] Initializing Gemini with Hardcoded Fixes...");
+        log.info("[CS-BOT-CONFIG] Initializing Gemini with Constructor Fix...");
         
-        // OpenAiApi 생성 시 RestClient.Builder를 전달하여 인터셉터가 동작하게 함
-        OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey, restClientBuilder);
+        // OpenAiApi 생성 시 RestClient.Builder와 WebClient.Builder를 모두 전달
+        OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey, restClientBuilder, WebClient.builder());
 
         OpenAiChatOptions options = new OpenAiChatOptions();
         options.setModel("gemini-1.5-flash");
@@ -55,34 +57,44 @@ public class CsAiConfig {
         @Override
         public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
             
-            // 1. URL 강제 고정 (v1main 에러 방어)
-            // 구글 공식: https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions
-            String targetUri = request.getURI().toString()
-                    .replaceAll("/v1beta/openai/v1/v1/chat/completions", "/v1beta/openai/v1/chat/completions")
-                    .replaceAll("/v1beta/openai/chat/completions", "/v1beta/openai/v1/chat/completions")
-                    .replace("GoogleApis.com", "googleapis.com");
+            // 1. URL 정규화 (v1main 에러 방지)
+            String originalUri = request.getURI().toString();
+            String targetUri = originalUri
+                    .replaceAll("/v1/v1/", "/v1/") // 중복 v1 제거
+                    .replace("GoogleApis.com", "googleapis.com"); // 도메인 정규화
             
+            // 만약 v1이 아예 없다면 추가 (v1beta/openai/chat -> v1beta/openai/v1/chat)
+            if (targetUri.contains("/v1beta/openai/") && !targetUri.contains("/v1beta/openai/v1/")) {
+                targetUri = targetUri.replace("/v1beta/openai/", "/v1beta/openai/v1/");
+            }
+
             HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(targetUri));
 
-            // 2. Body 변조 방어 (models/ 접두사 강제 제거)
+            // 2. Body 변조 방어 (models/ 접두사 제거)
             String bodyStr = new String(body, StandardCharsets.UTF_8);
             if (bodyStr.contains("\"model\":\"models/")) {
-                log.info("[CS-BOT-CONFIG] Fixing body: removing 'models/' prefix...");
+                log.info("[CS-BOT-CONFIG] Stripping 'models/' prefix from request body");
                 bodyStr = bodyStr.replace("\"model\":\"models/", "\"model\":\"");
                 body = bodyStr.getBytes(StandardCharsets.UTF_8);
             }
 
-            log.info("[CS-BOT-CONFIG] Final Request URL: {}", targetUri);
+            log.info("[CS-BOT-CONFIG] Executing request to: {}", targetUri);
             return execution.execute(redirectedRequest, body);
         }
     }
 
-    static class CustomHttpRequest implements HttpRequest {
-        private final HttpRequest original;
+    /**
+     * 안전하게 URI만 교체하기 위해 HttpRequestWrapper를 사용합니다.
+     */
+    static class CustomHttpRequest extends HttpRequestWrapper {
         private final URI newUri;
-        public CustomHttpRequest(HttpRequest original, URI newUri) { this.original = original; this.newUri = newUri; }
-        @Override public java.net.URI getURI() { return newUri; }
-        @Override public org.springframework.http.HttpMethod getMethod() { return original.getMethod(); }
-        @Override public org.springframework.http.HttpHeaders getHeaders() { return original.getHeaders(); }
+        public CustomHttpRequest(HttpRequest original, URI newUri) {
+            super(original);
+            this.newUri = newUri;
+        }
+        @Override
+        public URI getURI() {
+            return newUri;
+        }
     }
 }
