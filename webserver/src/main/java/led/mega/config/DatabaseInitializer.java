@@ -115,31 +115,34 @@ public class DatabaseInitializer implements ApplicationRunner {
 
             if (menuCount == 0) {
                 log.info("메뉴가 없습니다. 기본 메뉴를 생성합니다...");
-                String[] inserts = {
-                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('대시보드', '/dashboard', 'chart-bar', 1, NULL, TRUE)",
-                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('에이전트', '/agents', 'server', 2, NULL, TRUE)",
-                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('서비스 관리', '/services', 'cog', 3, NULL, TRUE)",
-                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('배치 스케줄러', '/scheduler', 'clock', 4, NULL, TRUE)",
-                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('회원 관리', '/members', 'users', 5, 'ROLE_ADMIN', TRUE)",
-                    "INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('메뉴 관리', '/menu', 'list', 6, 'ROLE_ADMIN', TRUE)"
+                String[] items = {
+                    "('MNU0000000001', '대시보드', '/dashboard', 'chart-bar', 1, NULL, TRUE)",
+                    "('MNU0000000002', '에이전트', '/agents', 'server', 2, NULL, TRUE)",
+                    "('MNU0000000003', '서비스 관리', '/services', 'cog', 3, NULL, TRUE)",
+                    "('MNU0000000004', '배치 스케줄러', '/scheduler', 'clock', 4, NULL, TRUE)",
+                    "('MNU0000000005', '회원 관리', '/members', 'users', 5, 'ROLE_ADMIN', TRUE)",
+                    "('MNU0000000006', '메뉴 관리', '/menu', 'list', 6, 'ROLE_ADMIN', TRUE)"
                 };
-                for (String sql : inserts) {
+                for (String item : items) {
+                    String sql = "INSERT INTO menu (menu_id, name, url, icon, sort_order, required_role, is_enabled) VALUES " + item;
                     stmt.executeUpdate(sql);
                 }
-                log.info("✓ 기본 메뉴 {}개 생성 완료!", inserts.length);
+                log.info("✓ 기본 메뉴 {}개 생성 완료!", items.length);
             } else {
                 // 서비스 관리 메뉴가 없으면 추가
                 ResultSet rs2 = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM menu WHERE url = '/services'");
                 rs2.next();
                 if (rs2.getInt("cnt") == 0) {
-                    stmt.executeUpdate("INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('서비스 관리', '/services', 'cog', 3, NULL, TRUE)");
+                    stmt.executeUpdate("INSERT INTO menu (menu_id, name, url, icon, sort_order, required_role, is_enabled) " +
+                            "VALUES ('MNU0000000003', '서비스 관리', '/services', 'cog', 3, NULL, TRUE)");
                     log.info("✓ '서비스 관리' 메뉴 생성 완료!");
                 }
                 // 배치 스케줄러 메뉴가 없으면 추가
                 ResultSet rs3 = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM menu WHERE url = '/scheduler'");
                 rs3.next();
                 if (rs3.getInt("cnt") == 0) {
-                    stmt.executeUpdate("INSERT INTO menu (name, url, icon, sort_order, required_role, is_enabled) VALUES ('배치 스케줄러', '/scheduler', 'clock', 4, NULL, TRUE)");
+                    stmt.executeUpdate("INSERT INTO menu (menu_id, name, url, icon, sort_order, required_role, is_enabled) " +
+                            "VALUES ('MNU0000000004', '배치 스케줄러', '/scheduler', 'clock', 4, NULL, TRUE)");
                     log.info("✓ '배치 스케줄러' 메뉴 생성 완료!");
                 } else {
                     log.info("✓ 메뉴 데이터가 이미 존재합니다.");
