@@ -133,7 +133,7 @@ public class CsBotService {
                             "[참고 FAQ 데이터]\n" + contextText;
 
                     Map<String, Object> requestBody = Map.of(
-                        "model", "gemini-1.5-flash",
+                        "model", "gemini-flash-latest",
                         "messages", List.of(
                             Map.of("role", "system", "content", systemPrompt),
                             Map.of("role", "user", "content", question)
@@ -145,13 +145,14 @@ public class CsBotService {
                         return Mono.error(new RuntimeException("GEMINI_API_KEY is not set"));
                     }
 
-                    log.info("[CS-BOT] Gemini OpenAI-Compatible API Call start... (using WebClient for timeout)");
+                    log.info("[CS-BOT] Gemini OpenAI-Compatible API Call start... (model: gemini-flash-latest)");
 
                     return webClientBuilder.build()
                             .post()
                             .uri(url)
                             .header("Authorization", "Bearer " + apiKey)
                             .header("x-goog-api-key", apiKey)
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                             .bodyValue(requestBody)
                             .retrieve()
                             .bodyToMono(Map.class)
