@@ -222,6 +222,7 @@ public class BatchJobService {
                     log.info("[BatchJob] 기본 Job 생성 중...");
                     BatchJob metricCleanup = BatchJob.builder()
                             .batchJobId(IdGenerator.generate(IdGenerator.BATCH_JOB))
+                            .isNew(true)
                             .jobName("메트릭 데이터 정리")
                             .jobType(TYPE_METRIC_CLEANUP)
                             .description("수집된 metric_data에서 보존 기간이 지난 데이터를 자동 삭제합니다.")
@@ -233,6 +234,7 @@ public class BatchJobService {
                             .build();
                     BatchJob exceptionCleanup = BatchJob.builder()
                             .batchJobId(IdGenerator.generate(IdGenerator.BATCH_JOB))
+                            .isNew(true)
                             .jobName("Exception 로그 정리")
                             .jobType(TYPE_EXCEPTION_CLEANUP)
                             .description("exception_log에서 보존 기간이 지난 로그를 자동 삭제합니다.")

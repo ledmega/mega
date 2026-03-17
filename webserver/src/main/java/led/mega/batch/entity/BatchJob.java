@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -15,11 +17,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("batch_job")
-public class BatchJob {
+public class BatchJob implements Persistable<String> {
 
     @Id
     @Column("batch_job_id")
     private String batchJobId;
+
+    @Transient
+    @Builder.Default
+    private boolean isNew = false;
 
     @Column("job_name")
     private String jobName;
@@ -59,4 +65,14 @@ public class BatchJob {
 
     @Column("updated_at")
     private LocalDateTime updatedAt;
+
+    @Override
+    public String getId() {
+        return batchJobId;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew || batchJobId == null;
+    }
 }
