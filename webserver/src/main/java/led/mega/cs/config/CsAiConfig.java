@@ -12,7 +12,10 @@ import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.support.HttpRequestWrapper;
 import org.springframework.web.client.RestClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -20,11 +23,10 @@ import java.net.URISyntaxException;
 
 /**
  * Spring AI ChatClient 빈 설정.
- * Spring AI의 자동 모델명 변조(models/ 접두사 추가) 로직을 우회하기 위해
- * 가짜 도메인으로 초기화한 후 인터셉터에서 실제 도메인으로 교체합니다.
  */
 @Configuration
 public class CsAiConfig {
+    private static final Logger log = LoggerFactory.getLogger(CsAiConfig.class);
 
     @Bean
     @Primary
@@ -32,18 +34,22 @@ public class CsAiConfig {
             @Value("${spring.ai.openai.api-key}") String apiKey,
             @Value("${spring.ai.openai.chat.options.model}") String modelName) {
 
-        // 1. Spring AI를 속이기 위한 가짜 베이스 URL
-        // googleapis.com을 포함하지 않아야 모델명 앞에 'models/'가 붙지 않습니다.
-        String dummyBaseUrl = "https://gemini-proxy.internal/v1beta/openai";
+        log.info("==========================================================");
+        log.info("[CS-BOT-CONFIG] Gemini Ultimate Interceptor Initializing...");
+        log.info("[CS-BOT-CONFIG] Target Model: {}", modelName);
+        log.info("==========================================================");
+
+        // 1. Spring AI를 완전히 속이기 위한 가짜 내부 도메인
+        String dummyBaseUrl = "https://internal-proxy.local/v1beta/openai";
         String realHost = "generativelanguage.googleapis.com";
 
-        // 2. 가짜 URL을 실제 URL로 바꿔주는 인터셉터 설정
+        // 2. 도메인 스왑 인터셉터
         RestClient.Builder restClientBuilder = RestClient.builder()
                 .requestInterceptor(new ClientHttpRequestInterceptor() {
                     @Override
                     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
                         URI uri = request.getURI();
-                        if (uri.getHost().equals("gemini-proxy.internal")) {
+                        if (uri.getHost().equals("internal-proxy.local")) {
                             try {
                                 URI newUri = new URI(
                                         uri.getScheme(),
@@ -54,49 +60,34 @@ public class CsAiConfig {
                                         uri.getQuery(),
                                         uri.getFragment()
                                 );
-                                request = new CustomHttpRequest(request, newUri);
+                                // HttpRequestWrapper를 사용하여 URI만 교체
+                                request = new HttpRequestWrapper(request) {
+                                    @Override
+                                    public URI getURI() {
+                                        return newUri;
+                                    }
+                                };
                             } catch (URISyntaxException e) {
-                                throw new IOException(e);
+                                throw new IOException("URI Swap Failed", e);
                             }
                         }
                         return execution.execute(request, body);
                     }
                 });
 
-        // 3. OpenAiApi 생성 (커스텀 RestClient.Builder 사용)
+        // 3. OpenAiApi 생성
         OpenAiApi openAiApi = new OpenAiApi(dummyBaseUrl, apiKey, restClientBuilder);
 
-        // 4. ChatOptions 설정
+        // 4. ChatOptions 설정 (접두사 'models/' 강제 추가를 피하기 위해 가짜 도메인 사용 상태임)
         OpenAiChatOptions options = new OpenAiChatOptions();
-        options.setModel(modelName); // gemini-1.5-flash (접두사 없음!)
+        options.setModel(modelName); 
         options.setTemperature(0.7);
 
-        // 5. ChatModel 생성
         return new OpenAiChatModel(openAiApi, options);
     }
 
     @Bean
     public ChatClient chatClient(OpenAiChatModel openAiChatModel) {
         return ChatClient.builder(openAiChatModel).build();
-    }
-
-    /**
-     * URI를 변경하기 위한 래퍼 클래스
-     */
-    private static class CustomHttpRequest implements HttpRequest {
-        private final HttpRequest delegate;
-        private final URI uri;
-
-        public CustomHttpRequest(HttpRequest delegate, URI uri) {
-            this.delegate = delegate;
-            this.uri = uri;
-        }
-
-        @Override
-        public String getMethodValue() { return delegate.getMethodValue(); }
-        @Override
-        public URI getURI() { return uri; }
-        @Override
-        public org.springframework.http.HttpHeaders getHeaders() { return delegate.getHeaders(); }
     }
 }
