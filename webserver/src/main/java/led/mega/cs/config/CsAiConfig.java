@@ -14,6 +14,7 @@ import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.support.HttpRequestWrapper;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,18 +33,19 @@ public class CsAiConfig {
     @Primary
     public OpenAiChatModel openAiChatModel(
             @Value("${spring.ai.openai.api-key}") String apiKey,
-            @Value("${spring.ai.openai.chat.options.model}") String modelName) {
+            @Value("${spring.ai.openai.chat.options.model}") String modelName,
+            WebClient.Builder webClientBuilder) { // Reactive Builder 주입
 
         log.info("==========================================================");
         log.info("[CS-BOT-CONFIG] Gemini Ultimate Interceptor Initializing...");
         log.info("[CS-BOT-CONFIG] Target Model: {}", modelName);
         log.info("==========================================================");
 
-        // 1. Spring AI를 완전히 속이기 위한 가짜 내부 도메인
+        // 1. Spring AI를 속이기 위한 가짜 내부 도메인
         String dummyBaseUrl = "https://internal-proxy.local/v1beta/openai";
         String realHost = "generativelanguage.googleapis.com";
 
-        // 2. 도메인 스왑 인터셉터
+        // 2. 도메인 스왑 인터셉터 설정 (RestClient용)
         RestClient.Builder restClientBuilder = RestClient.builder()
                 .requestInterceptor(new ClientHttpRequestInterceptor() {
                     @Override
@@ -60,12 +62,9 @@ public class CsAiConfig {
                                         uri.getQuery(),
                                         uri.getFragment()
                                 );
-                                // HttpRequestWrapper를 사용하여 URI만 교체
                                 request = new HttpRequestWrapper(request) {
                                     @Override
-                                    public URI getURI() {
-                                        return newUri;
-                                    }
+                                    public URI getURI() { return newUri; }
                                 };
                             } catch (URISyntaxException e) {
                                 throw new IOException("URI Swap Failed", e);
@@ -75,10 +74,11 @@ public class CsAiConfig {
                     }
                 });
 
-        // 3. OpenAiApi 생성
-        OpenAiApi openAiApi = new OpenAiApi(dummyBaseUrl, apiKey, restClientBuilder);
+        // 3. OpenAiApi 생성 (RestClient.Builder와 WebClient.Builder 둘 다 전달)
+        // M6 버전의 생성자 형식을 맞춥니다.
+        OpenAiApi openAiApi = new OpenAiApi(dummyBaseUrl, apiKey, restClientBuilder, webClientBuilder);
 
-        // 4. ChatOptions 설정 (접두사 'models/' 강제 추가를 피하기 위해 가짜 도메인 사용 상태임)
+        // 4. ChatOptions 설정
         OpenAiChatOptions options = new OpenAiChatOptions();
         options.setModel(modelName); 
         options.setTemperature(0.7);
