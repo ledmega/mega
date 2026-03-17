@@ -1,9 +1,9 @@
 package led.mega.cs.config;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.google.GoogleAiGeminiChatModel;
-import org.springframework.ai.google.GoogleAiGeminiChatOptions;
-import org.springframework.ai.google.api.GoogleAiGeminiApi;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Spring AI ChatClient 빈 설정.
- * OpenAI 호환 모드 대신 Native Gemini API를 사용하여 404 에러를 해결합니다.
+ * OpenAI 호환 모드로 Gemini를 연동합니다.
  */
 @Configuration
 public class CsAiConfig {
@@ -21,27 +21,28 @@ public class CsAiConfig {
 
     @Bean
     @Primary
-    public GoogleAiGeminiChatModel googleAiGeminiChatModel(
-            @Value("${spring.ai.google.api-key}") String apiKey,
-            @Value("${spring.ai.google.chat.options.model}") String modelName) {
+    public OpenAiChatModel openAiChatModel(
+            @Value("${spring.ai.openai.api-key}") String apiKey,
+            @Value("${spring.ai.openai.base-url}") String baseUrl,
+            @Value("${spring.ai.openai.chat.options.model}") String modelName) {
 
-        log.info("[CS-BOT-CONFIG] Initializing Native Google Gemini API...");
+        log.info("[CS-BOT-CONFIG] Initializing Gemini via OpenAI Compatibility Mode...");
+        log.info("[CS-BOT-CONFIG] Target URL: {}", baseUrl);
         log.info("[CS-BOT-CONFIG] Target Model: {}", modelName);
 
-        // Native Gemini API 생성
-        GoogleAiGeminiApi api = new GoogleAiGeminiApi(apiKey);
+        // API 생성 (URL에 /v1이 붙지 않도록 properties에서 조절됨)
+        OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey);
 
         // Options 설정
-        GoogleAiGeminiChatOptions options = GoogleAiGeminiChatOptions.builder()
-                .withModel(modelName)
-                .withTemperature(0.7)
-                .build();
+        OpenAiChatOptions options = new OpenAiChatOptions();
+        options.setModel(modelName);
+        options.setTemperature(0.7);
 
-        return new GoogleAiGeminiChatModel(api, options);
+        return new OpenAiChatModel(openAiApi, options);
     }
 
     @Bean
-    public ChatClient chatClient(GoogleAiGeminiChatModel googleAiGeminiChatModel) {
-        return ChatClient.builder(googleAiGeminiChatModel).build();
+    public ChatClient chatClient(OpenAiChatModel openAiChatModel) {
+        return ChatClient.builder(openAiChatModel).build();
     }
 }

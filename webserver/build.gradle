@@ -1,12 +1,12 @@
 // 웹서버 모듈 빌드 설정
 
 plugins {
-	id 'org.springframework.boot' version '3.5.5'
+	id 'org.springframework.boot' version '3.4.3' // 안정적인 최신 버전으로 수정
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
 ext {
-	set('springAiVersion', "1.0.0-M6")
+	set('springAiVersion', "1.0.0-M5") // 존재하는 마일스톤 버전
 }
 
 java {
@@ -30,24 +30,18 @@ dependencyManagement {
 dependencies {
 	// [REACTIVE] spring-boot-starter-web → spring-boot-starter-webflux
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
-	// [REACTIVE] spring-boot-starter-data-jpa → spring-boot-starter-data-r2dbc + r2dbc-mariadb
-	// 버전은 Spring Boot BOM에 위임 (Netty/Reactor 정렬로 fat JAR 종료 시 ClassNotFoundException 방지)
 	implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
 	implementation 'org.mariadb:r2dbc-mariadb'
-	// [REMOVED] spring-boot-starter-web-services (서블릿 기반 웹서비스 → WebFlux 불필요)
-	// [REMOVED] spring-boot-starter-websocket    (STOMP/SockJS → SSE로 교체)
-	// [REMOVED] mybatis-spring-boot-starter      (JPA와 함께 제거)
 
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
-	// [API] Spring AI - Native Gemini 스타터
-	implementation 'org.springframework.ai:spring-ai-google-ai-spring-boot-starter'
-	// [API] Spring AI - OpenAI 스타터 (백업용)
+	
+	// [API] Spring AI - OpenAI 스타터 (Gemini 호환 모드용)
 	implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
 
-	// [KEPT] JDBC 드라이버 - DatabaseInitializer가 DriverManager로 직접 사용
+	// [KEPT] JDBC 드라이버
 	implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -60,10 +54,7 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
-// bootRun 시 테스트 건너뛰기 (빌드 속도 향상)
 tasks.named('bootRun') {
 	dependsOn = ['classes']
-	// JVM 인코딩 설정 (한글 로그 출력을 위해)
 	jvmArgs = ['-Dfile.encoding=UTF-8', '-Duser.language=ko', '-Duser.country=KR']
 }
-
