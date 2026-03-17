@@ -39,9 +39,9 @@ public class CsAiConfig {
             @Value("${spring.ai.openai.base-url}") String baseUrl,
             RestClient.Builder restClientBuilder) {
 
-        log.info("[CS-BOT-CONFIG] Initializing AI with Deep Inspection...");
+        log.info("[CS-BOT-CONFIG] Final Configuration for Gemini Integration...");
         
-        OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey, restClientBuilder, WebClient.builder());
+        OpenAiApi openAiApi = new OpenAiApi("https://generativelanguage.googleapis.com/v1beta/openai", apiKey, restClientBuilder, WebClient.builder());
 
         OpenAiChatOptions options = new OpenAiChatOptions();
         options.setModel("gemini-1.5-flash");
@@ -60,31 +60,21 @@ public class CsAiConfig {
         @Override
         public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
             
-            // 1. 바디 실체 확인 (로그 출력)
+            // 1. 구글이 요구하는 '완벽한' 엔드포인트 URL 생성
+            // 주안점: /v1/ 을 포함하고 쿼리 파라미터로 key를 전달함
+            String finalUrl = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions?key=" + apiKey;
+            
+            HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(finalUrl));
+
+            // 2. 바디 수술: 모델명 필드의 어떤 방해물도 제거하고 순수하게 전달
             String bodyStr = new String(body, StandardCharsets.UTF_8);
-            log.info("[CS-BOT-CONFIG] RAW BODY: {}", bodyStr);
-
-            // 2. URL 수술 (이미지 참조: /v1 제거하고 API KEY 쿼리 파라미터로 강제 삽입)
-            String targetUri = request.getURI().toString()
-                    .replace("/v1/chat/completions", "/chat/completions")
-                    .replace("Google-Apis.com", "googleapis.com");
-            
-            // API 키가 URL에 없으면 추가 (구글 v1beta 권장 방식)
-            if (!targetUri.contains("key=")) {
-                targetUri += (targetUri.contains("?") ? "&" : "?") + "key=" + apiKey;
-            }
-            
-            HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(targetUri));
-
-            // 3. 모델명 강제 교정 (혹시라도 models/ 가 있으면 제거)
             String fixedBodyStr = bodyStr.replace("models/gemini-1.5-flash", "gemini-1.5-flash");
-            if (!bodyStr.equals(fixedBodyStr)) {
-                log.info("[CS-BOT-CONFIG] Found models/ prefix in body, stripping it...");
-                body = fixedBodyStr.getBytes(StandardCharsets.UTF_8);
-            }
+            
+            // 3. 로그 출력 (보안을 위해 Key 제외)
+            log.info("[CS-BOT-CONFIG] Target URL: https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions?key=***");
+            log.info("[CS-BOT-CONFIG] Corrected Body Check: {}", fixedBodyStr.contains("gemini-1.5-flash"));
 
-            log.info("[CS-BOT-CONFIG] Final Request URL (with Key): {}", targetUri.split("key=")[0] + "key=***");
-            return execution.execute(redirectedRequest, body);
+            return execution.execute(redirectedRequest, fixedBodyStr.getBytes(StandardCharsets.UTF_8));
         }
     }
 
