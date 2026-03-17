@@ -126,43 +126,48 @@ public class CsBotService {
 
                     log.info("[CS-BOT] Found {} relevant FAQs for context", faqs.size());
 
-                    String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions?key=" + apiKey;
+                    String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
 
                     String systemPrompt = "당신은 CS 상담사 지원 AI입니다. 아래 제공된 [참고 FAQ 데이터]를 바탕으로 사용자 질문에 대한 정확하고 친절한 답변 초안을 작성하세요.\n" +
                             "만약 제공된 데이터에 답이 없다면, 아는 선에서 정중히 답변하고 '상담사 확인이 필요합니다'라고 덧붙여주세요.\n\n" +
                             "[참고 FAQ 데이터]\n" + contextText;
 
+                    // Gemini Native API 포맷으로 구성
                     Map<String, Object> requestBody = Map.of(
-                        "model", "gemini-1.5-flash",
-                        "messages", List.of(
-                            Map.of("role", "system", "content", systemPrompt),
-                            Map.of("role", "user", "content", question)
+                        "contents", List.of(
+                            Map.of("parts", List.of(
+                                Map.of("text", systemPrompt + "\n\n사용자 문의: " + question)
+                            ))
                         )
                     );
 
                     if (apiKey == null || apiKey.isEmpty()) {
-                        log.error("[CS-BOT] API Key is missing! .env 파일에 GEMINI_API_KEY가 설정되어 있는지 확인해주세요.");
-                        return Mono.error(new RuntimeException("GEMINI_API_KEY environment variable is not set"));
+                        log.error("[CS-BOT] API Key is missing! .env 파일이나 환경변수(GEMINI_API_KEY)를 확인해주세요.");
+                        return Mono.error(new RuntimeException("GEMINI_API_KEY is not set"));
                     }
+
+                    log.info("[CS-BOT] Gemini Native API Call start...");
 
                     return webClientBuilder.build()
                             .post()
                             .uri(url)
-                            .header("Authorization", "Bearer " + apiKey)
-                            .header("x-goog-api-key", apiKey)
                             .bodyValue(requestBody)
                             .retrieve()
                             .bodyToMono(Map.class)
-                            .timeout(Duration.ofSeconds(60)) // 60초 타임아웃 설정
+                            .timeout(Duration.ofSeconds(60))
                             .map(response -> {
-                                if (response == null || !response.containsKey("choices")) {
-                                    throw new RuntimeException("Invalid response from Gemini API");
+                                try {
+                                    // Gemini Native Response 구조: candidates -> content -> parts -> text
+                                    List candidates = (List) response.get("candidates");
+                                    Map firstCandidate = (Map) candidates.get(0);
+                                    Map content = (Map) firstCandidate.get("content");
+                                    List parts = (List) content.get("parts");
+                                    Map firstPart = (Map) parts.get(0);
+                                    return (String) firstPart.get("text");
+                                } catch (Exception e) {
+                                    log.error("[CS-BOT] 응답 파싱 실패: response={}", response);
+                                    throw new RuntimeException("Invalid response from Gemini Native API", e);
                                 }
-
-                                List choices = (List) response.get("choices");
-                                Map firstChoice = (Map) choices.get(0);
-                                Map message = (Map) firstChoice.get("message");
-                                return (String) message.get("content");
                             });
                 })
                 .flatMap(aiDraft -> {
