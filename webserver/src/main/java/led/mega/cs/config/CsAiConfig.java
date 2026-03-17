@@ -26,9 +26,10 @@ public class CsAiConfig {
     private static final Logger log = LoggerFactory.getLogger(CsAiConfig.class);
 
     @Bean
-    public RestClient.Builder restClientBuilder() {
+    public RestClient.Builder restClientBuilder(
+            @Value("${spring.ai.openai.api-key}") String apiKey) {
         return RestClient.builder()
-                .requestInterceptor(new GeminiCompatibilityInterceptor());
+                .requestInterceptor(new GeminiCompatibilityInterceptor(apiKey));
     }
 
     @Bean
@@ -38,43 +39,51 @@ public class CsAiConfig {
             @Value("${spring.ai.openai.base-url}") String baseUrl,
             RestClient.Builder restClientBuilder) {
 
-        log.info("[CS-BOT-CONFIG] Applying settings based on user provided reference...");
+        log.info("[CS-BOT-CONFIG] Initializing AI with Deep Inspection...");
         
         OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey, restClientBuilder, WebClient.builder());
 
         OpenAiChatOptions options = new OpenAiChatOptions();
-        options.setModel("gemini-1.5-flash"); // 순수 모델명만 지정
+        options.setModel("gemini-1.5-flash");
         options.setTemperature(0.7f);
 
         return new OpenAiChatModel(openAiApi, options);
     }
 
-    /**
-     * 이미지 참조에 따라 /v1/을 제거하고 모델명을 정규화하는 인터셉터
-     */
     static class GeminiCompatibilityInterceptor implements ClientHttpRequestInterceptor {
+        private final String apiKey;
+
+        public GeminiCompatibilityInterceptor(String apiKey) {
+            this.apiKey = apiKey;
+        }
+
         @Override
         public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
             
-            // 1. URL 수술: 이미지 설명에 따라 /v1/ 을 제거함
+            // 1. 바디 실체 확인 (로그 출력)
+            String bodyStr = new String(body, StandardCharsets.UTF_8);
+            log.info("[CS-BOT-CONFIG] RAW BODY: {}", bodyStr);
+
+            // 2. URL 수술 (이미지 참조: /v1 제거하고 API KEY 쿼리 파라미터로 강제 삽입)
             String targetUri = request.getURI().toString()
-                    .replace("/v1/chat/completions", "/chat/completions") // /v1/ 제거
-                    .replace("Google-Apis.com", "googleapis.com");       // 도메인 복구
+                    .replace("/v1/chat/completions", "/chat/completions")
+                    .replace("Google-Apis.com", "googleapis.com");
+            
+            // API 키가 URL에 없으면 추가 (구글 v1beta 권장 방식)
+            if (!targetUri.contains("key=")) {
+                targetUri += (targetUri.contains("?") ? "&" : "?") + "key=" + apiKey;
+            }
             
             HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(targetUri));
 
-            // 2. Body 수술: 모델명에 어떤 접두사가 붙어있든 강제로 떼어냄
-            String bodyStr = new String(body, StandardCharsets.UTF_8);
-            
-            // "model":"ANYTHING/gemini-1.5-flash" -> "model":"gemini-1.5-flash"
-            String fixedBodyStr = bodyStr.replaceAll("\"model\"\\s*:\\s*\"[^\"]*gemini-1.5-flash[^\"]*\"", "\"model\":\"gemini-1.5-flash\"");
-            
+            // 3. 모델명 강제 교정 (혹시라도 models/ 가 있으면 제거)
+            String fixedBodyStr = bodyStr.replace("models/gemini-1.5-flash", "gemini-1.5-flash");
             if (!bodyStr.equals(fixedBodyStr)) {
-                log.info("[CS-BOT-CONFIG] Stripped potential prefixes from model name in body");
+                log.info("[CS-BOT-CONFIG] Found models/ prefix in body, stripping it...");
                 body = fixedBodyStr.getBytes(StandardCharsets.UTF_8);
             }
 
-            log.info("[CS-BOT-CONFIG] Corrected URL (removed /v1/): {}", targetUri);
+            log.info("[CS-BOT-CONFIG] Final Request URL (with Key): {}", targetUri.split("key=")[0] + "key=***");
             return execution.execute(redirectedRequest, body);
         }
     }
