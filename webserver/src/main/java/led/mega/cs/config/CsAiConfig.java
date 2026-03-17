@@ -11,8 +11,6 @@ import org.springframework.context.annotation.Primary;
 
 /**
  * Spring AI ChatClient 빈 설정.
- * Spring AI의 자동 모델명 변조(models/ 접두사 추가)를 방지하기 위해 
- * OpenAiChatModel을 수동으로 빌드합니다.
  */
 @Configuration
 public class CsAiConfig {
@@ -25,14 +23,16 @@ public class CsAiConfig {
             @Value("${spring.ai.openai.chat.options.model}") String modelName) {
 
         // 1. OpenAiApi 생성 (Google을 속이기 위해 하드코딩된 정확한 엔드포인트 사용)
-        // baseUrl: https://generativelanguage.googleapis.com/v1beta/openai
         OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey);
 
-        // 2. ChatModel 생성
-        return new OpenAiChatModel(openAiApi, OpenAiChatOptions.builder()
-                .withModel(modelName) // gemini-1.5-flash
-                .withTemperature(0.7f)
-                .build());
+        // 2. ChatOptions 설정 
+        // 메서드 부재 에러를 방지하기 위해 빌더 대신 기본 생성자 + 세터를 사용합니다.
+        OpenAiChatOptions options = new OpenAiChatOptions();
+        options.setModel(modelName);
+        options.setTemperature(0.7f);
+
+        // 3. ChatModel 생성
+        return new OpenAiChatModel(openAiApi, options);
     }
 
     @Bean
