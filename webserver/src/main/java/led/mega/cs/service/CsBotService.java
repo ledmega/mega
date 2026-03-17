@@ -217,7 +217,7 @@ public class CsBotService {
                                                 .build());
                             })
                             .onErrorResume(e -> {
-                                log.error("[CS-BOT] OpenAI 호출 실패: {}", e.getMessage());
+                                log.error("[CS-BOT] OpenAI 호출 실패 - class={}, message={}", e.getClass().getSimpleName(), e.getMessage(), e);
                                 return updateConversationStatus(conversation, "PROCESSING")
                                         .thenReturn(CsBotResponseDto.builder()
                                                 .conversationId(conversation.getCsConvId())
