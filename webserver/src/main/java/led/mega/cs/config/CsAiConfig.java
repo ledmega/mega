@@ -25,9 +25,6 @@ import java.nio.charset.StandardCharsets;
 public class CsAiConfig {
     private static final Logger log = LoggerFactory.getLogger(CsAiConfig.class);
 
-    /**
-     * Spring AI 자동 설정 및 기타 컴포넌트가 요구하는 RestClient.Builder 빈을 제공합니다.
-     */
     @Bean
     public RestClient.Builder restClientBuilder() {
         return RestClient.builder();
@@ -38,13 +35,14 @@ public class CsAiConfig {
     public OpenAiChatModel openAiChatModel(
             @Value("${spring.ai.openai.api-key}") String apiKey) {
 
-        log.info("[CS-BOT-CONFIG] Initializing AI with Full Isolation & Context Support...");
-        
-        // 격리된 전략을 위해 'new' 빌더를 사용 (컨텍스트 빈과 분리)
+        log.info("[CS-BOT-CONFIG] Final Push: Adopting Gemini Advisor's Expert Path...");
+
+        // 1. 격리된 빌더 생성 (자동 설정의 간섭을 완전히 배제)
         RestClient.Builder isolatedBuilder = RestClient.builder()
                 .requestInterceptor(new GeminiFinalInterceptor(apiKey));
 
-        OpenAiApi openAiApi = new OpenAiApi("https://Internal-Proxy.Custom", apiKey, isolatedBuilder, WebClient.builder());
+        OpenAiApi openAiApi = new OpenAiApi("https://Internal-Proxy.Custom", apiKey, isolatedBuilder,
+                WebClient.builder());
 
         OpenAiChatOptions options = new OpenAiChatOptions();
         options.setModel("gemini-1.5-flash");
@@ -61,18 +59,19 @@ public class CsAiConfig {
         }
 
         @Override
-        public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-            
+        public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution)
+                throws IOException {
+
             // 제미나이 가이드에 따른 정석 경로
             String finalUrl = "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=" + apiKey;
-            
+
             HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(finalUrl));
 
             String bodyStr = new String(body, StandardCharsets.UTF_8);
             String fixedBodyStr = bodyStr.replace("models/gemini-1.5-flash", "gemini-1.5-flash");
-            
-            log.info("[CS-BOT-CONFIG] Sending to: {}, BodyFixed: {}", 
-                    "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=***", 
+
+            log.info("[CS-BOT-CONFIG] Sending to: {}, BodyFixed: {}",
+                    "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=***",
                     !bodyStr.equals(fixedBodyStr));
 
             return execution.execute(redirectedRequest, fixedBodyStr.getBytes(StandardCharsets.UTF_8));
@@ -81,10 +80,15 @@ public class CsAiConfig {
 
     static class CustomHttpRequest extends HttpRequestWrapper {
         private final URI newUri;
+
         public CustomHttpRequest(HttpRequest original, URI newUri) {
             super(original);
             this.newUri = newUri;
         }
-        @Override public URI getURI() { return newUri; }
+
+        @Override
+        public URI getURI() {
+            return newUri;
+        }
     }
 }
