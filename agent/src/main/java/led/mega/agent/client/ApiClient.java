@@ -183,13 +183,13 @@ public class ApiClient {
     }
     
     public static class RegisterResponse {
-        private Long id;
+        private String id;
         private String agentId;
         private String status;
         private String apiKey;
         
         // Getters
-        public Long getId() { return id; }
+        public String getId() { return id; }
         public String getAgentId() { return agentId; }
         public String getStatus() { return status; }
         public String getApiKey() { return apiKey; }
@@ -206,8 +206,8 @@ public class ApiClient {
     }
     
     public static class MetricRequest {
-        private Long taskId;
-        private Long monitoringConfigId;
+        private String taskId;
+        private String monitoringConfigId;
         private String metricType;
         private String metricName;
         private java.math.BigDecimal metricValue;
@@ -216,7 +216,7 @@ public class ApiClient {
         private LocalDateTime collectedAt;
 
         /** 서비스별 메트릭 시 monitoringConfigId 사용, 기존 taskId는 null 가능 */
-        public MetricRequest(Long taskId, Long monitoringConfigId, String metricType, String metricName,
+        public MetricRequest(String taskId, String monitoringConfigId, String metricType, String metricName,
                             java.math.BigDecimal metricValue, String unit,
                             String rawData, LocalDateTime collectedAt) {
             this.taskId = taskId;
@@ -230,7 +230,7 @@ public class ApiClient {
         }
 
         /** 기존 호환: taskId만 있고 monitoringConfigId 없음 */
-        public MetricRequest(Long taskId, String metricType, String metricName,
+        public MetricRequest(String taskId, String metricType, String metricName,
                             java.math.BigDecimal metricValue, String unit,
                             String rawData, LocalDateTime collectedAt) {
             this(taskId, null, metricType, metricName, metricValue, unit, rawData, collectedAt);
@@ -238,7 +238,7 @@ public class ApiClient {
     }
     
     public static class ExceptionRequest {
-        private Long taskId;
+        private String taskId;
         private String logFilePath;
         private String exceptionType;
         private String exceptionMessage;
@@ -247,7 +247,7 @@ public class ApiClient {
         private String fullStackTrace;
         private LocalDateTime occurredAt;
         
-        public ExceptionRequest(Long taskId, String logFilePath, String exceptionType,
+        public ExceptionRequest(String taskId, String logFilePath, String exceptionType,
                               String exceptionMessage, String contextBefore, String contextAfter,
                               String fullStackTrace, LocalDateTime occurredAt) {
             this.taskId = taskId;
@@ -264,7 +264,7 @@ public class ApiClient {
     /**
      * 활성화된 서비스 모니터링 설정 목록 조회 (Agent → WebServer Pull)
      */
-    public List<MonitoringConfigDto> fetchActiveMonitoringConfigs(Long agentDbId, String apiKey) throws IOException {
+    public List<MonitoringConfigDto> fetchActiveMonitoringConfigs(String agentDbId, String apiKey) throws IOException {
         String url = baseUrl + "/api/configs/agent/" + agentDbId + "/active";
 
         Request httpRequest = new Request.Builder()
@@ -291,8 +291,8 @@ public class ApiClient {
      * (webserver MonitoringConfigDto와 필드명을 맞춰서 사용)
      */
     public static class MonitoringConfigDto {
-        private Long   id;
-        private Long   agentId;
+        private String id;
+        private String agentId;
         private String serviceName;
         private String targetType;
         private String targetName;
@@ -304,8 +304,8 @@ public class ApiClient {
         private Boolean enabled;
         private String description;
 
-        public Long getId() { return id; }
-        public Long getAgentId() { return agentId; }
+        public String getId() { return id; }
+        public String getAgentId() { return agentId; }
         public String getServiceName() { return serviceName; }
         public String getServicePath() { return servicePath; }
         public String getLogPath() { return logPath; }
@@ -319,7 +319,7 @@ public class ApiClient {
     }
 
     public static class ServiceMetricDataRequestDto {
-        private Long monitoringConfigId;
+        private String monitoringConfigId;
         private java.math.BigDecimal cpuUsagePercent;
         private java.math.BigDecimal memoryUsageMb;
         private java.math.BigDecimal memoryUsagePercent;
@@ -328,7 +328,7 @@ public class ApiClient {
         private Long networkTxBytes;
         private LocalDateTime collectedAt;
 
-        public ServiceMetricDataRequestDto(Long id, java.math.BigDecimal cpu, java.math.BigDecimal memMb,
+        public ServiceMetricDataRequestDto(String id, java.math.BigDecimal cpu, java.math.BigDecimal memMb,
                                            java.math.BigDecimal memPct, java.math.BigDecimal disk, Long rx, Long tx, LocalDateTime collectedAt) {
             this.monitoringConfigId = id;
             this.cpuUsagePercent = cpu;

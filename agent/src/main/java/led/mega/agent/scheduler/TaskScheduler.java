@@ -34,13 +34,13 @@ public class TaskScheduler {
     private final AgentConfig config;
     
     private String agentId;
-    private Long   agentDbId;
+    private String agentDbId;
     private String apiKey;
     
     // 스케줄된 작업들
     private final Map<String, ScheduledFuture<?>> scheduledTasks = new HashMap<>();
     // 현재 활성화된 서비스 모니터링 설정 (동적 스케줄링 관리를 위함)
-    private final Map<Long, ApiClient.MonitoringConfigDto> activeServiceMonitoringConfigs = new HashMap<>();
+    private final Map<String, ApiClient.MonitoringConfigDto> activeServiceMonitoringConfigs = new HashMap<>();
     
     public TaskScheduler(AgentConfig config, ApiClient apiClient, 
                         CommandExecutor commandExecutor, MetricParser metricParser, LogParser logParser) {
@@ -55,7 +55,7 @@ public class TaskScheduler {
     /**
      * 에이전트 ID와 API 키 설정
      */
-    public void setAgentCredentials(String agentId, Long agentDbId, String apiKey) {
+    public void setAgentCredentials(String agentId, String agentDbId, String apiKey) {
         this.agentId = agentId;
         this.agentDbId = agentDbId;
         this.apiKey = apiKey;
@@ -200,13 +200,12 @@ public class TaskScheduler {
         try {
             List<ApiClient.MonitoringConfigDto> latestConfigs =
                     apiClient.fetchActiveMonitoringConfigs(agentDbId, apiKey);
-
-            Map<Long, ApiClient.MonitoringConfigDto> newActiveConfigs = latestConfigs.stream()
+            Map<String, ApiClient.MonitoringConfigDto> newActiveConfigs = latestConfigs.stream()
                     .collect(Collectors.toMap(ApiClient.MonitoringConfigDto::getId, cfg -> cfg));
 
             // 1. 삭제된 작업 중지
-            for (Map.Entry<Long, ApiClient.MonitoringConfigDto> entry : activeServiceMonitoringConfigs.entrySet()) {
-                Long configId = entry.getKey();
+            for (Map.Entry<String, ApiClient.MonitoringConfigDto> entry : activeServiceMonitoringConfigs.entrySet()) {
+                String configId = entry.getKey();
                 if (!newActiveConfigs.containsKey(configId)) {
                     stopServiceMonitoringTasks(configId);
                 }
@@ -214,7 +213,7 @@ public class TaskScheduler {
 
             // 2. 새로 추가되거나 변경된 작업 시작/업데이트
             for (ApiClient.MonitoringConfigDto newCfg : latestConfigs) {
-                Long configId = newCfg.getId();
+                String configId = newCfg.getId();
                 ApiClient.MonitoringConfigDto oldCfg = activeServiceMonitoringConfigs.get(configId);
 
                 boolean isNew     = (oldCfg == null);
@@ -273,7 +272,7 @@ public class TaskScheduler {
     /**
      * 특정 MonitoringConfig 에 해당하는 모든 스케줄된 작업을 중지합니다.
      */
-    private void stopServiceMonitoringTasks(Long configId) {
+    private void stopServiceMonitoringTasks(String configId) {
         String logTaskName = "service-log-" + configId;
         String metricTaskName = "service-metric-" + configId;
 
@@ -377,7 +376,7 @@ public class TaskScheduler {
     }
 
     private void collectAndSendServiceMetrics(ApiClient.MonitoringConfigDto cfg, boolean needCpu, boolean needMem, boolean needDisk) {
-        Long configId = cfg.getId();
+        String configId = cfg.getId();
         String targetType = cfg.getTargetType() != null ? cfg.getTargetType() : "HOST";
         String targetName = cfg.getTargetName();
         LocalDateTime now = LocalDateTime.now();

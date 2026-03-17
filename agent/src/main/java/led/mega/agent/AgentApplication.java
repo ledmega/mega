@@ -30,7 +30,7 @@ public class AgentApplication {
     
     private String agentId;
     private String apiKey;
-    private Long   agentDbId;
+    private String agentDbId;
     private boolean running = false;
     private static final String ID_FILE = ".agent_id";
     
@@ -130,13 +130,7 @@ public class AgentApplication {
             }
             this.agentId = props.getProperty("agentId");
             this.apiKey = props.getProperty("apiKey");
-            String idStr = props.getProperty("agentDbId");
-            if (idStr != null) {
-                try {
-                    this.agentDbId = Long.parseLong(idStr);
-                } catch (NumberFormatException ignored) {
-                }
-            }
+            this.agentDbId = props.getProperty("agentDbId");
             
             return agentId != null && apiKey != null;
         } catch (Exception e) {
@@ -154,7 +148,7 @@ public class AgentApplication {
             props.setProperty("agentId", agentId);
             props.setProperty("apiKey", apiKey);
             if (agentDbId != null) {
-                props.setProperty("agentDbId", Long.toString(agentDbId));
+                props.setProperty("agentDbId", agentDbId);
             }
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(ID_FILE)) {
                 props.store(fos, "Mega Agent Credentials");
