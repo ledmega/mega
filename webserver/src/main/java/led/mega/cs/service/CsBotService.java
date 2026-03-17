@@ -121,7 +121,7 @@ public class CsBotService {
             // 1. OpenAI 호환 엔드포인트 URL
             String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
 
-            // 2. 모델 리스트에서 확인된 유효한 최신 모델명 사용 (gemini-1.5-flash 대신 gemini-flash-latest)
+            // 2. 모델 리스트에서 확인된 유효한 최신 모델명 사용
             Map<String, Object> requestBody = Map.of(
                 "model", "gemini-flash-latest",
                 "messages", List.of(
@@ -132,7 +132,7 @@ public class CsBotService {
 
             log.info("[CS-BOT] Requesting Gemini with model: gemini-flash-latest");
 
-            // 3. Authorization 헤더를 Bearer 방식으로 명시적 추가
+            // 3. Authorization 헤더를 Bearer 방식으로 명시적 추가 (환경 변수에서 가져온 apiKey 사용)
             Map response = restClient.post()
                     .uri(url)
                     .header("Authorization", "Bearer " + apiKey)
