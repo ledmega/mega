@@ -83,9 +83,7 @@ public class AgentService {
     }
 
     public Mono<Agent> findByApiKey(String apiKey) {
-        return agentRepository.findAll()
-                .filter(agent -> apiKey.equals(agent.getApiKey()))
-                .next()
+        return agentRepository.findByApiKey(apiKey)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("유효하지 않은 API 키입니다.")));
     }
 

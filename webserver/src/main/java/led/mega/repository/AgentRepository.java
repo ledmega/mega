@@ -24,4 +24,6 @@ public interface AgentRepository extends ReactiveCrudRepository<Agent, String> {
 
     @Query("SELECT COUNT(*) FROM agent WHERE status = :status")
     Mono<Long> countByStatus(String status);
+
+    Mono<Agent> findByApiKey(String apiKey);
 }
