@@ -38,9 +38,9 @@ public class CsAiConfig {
             @Value("${spring.ai.openai.base-url}") String baseUrl,
             RestClient.Builder restClientBuilder) {
 
-        log.info("[CS-BOT-CONFIG] Initializing Gemini with Constructor Fix...");
+        log.info("[CS-BOT-CONFIG] Initializing Gemini with Extreme Fixes...");
         
-        // OpenAiApi 생성 시 RestClient.Builder와 WebClient.Builder를 모두 전달
+        // OpenAiApi 생성 시 RestClient.Builder 전달
         OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey, restClientBuilder, WebClient.builder());
 
         OpenAiChatOptions options = new OpenAiChatOptions();
@@ -57,44 +57,45 @@ public class CsAiConfig {
         @Override
         public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
             
-            // 1. URL 정규화 (v1main 에러 방지)
+            // 1. URL 수술 (v1main 에러 방지)
             String originalUri = request.getURI().toString();
+            // Google-Apis -> googleapis.com 으로 정규화
             String targetUri = originalUri
-                    .replaceAll("/v1/v1/", "/v1/") // 중복 v1 제거
-                    .replace("GoogleApis.com", "googleapis.com"); // 도메인 정규화
+                    .replace("Google-Apis.com", "googleapis.com")
+                    .replaceAll("/v1/v1/", "/v1/"); // 중복 v1 방어
             
-            // 만약 v1이 아예 없다면 추가 (v1beta/openai/chat -> v1beta/openai/v1/chat)
-            if (targetUri.contains("/v1beta/openai/") && !targetUri.contains("/v1beta/openai/v1/")) {
-                targetUri = targetUri.replace("/v1beta/openai/", "/v1beta/openai/v1/");
+            // v1이 누락된 경우 강제로 추가 (구글 OpenAI 호환 레이어 필수 경로)
+            if (!targetUri.contains("/v1/chat/completions")) {
+                targetUri = targetUri.replace("/chat/completions", "/v1/chat/completions");
             }
 
             HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(targetUri));
 
-            // 2. Body 변조 방어 (models/ 접두사 제거)
+            // 2. Body 정밀 수술 (어떤 접두사가 붙어있든 강제로 떼어냄)
             String bodyStr = new String(body, StandardCharsets.UTF_8);
-            if (bodyStr.contains("\"model\":\"models/")) {
-                log.info("[CS-BOT-CONFIG] Stripping 'models/' prefix from request body");
-                bodyStr = bodyStr.replace("\"model\":\"models/", "\"model\":\"");
-                body = bodyStr.getBytes(StandardCharsets.UTF_8);
+            if (bodyStr.contains("\"model\":\"")) {
+                // 모델명 부분을 정규식으로 찾아서 gemini-1.5-flash 로 고정
+                // 예: "model":"models/gemini-1.5-flash" -> "model":"gemini-1.5-flash"
+                String newBodyStr = bodyStr.replaceAll("\"model\":\"[^\"]*gemini-1.5-flash[^\"]*\"", "\"model\":\"gemini-1.5-flash\"");
+                
+                if (!bodyStr.equals(newBodyStr)) {
+                    log.info("[CS-BOT-CONFIG] Correcting model name in request body...");
+                    bodyStr = newBodyStr;
+                    body = bodyStr.getBytes(StandardCharsets.UTF_8);
+                }
             }
 
-            log.info("[CS-BOT-CONFIG] Executing request to: {}", targetUri);
+            log.info("[CS-BOT-CONFIG] Request Final State: URL={}, BodyLen={}", targetUri, body.length);
             return execution.execute(redirectedRequest, body);
         }
     }
 
-    /**
-     * 안전하게 URI만 교체하기 위해 HttpRequestWrapper를 사용합니다.
-     */
     static class CustomHttpRequest extends HttpRequestWrapper {
         private final URI newUri;
         public CustomHttpRequest(HttpRequest original, URI newUri) {
             super(original);
             this.newUri = newUri;
         }
-        @Override
-        public URI getURI() {
-            return newUri;
-        }
+        @Override public URI getURI() { return newUri; }
     }
 }
