@@ -26,23 +26,18 @@ public class CsAiConfig {
     private static final Logger log = LoggerFactory.getLogger(CsAiConfig.class);
 
     @Bean
-    public RestClient.Builder restClientBuilder(
-            @Value("${spring.ai.openai.api-key}") String apiKey) {
-        return RestClient.builder()
-                .requestInterceptor(new GeminiCompatibilityInterceptor(apiKey));
-    }
-
-    @Bean
     @Primary
     public OpenAiChatModel openAiChatModel(
-            @Value("${spring.ai.openai.api-key}") String apiKey,
-            @Value("${spring.ai.openai.base-url}") String baseUrl,
-            RestClient.Builder restClientBuilder) {
+            @Value("${spring.ai.openai.api-key}") String apiKey) {
 
-        log.info("[CS-BOT-CONFIG] Applying final URL fix from Gemini's advice...");
+        log.info("[CS-BOT-CONFIG] Initializing AI with Full Isolation Strategy...");
         
-        // Base URL은 인터셉터에서 완전히 무시하고 재정의할 예정이므로 기본값만 유지
-        OpenAiApi openAiApi = new OpenAiApi("https://generativelanguage.googleapis.com", apiKey, restClientBuilder, WebClient.builder());
+        // 1. 자동 설정된 빌더 대신 완전히 새로운 빌더를 생성하여 '숨겨진 인터셉터'의 간섭을 차단함
+        RestClient.Builder isolatedBuilder = RestClient.builder()
+                .requestInterceptor(new GeminiFinalInterceptor(apiKey));
+
+        // 2. 가짜 URL을 전달하여 OpenAiApi 내부의 '도메인 감지(Google 감지 시 models/ 접두사 추가)' 로직을 무력화함
+        OpenAiApi openAiApi = new OpenAiApi("https://Internal-Proxy.Custom", apiKey, isolatedBuilder, WebClient.builder());
 
         OpenAiChatOptions options = new OpenAiChatOptions();
         options.setModel("gemini-1.5-flash");
@@ -51,30 +46,34 @@ public class CsAiConfig {
         return new OpenAiChatModel(openAiApi, options);
     }
 
-    static class GeminiCompatibilityInterceptor implements ClientHttpRequestInterceptor {
+    /**
+     * 모든 자동화를 거부하고 구글이 요구하는 정석 경로와 형식으로 요청을 강제 재조립하는 인터셉터
+     */
+    static class GeminiFinalInterceptor implements ClientHttpRequestInterceptor {
         private final String apiKey;
 
-        public GeminiCompatibilityInterceptor(String apiKey) {
+        public GeminiFinalInterceptor(String apiKey) {
             this.apiKey = apiKey;
         }
 
         @Override
         public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
             
-            // 제미나이 답변(v1beta 또는 v1 안정화 버전)을 적용한 최종 엔드포인트
-            // 경로에서 /openai 를 완전히 제거함
+            // 1. URL 강제 고정: 제미나이가 알려준 'openai' 경로가 없는 가장 표준적인 주소 사용
+            // 쿼리 파라미터로 키를 전달하는 것이 v1beta에서 가장 오류가 적음
             String finalUrl = "https://generativelanguage.googleapis.com/v1beta/chat/completions?key=" + apiKey;
             
             HttpRequest redirectedRequest = new CustomHttpRequest(request, URI.create(finalUrl));
 
-            // 바디 로그 및 모델명 체크
+            // 2. 바디 정규화: Spring AI가 몰래 붙였을지 모르는 모든 'models/' 접두사 박멸
             String bodyStr = new String(body, StandardCharsets.UTF_8);
-            
-            // 혹시라도 models/ 가 붙어있다면 제거 (제미나이 가이드 준수)
             String fixedBodyStr = bodyStr.replace("models/gemini-1.5-flash", "gemini-1.5-flash");
-
-            log.info("[CS-BOT-CONFIG] Sending request to Gemini's suggested URL: {}", finalUrl.split("key=")[0] + "key=***");
             
+            // 3. 최종 상태 로그 (보안을 위해 Key만 가림)
+            log.info("[CS-BOT-CONFIG] Final Push -> URL: {}, ModelFixed: {}", 
+                    finalUrl.split("key=")[0] + "key=***", 
+                    !bodyStr.equals(fixedBodyStr));
+
             return execution.execute(redirectedRequest, fixedBodyStr.getBytes(StandardCharsets.UTF_8));
         }
     }
