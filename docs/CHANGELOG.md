@@ -16,7 +16,11 @@
 
 ---
 
-## 2026-03-12 ~ 2026-03-13 - 배치 스케줄러 고도화 및 로그 분리
+## 2026-03-12 ~ 2026-03-13 - 배치 스케줄러 고도화 및 로그 분리### 🔄 변경: AI 엔진 OpenAI → Google Gemini 교체
+* `spring-ai-openai-spring-boot-starter` → `spring-ai-google-ai-gemini-spring-boot-starter` 교체.
+* `CsAiConfig`: `OpenAiChatModel` → `GoogleAiGeminiChatModel` 빈 교체.
+* `application.properties`: `GEMINI_API_KEY` 환경변수 + 기본 모델 `gemini-2.0-flash` 설정.
+
 
 
 ## 1. 배치 스케줄러 고도화 (Batch Scheduling)
