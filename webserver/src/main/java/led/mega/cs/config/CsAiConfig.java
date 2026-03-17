@@ -31,14 +31,14 @@ public class CsAiConfig {
         log.info("[CS-BOT-CONFIG] Target URL: {}{}", baseUrl, completionsPath);
         log.info("[CS-BOT-CONFIG] Target Model: {}", modelName);
 
-        // OpenAiApi 생성
-        // 핵심: baseUrl을 그대로 넘겨주고, properties에서 정의한 completionsPath가 반영되도록 함.
+        // OpenAiApi 생성 (가장 기본 생성자 사용 시도)
         OpenAiApi openAiApi = new OpenAiApi(baseUrl, apiKey);
 
         // Options 설정
-        OpenAiChatOptions options = new OpenAiChatOptions();
-        options.setModel(modelName);
-        options.setTemperature(0.7);
+        OpenAiChatOptions options = OpenAiChatOptions.builder()
+                .withModel(modelName)
+                .withTemperature(0.7)
+                .build();
 
         return new OpenAiChatModel(openAiApi, options);
     }
