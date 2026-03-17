@@ -156,7 +156,10 @@ public class CsBotService {
                             .bodyValue(requestBody)
                             .retrieve()
                             .bodyToMono(Map.class)
-                            .timeout(Duration.ofSeconds(60)) // 핵심: 60초 타임아웃 적용
+                            .timeout(Duration.ofSeconds(60))
+                            .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2)) // 503 대비 최대 3회 재시도 (2초부터 지수 증가)
+                                    .filter(throwable -> throwable instanceof org.springframework.web.reactive.function.client.WebClientResponseException &&
+                                            ((org.springframework.web.reactive.function.client.WebClientResponseException) throwable).getStatusCode().value() == 503))
                             .map(response -> {
                                 if (response == null || !response.containsKey("choices")) {
                                     log.error("[CS-BOT] 부적절한 응답: {}", response);
