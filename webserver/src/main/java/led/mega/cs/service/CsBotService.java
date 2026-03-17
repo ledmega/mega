@@ -143,8 +143,8 @@ public class CsBotService {
                         );
 
                         if (apiKey == null || apiKey.isEmpty()) {
-                            log.error("[CS-BOT] API Key is missing!");
-                            throw new RuntimeException("API Key is missing");
+                            log.error("[CS-BOT] API Key is missing! .env 파일에 GEMINI_API_KEY가 설정되어 있는지 확인해주세요.");
+                            throw new RuntimeException("GEMINI_API_KEY environment variable is not set");
                         }
 
                         Map response = restClient.post()
