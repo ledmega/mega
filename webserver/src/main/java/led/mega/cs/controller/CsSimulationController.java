@@ -61,7 +61,7 @@ public class CsSimulationController {
                 .map(result -> ResponseEntity.status(HttpStatus.CREATED).body(result))
                 .onErrorResume(e -> {
                     log.error("[CS-SIM] 시뮬레이션 처리 오류: {}", e.getMessage(), e);
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+                    return Mono.just(ResponseEntity.<CsBotResponseDto>status(HttpStatus.INTERNAL_SERVER_ERROR).build());
                 });
     }
 
@@ -98,19 +98,20 @@ public class CsSimulationController {
                     return faqRepository.save(existing);
                 })
                 .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+                .switchIfEmpty(Mono.just(ResponseEntity.<CsFaq>notFound().build()));
     }
 
     @DeleteMapping("/faq/{id}")
     public Mono<ResponseEntity<Void>> deleteFaq(@PathVariable String id) {
+        ResponseEntity<Void> okResponse = ResponseEntity.<Void>ok().build();
+        ResponseEntity<Void> notFoundResponse = ResponseEntity.<Void>notFound().build();
         return faqRepository.findById(id)
                 .flatMap(faq -> {
                     faq.setUseYn("N");
                     faq.setUpdatedAt(LocalDateTime.now());
-                    return faqRepository.save(faq);
+                    return faqRepository.save(faq).thenReturn(okResponse);
                 })
-                .map(v -> ResponseEntity.<Void>ok().build())
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+                .switchIfEmpty(Mono.just(notFoundResponse));
     }
 
     // -------------------------------------------------------------------------
