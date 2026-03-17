@@ -164,7 +164,8 @@ public class CsBotService {
      *    Reactor epoll 스레드 밖에서 실행합니다.
      */
     private Mono<CsBotResponseDto> handleAiDraft(CsConversation conversation, String question) {
-        log.info("[CS-BOT] FAQ 매칭 실패. AI 초안 생성 시작: convId={}", conversation.getCsConvId());
+        log.info("[CS-BOT] FAQ 매칭 실패. AI 초안 생성 시작: convId={}, model={}", 
+                conversation.getCsConvId(), "gemini-1.5-flash");
 
         return faqRepository.findByUseYn("Y")
                 .collectList()
