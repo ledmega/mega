@@ -131,11 +131,17 @@ public class CsBotService {
             );
 
             log.info("[CS-BOT] Requesting Gemini with model: gemini-flash-latest");
+            if (apiKey == null || apiKey.isEmpty()) {
+                log.error("[CS-BOT] API Key is missing! Please set GEMINI_API_KEY env variable.");
+                throw new RuntimeException("API Key is missing");
+            }
+            log.info("[CS-BOT] Using API Key starting with: {}...", apiKey.substring(0, Math.min(apiKey.length(), 8)));
 
-            // 3. Authorization 헤더를 Bearer 방식으로 명시적 추가 (환경 변수에서 가져온 apiKey 사용)
+            // 3. Authorization 헤더와 x-goog-api-key 헤더를 모두 사용하여 인증 성공률을 극대화함
             Map response = restClient.post()
                     .uri(url)
                     .header("Authorization", "Bearer " + apiKey)
+                    .header("x-goog-api-key", apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()
