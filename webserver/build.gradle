@@ -15,6 +15,11 @@ java {
 	}
 }
 
+repositories {
+	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+}
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
@@ -37,9 +42,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 	
-	// [API] Spring AI - OpenAI 스타터 (Gemini 호환 모드용)
-	// 가장 범용적으로 작동하는 OpenAI 스타터를 통해 Gemini를 연동합니다.
-	implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+	// [API] Spring AI - OpenAI 스타터
+	// BOM이 작동하지 않을 경우를 대비해 버전을 명시적으로 지정합니다.
+	implementation "org.springframework.ai:spring-ai-openai-spring-boot-starter:${springAiVersion}"
 
 	implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
 	compileOnly 'org.projectlombok:lombok'
