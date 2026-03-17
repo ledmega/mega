@@ -80,6 +80,7 @@ public class SecurityConfig {
                 .pathMatchers("/api/agents/register").permitAll()
                 .pathMatchers("/api/cs/**").authenticated()
                 .pathMatchers("/api/**").authenticated()
+                .pathMatchers("/cs/**").authenticated()
                 .anyExchange().authenticated()
             )
             // [CHANGED] .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)

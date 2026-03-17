@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS 자동화 센터 - MEGA</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f8;
+            min-height: 100vh;
+        }
+
+        /* ── Navbar ─────────────────────────────────── */
+        .navbar {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            padding: 1rem 2rem;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,.1);
+        }
+        .nav-brand { font-size: 1.5rem; font-weight: 700; text-decoration: none; color: white; }
+        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+        .nav-link { color: rgba(255,255,255,.9); text-decoration: none; font-weight: 500; font-size: .95rem; display: inline-flex; align-items: center; }
+        .nav-link i { margin-right: 6px; }
+        .nav-link:hover { color: white; }
+
+        /* ── Container ───────────────────────────────── */
+        .container { max-width: 1400px; margin: 32px auto; padding: 0 24px; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-title { font-size: 26px; font-weight: 700; color: #2d3748; }
+        .page-subtitle { font-size: 14px; color: #718096; margin-top: 4px; }
+
+        /* ── Stats Row ───────────────────────────────── */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 6px rgba(0,0,0,.07);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .stat-icon {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+        }
+        .icon-purple { background: #f3e8ff; color: #9333ea; }
+        .icon-blue   { background: #dbeafe; color: #2563eb; }
+        .icon-green  { background: #dcfce7; color: #16a34a; }
+        .icon-orange { background: #ffedd5; color: #ea580c; }
+        .stat-info h3 { font-size: 13px; color: #718096; margin-bottom: 4px; }
+        .stat-value { font-size: 26px; font-weight: 700; color: #2d3748; }
+
+        /* ── Tabs ────────────────────────────────────── */
+        .tabs { display: flex; gap: 4px; margin-bottom: 24px; background: white; padding: 6px; border-radius: 14px; box-shadow: 0 1px 6px rgba(0,0,0,.07); width: fit-content; }
+        .tab-btn {
+            padding: 10px 22px; border: none; background: none; border-radius: 10px;
+            font-size: 14px; font-weight: 600; color: #718096; cursor: pointer; transition: all .2s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .tab-btn.active { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; box-shadow: 0 2px 8px rgba(99,102,241,.35); }
+        .tab-btn:hover:not(.active) { background: #f7fafc; color: #4a5568; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* ── Panel ───────────────────────────────────── */
+        .panel { background: white; border-radius: 16px; box-shadow: 0 1px 6px rgba(0,0,0,.07); overflow: hidden; margin-bottom: 24px; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #e2e8f0; }
+        .panel-title { font-size: 18px; font-weight: 700; color: #2d3748; }
+        .filter-bar { display: flex; gap: 10px; align-items: center; padding: 16px 24px; border-bottom: 1px solid #f0f2f8; flex-wrap: wrap; }
+        .filter-bar input, .filter-bar select { padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 13px; color: #2d3748; background: #f7fafc; outline: none; transition: border .2s; }
+        .filter-bar input:focus, .filter-bar select:focus { border-color: #6366f1; background: white; }
+        .filter-bar input { min-width: 220px; }
+
+        /* ── Table ───────────────────────────────────── */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { background: #f7fafc; color: #718096; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 12px 16px; text-align: left; white-space: nowrap; }
+        tbody tr { border-bottom: 1px solid #e2e8f0; transition: background .15s; }
+        tbody tr:hover { background: #f7fafc; }
+        tbody td { padding: 14px 16px; font-size: 14px; color: #2d3748; vertical-align: middle; }
+        tbody tr:last-child { border-bottom: none; }
+
+        /* ── Badges ──────────────────────────────────── */
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;
+        }
+        .badge-pending  { background: #fef3c7; color: #92400e; }
+        .badge-processing { background: #dbeafe; color: #1e40af; }
+        .badge-completed  { background: #dcfce7; color: #166534; }
+        .badge-auto     { background: #f3e8ff; color: #7e22ce; }
+        .badge-draft    { background: #e0f2fe; color: #0369a1; }
+        .badge-escalated { background: #fee2e2; color: #991b1b; }
+
+        /* ── Buttons ─────────────────────────────────── */
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .2s; text-decoration: none; }
+        .btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,.4); }
+        .btn-success { background: #22c55e; color: white; }
+        .btn-success:hover { background: #16a34a; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-danger  { background: #ef4444; color: white; }
+        .btn-danger:hover  { background: #dc2626; }
+        .btn-ghost { background: transparent; border: 1px solid #cbd5e0; color: #4a5568; }
+        .btn-ghost:hover { background: #edf2f7; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn-ai { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
+        .btn-ai:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139,92,246,.4); }
+
+        /* ── Conversation Detail Panel ───────────────── */
+        .split-layout { display: grid; grid-template-columns: 1fr 420px; gap: 20px; }
+        .chat-panel { background: white; border-radius: 16px; box-shadow: 0 1px 6px rgba(0,0,0,.07); display: flex; flex-direction: column; height: 600px; }
+        .chat-header { padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .chat-title { font-weight: 700; font-size: 16px; color: #2d3748; }
+        .chat-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+        .chat-placeholder { text-align: center; color: #a0aec0; padding: 60px 0; }
+        .msg-row { display: flex; gap: 10px; }
+        .msg-row.user { justify-content: flex-end; }
+        .msg-row.bot, .msg-row.admin { justify-content: flex-start; }
+        .msg-bubble {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .msg-row.user .msg-bubble { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; border-bottom-right-radius: 4px; }
+        .msg-row.bot .msg-bubble { background: #f3f4f6; color: #374151; border-bottom-left-radius: 4px; }
+        .msg-row.admin .msg-bubble { background: #ecfdf5; color: #064e3b; border: 1px solid #a7f3d0; border-bottom-left-radius: 4px; }
+        .msg-label { font-size: 11px; color: #9ca3af; margin-bottom: 4px; }
+        .msg-draft-badge { display: inline-block; background: #dbeafe; color: #1e40af; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+        .chat-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; }
+
+        /* ── Simulator Panel ─────────────────────────── */
+        .sim-panel { background: white; border-radius: 16px; box-shadow: 0 1px 6px rgba(0,0,0,.07); }
+        .sim-header { padding: 20px 24px; border-bottom: 1px solid #e2e8f0; }
+        .sim-body { padding: 24px; }
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 13px; font-weight: 600; color: #4a5568; margin-bottom: 6px; }
+        .form-label .required { color: #ef4444; margin-left: 2px; }
+        .form-control { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; color: #2d3748; background: #f7fafc; outline: none; transition: border .2s, background .2s; resize: vertical; }
+        .form-control:focus { border-color: #6366f1; background: white; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+        .form-hint { font-size: 12px; color: #a0aec0; margin-top: 4px; }
+
+        /* ── Result Box ──────────────────────────────── */
+        .result-box { border-radius: 12px; padding: 16px 20px; margin-top: 16px; display: none; }
+        .result-auto { background: #f0fdf4; border: 1px solid #86efac; }
+        .result-draft { background: #eff6ff; border: 1px solid #93c5fd; }
+        .result-escalated { background: #fef2f2; border: 1px solid #fca5a5; }
+        .result-title { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+        .result-content { font-size: 14px; line-height: 1.6; color: #374151; white-space: pre-wrap; }
+
+        /* ── FAQ Form ────────────────────────────────── */
+        .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .empty-state { text-align: center; padding: 60px; color: #a0aec0; }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+        /* ── Modal ───────────────────────────────────── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: white; border-radius: 16px; padding: 32px; width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.25); position: relative; }
+        .modal h2 { font-size: 20px; font-weight: 700; color: #2d3748; margin-bottom: 24px; }
+        .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 20px; cursor: pointer; color: #a0aec0; }
+        .modal-close:hover { color: #4a5568; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+
+        /* ── Toast ───────────────────────────────────── */
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #2d3748; color: white; padding: 12px 20px; border-radius: 10px; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.2); transform: translateY(60px); opacity: 0; transition: all .3s; z-index: 2000; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: #166534; }
+        .toast.error { background: #991b1b; }
+
+        /* ── Spinner ─────────────────────────────────── */
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .6s linear infinite; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 1024px) {
+            .split-layout { grid-template-columns: 1fr; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">MEGA Dashboard</a>
+        <div class="nav-links">
+            <th:block th:each="menu : ${menus}">
+                <a th:href="${menu.url}" class="nav-link">
+                    <i th:if="${menu.icon}" th:class="'fas ' + ${menu.icon}"></i>
+                    [[${menu.name}]]
+                </a>
+            </th:block>
+            <span th:if="${isLoggedIn}" style="display:flex;align-items:center;gap:20px;">
+                <span style="opacity:.8;font-size:.9rem;" th:text="${username}"></span>
+                <form th:action="@{/logout}" method="post" style="display:inline;margin:0;">
+                    <button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;padding:0;">로그아웃</button>
+                </form>
+            </span>
+            <span th:if="${isLoggedIn == null or !isLoggedIn}">
+                <a href="/login" class="nav-link">로그인</a>
+            </span>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <div class="page-title">🤖 CS 자동화 센터</div>
+                <div class="page-subtitle">FAQ 기반 자동 답변 + AI 초안 생성으로 CS 업무를 자동화합니다.</div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon icon-purple"><i class="fas fa-comments"></i></div>
+                <div class="stat-info"><h3>전체 상담 건수</h3><div class="stat-value" id="statTotal">-</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon icon-orange"><i class="fas fa-clock"></i></div>
+                <div class="stat-info"><h3>대기 중</h3><div class="stat-value" id="statPending">-</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon icon-green"><i class="fas fa-robot"></i></div>
+                <div class="stat-info"><h3>자동 답변 완료</h3><div class="stat-value" id="statAuto">-</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon icon-blue"><i class="fas fa-book"></i></div>
+                <div class="stat-info"><h3>FAQ 등록 수</h3><div class="stat-value" id="statFaq">-</div></div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-conv" onclick="switchTab('conv')">
+                <i class="fas fa-comments"></i> 상담 내역
+            </button>
+            <button class="tab-btn" id="tab-faq" onclick="switchTab('faq')">
+                <i class="fas fa-book"></i> FAQ 관리
+            </button>
+            <button class="tab-btn" id="tab-sim" onclick="switchTab('sim')">
+                <i class="fas fa-flask"></i> 시뮬레이터
+            </button>
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- Tab 1: 상담 내역 -->
+        <!-- ===================================================== -->
+        <div class="tab-pane active" id="pane-conv">
+            <div class="split-layout">
+                <!-- 세션 목록 -->
+                <div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">상담 세션 목록</div>
+                            <button class="btn btn-ghost btn-sm" onclick="loadConversations()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+                        </div>
+                        <div class="filter-bar">
+                            <select id="convFilterStatus" onchange="loadConversations()">
+                                <option value="">전체 상태</option>
+                                <option value="PENDING">대기</option>
+                                <option value="PROCESSING">처리중</option>
+                                <option value="COMPLETED">완료</option>
+                            </select>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>세션 ID</th>
+                                        <th>채널</th>
+                                        <th>발신자</th>
+                                        <th>상태</th>
+                                        <th>생성일시</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="convTableBody">
+                                    <tr><td colspan="6" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 채팅 상세 -->
+                <div class="chat-panel">
+                    <div class="chat-header">
+                        <div>
+                            <div class="chat-title" id="chatTitle">상담 세션을 선택하세요</div>
+                            <div style="font-size:12px;color:#718096;margin-top:2px;" id="chatMeta"></div>
+                        </div>
+                        <span class="badge badge-pending" id="chatStatus" style="display:none;"></span>
+                    </div>
+                    <div class="chat-body" id="chatBody">
+                        <div class="chat-placeholder">
+                            <div style="font-size:48px;margin-bottom:12px;">💬</div>
+                            <div style="font-size:14px;">좌측에서 상담 세션을 클릭하면<br>메시지를 확인할 수 있습니다.</div>
+                        </div>
+                    </div>
+                    <div class="chat-footer" id="chatFooter" style="display:none;">
+                        <div style="font-size:12px;color:#718096;text-align:center;padding:4px 0;">
+                            💡 이 세션의 메시지 히스토리입니다. 실제 발송은 TalkDream 연동 후 지원됩니다.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- Tab 2: FAQ 관리 -->
+        <!-- ===================================================== -->
+        <div class="tab-pane" id="pane-faq">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">FAQ 목록</div>
+                    <button class="btn btn-primary" onclick="openFaqModal()"><i class="fas fa-plus"></i> FAQ 등록</button>
+                </div>
+                <div class="filter-bar">
+                    <input type="text" id="faqSearch" placeholder="🔍 질문 / 태그 검색..." oninput="filterFaq()">
+                    <select id="faqFilterCat" onchange="filterFaq()">
+                        <option value="">전체 카테고리</option>
+                        <option>배정</option>
+                        <option>장애</option>
+                        <option>단순문의</option>
+                        <option>보안</option>
+                        <option>기타</option>
+                    </select>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>카테고리</th>
+                                <th>질문</th>
+                                <th>답변 미리보기</th>
+                                <th>태그</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="faqTableBody">
+                            <tr><td colspan="6" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================== -->
+        <!-- Tab 3: 시뮬레이터 -->
+        <!-- ===================================================== -->
+        <div class="tab-pane" id="pane-sim">
+            <div class="split-layout">
+                <div class="sim-panel">
+                    <div class="sim-header">
+                        <div style="font-size:16px;font-weight:700;color:#2d3748;">🧪 문의 시뮬레이터</div>
+                        <div style="font-size:13px;color:#718096;margin-top:4px;">실제 카카오톡/이메일 없이 봇 처리 흐름 전체를 테스트합니다.</div>
+                    </div>
+                    <div class="sim-body">
+                        <form onsubmit="runSimulation(event)">
+                            <div class="form-group">
+                                <label class="form-label">채널 (수신 경로) <span class="required">*</span></label>
+                                <select id="sim_source" class="form-control" required>
+                                    <option value="EMAIL">📧 EMAIL</option>
+                                    <option value="TALKDREAM">💬 TALKDREAM (카카오 알림톡)</option>
+                                    <option value="PORTAL">🌐 PORTAL (포탈 1:1 문의)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">발신자 ID (이메일 or 유저 ID) <span class="required">*</span></label>
+                                <input id="sim_externalId" class="form-control" type="text" placeholder="예: customer@example.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">문의 내용 <span class="required">*</span></label>
+                                <textarea id="sim_content" class="form-control" rows="6" placeholder="예: 배정이 언제 나오나요? 처리가 너무 늦는 것 같습니다." required></textarea>
+                                <div class="form-hint">FAQ에 등록된 키워드가 포함되면 자동 답변, 없으면 AI 초안이 생성됩니다.</div>
+                            </div>
+                            <div style="display:flex;gap:10px;">
+                                <button type="submit" class="btn btn-ai" id="simBtn">
+                                    <div class="spinner" id="simSpinner"></div>
+                                    <i class="fas fa-paper-plane" id="simIcon"></i>
+                                    <span id="simBtnTxt">문의 전송 & AI 처리</span>
+                                </button>
+                                <button type="button" class="btn btn-ghost" onclick="clearSimResult()">초기화</button>
+                            </div>
+                        </form>
+
+                        <div class="result-box" id="simResult">
+                            <div class="result-title" id="simResultTitle"></div>
+                            <div class="result-content" id="simResultContent"></div>
+                            <div style="margin-top:12px;font-size:12px;color:#6b7280;" id="simResultMeta"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 처리 흐름 설명 -->
+                <div>
+                    <div class="panel" style="padding:24px;">
+                        <div style="font-size:16px;font-weight:700;color:#2d3748;margin-bottom:20px;">⚙️ 처리 흐름</div>
+                        <div style="display:flex;flex-direction:column;gap:16px;">
+                            <div style="display:flex;gap:14px;align-items:flex-start;">
+                                <div style="width:32px;height:32px;border-radius:50%;background:#f3e8ff;color:#9333ea;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">1</div>
+                                <div>
+                                    <div style="font-weight:600;font-size:14px;color:#2d3748;">문의 유입 & RAW 저장</div>
+                                    <div style="font-size:13px;color:#718096;margin-top:2px;">원본 데이터를 cs_inbound_data 테이블에 즉시 저장 (감사 추적)</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:14px;align-items:flex-start;">
+                                <div style="width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#2563eb;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">2</div>
+                                <div>
+                                    <div style="font-weight:600;font-size:14px;color:#2d3748;">상담 세션 생성/재사용</div>
+                                    <div style="font-size:13px;color:#718096;margin-top:2px;">발신자 ID 기준으로 열린 세션이 있으면 이어서, 없으면 신규 세션 생성</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:14px;align-items:flex-start;">
+                                <div style="width:32px;height:32px;border-radius:50%;background:#dcfce7;color:#16a34a;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">3</div>
+                                <div>
+                                    <div style="font-weight:600;font-size:14px;color:#2d3748;">FAQ 키워드 매칭</div>
+                                    <div style="font-size:13px;color:#718096;margin-top:2px;">질문 내용을 FAQ 테이블과 비교. 매칭 시 즉시 자동 답변 (AUTO_REPLIED)</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:14px;align-items:flex-start;">
+                                <div style="width:32px;height:32px;border-radius:50%;background:#fef3c7;color:#92400e;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">4</div>
+                                <div>
+                                    <div style="font-weight:600;font-size:14px;color:#2d3748;">OpenAI RAG 초안 생성</div>
+                                    <div style="font-size:13px;color:#718096;margin-top:2px;">FAQ 미매칭 시 FAQ 데이터를 컨텍스트로 주입하여 AI가 답변 초안 작성 (DRAFT_CREATED)</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:14px;align-items:flex-start;">
+                                <div style="width:32px;height:32px;border-radius:50%;background:#fee2e2;color:#991b1b;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">5</div>
+                                <div>
+                                    <div style="font-weight:600;font-size:14px;color:#2d3748;">SSE 알림</div>
+                                    <div style="font-size:13px;color:#718096;margin-top:2px;">모든 관리자 화면에 CS_EVENT로 실시간 푸시 알림 전송</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 빠른 FAQ 샘플 -->
+                    <div class="panel" style="padding:24px;">
+                        <div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:12px;">💡 테스트용 샘플 질문</div>
+                        <div style="display:flex;flex-direction:column;gap:8px;" id="simSamples">
+                            <div style="font-size:13px;color:#718096;">FAQ를 먼저 등록하면 샘플이 나타납니다.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /container -->
+
+    <!-- ===================================================== -->
+    <!-- FAQ 등록/수정 모달 -->
+    <!-- ===================================================== -->
+    <div class="modal-overlay" id="faqModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeFaqModal()">✕</button>
+            <h2 id="faqModalTitle">📚 FAQ 등록</h2>
+            <form id="faqForm" onsubmit="submitFaq(event)">
+                <input type="hidden" id="faqEditId">
+                <div class="form-group">
+                    <label class="form-label">카테고리 <span class="required">*</span></label>
+                    <select class="form-control" id="faq_category" required>
+                        <option value="">선택하세요</option>
+                        <option>배정</option>
+                        <option>장애</option>
+                        <option>단순문의</option>
+                        <option>보안</option>
+                        <option>기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">질문 <span class="required">*</span></label>
+                    <input id="faq_question" class="form-control" type="text" placeholder="예: 배정이 언제 되나요?" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">답변 <span class="required">*</span></label>
+                    <textarea id="faq_answer" class="form-control" rows="5" placeholder="고객에게 전달할 답변을 작성하세요." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">검색 태그 (쉼표 구분)</label>
+                    <input id="faq_tags" class="form-control" type="text" placeholder="배정,처리,이메일,기간">
+                    <div class="form-hint">이 태그를 통해 봇이 FAQ를 검색합니다. 핵심 키워드를 최대한 많이 입력하세요.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="closeFaqModal()">취소</button>
+                    <button type="submit" class="btn btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // =====================================================
+        // Utility
+        // =====================================================
+        function showToast(msg, type='success') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `toast ${type} show`;
+            setTimeout(() => t.className = 'toast', 3000);
+        }
+
+        function switchTab(name) {
+            ['conv','faq','sim'].forEach(n => {
+                document.getElementById('tab-' + n).classList.toggle('active', n === name);
+                document.getElementById('pane-' + n).classList.toggle('active', n === name);
+            });
+            if (name === 'conv') loadConversations();
+            if (name === 'faq') loadFaqs();
+            if (name === 'sim') loadSimSamples();
+        }
+
+        function fmtDate(dt) {
+            if (!dt) return '-';
+            const d = new Date(dt);
+            return d.toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        }
+
+        function statusBadge(s) {
+            const map = { PENDING:'badge-pending PENDING 대기', PROCESSING:'badge-processing PROCESSING 처리중', COMPLETED:'badge-completed COMPLETED 완료' };
+            const parts = (map[s] || 'badge-pending ' + s + ' ' + s).split(' ');
+            return `<span class="badge ${parts[0]}">${parts[2]}</span>`;
+        }
+
+        function channelIcon(ch) {
+            const map = { EMAIL:'📧', TALKDREAM:'💬', PORTAL:'🌐' };
+            return (map[ch] || '📨') + ' ' + ch;
+        }
+
+        // =====================================================
+        // Stats
+        // =====================================================
+        async function loadStats() {
+            try {
+                const convs = await fetch('/api/cs/conversations').then(r => r.json());
+                document.getElementById('statTotal').textContent = convs.length;
+                document.getElementById('statPending').textContent = convs.filter(c => c.status === 'PENDING').length;
+                document.getElementById('statAuto').textContent = convs.filter(c => c.status === 'COMPLETED').length;
+            } catch(e) {}
+            try {
+                const faqs = await fetch('/api/cs/faq').then(r => r.json());
+                document.getElementById('statFaq').textContent = faqs.length;
+            } catch(e) {}
+        }
+
+        // =====================================================
+        // Tab 1: 상담 내역
+        // =====================================================
+        let allConvs = [];
+
+        async function loadConversations() {
+            const tbody = document.getElementById('convTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>';
+            try {
+                const data = await fetch('/api/cs/conversations').then(r => r.json());
+                allConvs = Array.isArray(data) ? data : [];
+                renderConvTable(allConvs);
+                loadStats();
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">❌</div>불러오기 실패</td></tr>';
+            }
+        }
+
+        function renderConvTable(list) {
+            const tbody = document.getElementById('convTableBody');
+            const filter = document.getElementById('convFilterStatus').value;
+            const filtered = filter ? list.filter(c => c.status === filter) : list;
+            if (!filtered.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">💬</div>상담 내역이 없습니다</td></tr>';
+                return;
+            }
+            tbody.innerHTML = filtered.map((c, i) => `
+                <tr style="cursor:pointer;" onclick="loadMessages('${c.csConvId}', '${c.externalId}', '${c.channel}', '${c.status}')">
+                    <td style="font-size:11px;color:#a0aec0;">${c.csConvId}</td>
+                    <td>${channelIcon(c.channel)}</td>
+                    <td style="font-weight:600;">${c.externalId}</td>
+                    <td>${statusBadge(c.status)}</td>
+                    <td style="font-size:12px;color:#718096;">${fmtDate(c.createdAt)}</td>
+                    <td>
+                        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();loadMessages('${c.csConvId}','${c.externalId}','${c.channel}','${c.status}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadMessages(convId, externalId, channel, status) {
+            document.getElementById('chatTitle').textContent = externalId;
+            document.getElementById('chatMeta').textContent = `${channelIcon(channel)}  •  세션 ID: ${convId}`;
+            const statusEl = document.getElementById('chatStatus');
+            statusEl.style.display = '';
+            statusEl.className = 'badge ' + (status === 'COMPLETED' ? 'badge-completed' : status === 'PROCESSING' ? 'badge-processing' : 'badge-pending');
+            statusEl.textContent = status === 'COMPLETED' ? '완료' : status === 'PROCESSING' ? '처리중' : '대기';
+
+            document.getElementById('chatBody').innerHTML = '<div style="text-align:center;padding:40px;color:#a0aec0;">메시지 불러오는 중...</div>';
+            document.getElementById('chatFooter').style.display = '';
+
+            try {
+                const msgs = await fetch(`/api/cs/conversations/${convId}/messages`).then(r => r.json());
+                if (!msgs.length) {
+                    document.getElementById('chatBody').innerHTML = '<div class="chat-placeholder"><div style="font-size:48px;margin-bottom:12px;">😶</div>메시지가 없습니다.</div>';
+                    return;
+                }
+                document.getElementById('chatBody').innerHTML = msgs.map(m => {
+                    const cls = m.senderType === 'USER' ? 'user' : (m.senderType === 'ADMIN' ? 'admin' : 'bot');
+                    const label = m.senderType === 'USER' ? '고객' : (m.senderType === 'ADMIN' ? '상담사' : 'AI 봇');
+                    const draftBadge = m.draft ? '<span class="msg-draft-badge">초안</span>' : '';
+                    return `
+                        <div class="msg-row ${cls}">
+                            <div>
+                                <div class="msg-label">${label} · ${fmtDate(m.createdAt)}${draftBadge}</div>
+                                <div class="msg-bubble">${m.content.replace(/\n/g, '<br>')}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                // 스크롤 아래로
+                const body = document.getElementById('chatBody');
+                body.scrollTop = body.scrollHeight;
+            } catch(e) {
+                document.getElementById('chatBody').innerHTML = '<div class="chat-placeholder">❌ 메시지를 불러오지 못했습니다.</div>';
+            }
+        }
+
+        // =====================================================
+        // Tab 2: FAQ 관리
+        // =====================================================
+        let allFaqs = [];
+
+        async function loadFaqs() {
+            const tbody = document.getElementById('faqTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>';
+            try {
+                allFaqs = await fetch('/api/cs/faq').then(r => r.json());
+                renderFaqTable(allFaqs);
+                loadStats();
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">❌</div>불러오기 실패</td></tr>';
+            }
+        }
+
+        function renderFaqTable(list) {
+            const tbody = document.getElementById('faqTableBody');
+            if (!list.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">📭</div>등록된 FAQ가 없습니다<br><small style="margin-top:8px;display:block;">상단 버튼으로 FAQ를 등록해보세요!</small></td></tr>';
+                return;
+            }
+            tbody.innerHTML = list.map((f, i) => {
+                const tags = f.tags ? f.tags.split(',').map(t => `<span class="badge" style="background:#f3e8ff;color:#7e22ce;font-size:11px;">${t.trim()}</span>`).join(' ') : '-';
+                return `
+                    <tr>
+                        <td style="color:#a0aec0;font-size:12px;">${i+1}</td>
+                        <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">${f.category}</span></td>
+                        <td style="font-weight:600;max-width:240px;">${f.question}</td>
+                        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#718096;">${f.answer}</td>
+                        <td>${tags}</td>
+                        <td class="actions">
+                            <button class="btn btn-ghost btn-sm" onclick="openFaqModal('${f.csFaqId}')"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteFaq('${f.csFaqId}','${f.question.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterFaq() {
+            const q = document.getElementById('faqSearch').value.toLowerCase();
+            const cat = document.getElementById('faqFilterCat').value;
+            renderFaqTable(allFaqs.filter(f =>
+                (!q || f.question.toLowerCase().includes(q) || (f.tags||'').toLowerCase().includes(q)) &&
+                (!cat || f.category === cat)
+            ));
+        }
+
+        function openFaqModal(id = '') {
+            document.getElementById('faqEditId').value = id;
+            if (id) {
+                const faq = allFaqs.find(f => f.csFaqId === id);
+                if (faq) {
+                    document.getElementById('faqModalTitle').textContent = '✏️ FAQ 수정';
+                    document.getElementById('faq_category').value = faq.category;
+                    document.getElementById('faq_question').value = faq.question;
+                    document.getElementById('faq_answer').value = faq.answer;
+                    document.getElementById('faq_tags').value = faq.tags || '';
+                }
+            } else {
+                document.getElementById('faqModalTitle').textContent = '📚 FAQ 등록';
+                document.getElementById('faqForm').reset();
+            }
+            document.getElementById('faqModal').classList.add('open');
+        }
+        function closeFaqModal() { document.getElementById('faqModal').classList.remove('open'); }
+
+        async function submitFaq(e) {
+            e.preventDefault();
+            const id = document.getElementById('faqEditId').value;
+            const body = {
+                category: document.getElementById('faq_category').value,
+                question: document.getElementById('faq_question').value,
+                answer:   document.getElementById('faq_answer').value,
+                tags:     document.getElementById('faq_tags').value
+            };
+            const url = id ? `/api/cs/faq/${id}` : '/api/cs/faq';
+            const method = id ? 'PUT' : 'POST';
+            try {
+                const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                if (res.ok) {
+                    showToast(id ? 'FAQ가 수정되었습니다.' : 'FAQ가 등록되었습니다.');
+                    closeFaqModal();
+                    loadFaqs();
+                } else { showToast('저장에 실패했습니다.', 'error'); }
+            } catch (e) { showToast('서버 오류가 발생했습니다.', 'error'); }
+        }
+
+        async function deleteFaq(id, question) {
+            if (!confirm(`"${question}" FAQ를 삭제(비활성)하시겠습니까?`)) return;
+            const res = await fetch(`/api/cs/faq/${id}`, { method: 'DELETE' });
+            if (res.ok) { showToast('FAQ가 삭제되었습니다.'); loadFaqs(); }
+            else showToast('삭제에 실패했습니다.', 'error');
+        }
+
+        // =====================================================
+        // Tab 3: 시뮬레이터
+        // =====================================================
+        function loadSimSamples() {
+            if (!allFaqs.length) loadFaqs().then(renderSimSamples); else renderSimSamples();
+        }
+
+        function renderSimSamples() {
+            const container = document.getElementById('simSamples');
+            if (!allFaqs.length) {
+                container.innerHTML = '<div style="font-size:13px;color:#718096;">FAQ를 먼저 등록하면 샘플이 나타납니다.</div>';
+                return;
+            }
+            container.innerHTML = allFaqs.slice(0, 5).map(f => `
+                <button type="button" class="btn btn-ghost btn-sm" style="text-align:left;padding:8px 12px;border-radius:8px;"
+                    onclick="fillSim('${f.question.replace(/'/g, "\\'")}')">
+                    <i class="fas fa-chevron-right" style="font-size:10px;color:#6366f1;margin-right:4px;"></i>
+                    ${f.question}
+                </button>
+            `).join('');
+        }
+
+        function fillSim(q) {
+            document.getElementById('sim_content').value = q;
+        }
+
+        async function runSimulation(e) {
+            e.preventDefault();
+            const btn = document.getElementById('simBtn');
+            const spinner = document.getElementById('simSpinner');
+            const icon = document.getElementById('simIcon');
+            const txt = document.getElementById('simBtnTxt');
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            icon.style.display = 'none';
+            txt.textContent = '처리 중...';
+
+            const body = {
+                source: document.getElementById('sim_source').value,
+                externalId: document.getElementById('sim_externalId').value,
+                content: document.getElementById('sim_content').value
+            };
+
+            try {
+                const res = await fetch('/api/cs/simulate/inbound', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                displaySimResult(data);
+                loadStats();
+            } catch(err) {
+                document.getElementById('simResult').style.display = 'block';
+                document.getElementById('simResult').className = 'result-box result-escalated';
+                document.getElementById('simResultTitle').textContent = '❌ 서버 오류';
+                document.getElementById('simResultContent').textContent = err.message;
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                icon.style.display = '';
+                txt.textContent = '문의 전송 & AI 처리';
+            }
+        }
+
+        function displaySimResult(data) {
+            const box = document.getElementById('simResult');
+            const title = document.getElementById('simResultTitle');
+            const content = document.getElementById('simResultContent');
+            const meta = document.getElementById('simResultMeta');
+
+            box.style.display = 'block';
+            if (data.resultType === 'AUTO_REPLIED') {
+                box.className = 'result-box result-auto';
+                title.textContent = '✅ 자동 답변 완료 (FAQ 매칭)';
+            } else if (data.resultType === 'DRAFT_CREATED') {
+                box.className = 'result-box result-draft';
+                title.textContent = '🤖 AI 초안 생성 완료';
+            } else {
+                box.className = 'result-box result-escalated';
+                title.textContent = '🔔 상담사 배정됨 (AI 처리 실패)';
+            }
+
+            content.textContent = data.botReply || data.statusMessage || '응답 없음';
+            meta.textContent = `세션: ${data.conversationId}  |  FAQ매칭: ${data.faqMatched ? '✅' : '❌'}  |  AI처리: ${data.aiProcessed ? '✅' : '❌'}`;
+
+            // 상담 내역 탭 갱신
+            loadConversations();
+        }
+
+        function clearSimResult() {
+            document.getElementById('simResult').style.display = 'none';
+            document.getElementById('sim_content').value = '';
+        }
+
+        // =====================================================
+        // Init
+        // =====================================================
+        loadConversations();
+        loadStats();
+    </script>
+</body>
+</html>
