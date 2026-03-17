@@ -126,7 +126,7 @@ public class CsBotService {
 
                     log.info("[CS-BOT] Found {} relevant FAQs for context", faqs.size());
 
-                    String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
+                    String url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
                     String systemPrompt = "당신은 CS 상담사 지원 AI입니다. 아래 제공된 [참고 FAQ 데이터]를 바탕으로 사용자 질문에 대한 정확하고 친절한 답변 초안을 작성하세요.\n" +
                             "만약 제공된 데이터에 답이 없다면, 아는 선에서 정중히 답변하고 '상담사 확인이 필요합니다'라고 덧붙여주세요.\n\n" +
