@@ -184,6 +184,7 @@ public class ApiClient {
     
     public static class RegisterResponse {
         private String id;
+        @com.google.gson.annotations.SerializedName("agentRefId")
         private String agentId;
         private String status;
         private String apiKey;
