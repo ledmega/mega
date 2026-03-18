@@ -40,6 +40,16 @@ public class MenuService {
 
         return Flux.fromIterable(defaultMenus)
                 .flatMap(menu -> menuRepository.findByUrl(menu.getUrl())
+                        .flatMap(existing -> {
+                            // [SYNC] 이미 존재하는 메뉴라면 정렬 순서가 다를 때만 업데이트
+                            if (existing.getSortOrder() != menu.getSortOrder()) {
+                                log.info("메뉴 정렬 순서를 업데이트합니다: {} ({} -> {})", 
+                                        menu.getName(), existing.getSortOrder(), menu.getSortOrder());
+                                existing.setSortOrder(menu.getSortOrder());
+                                return menuRepository.save(existing);
+                            }
+                            return Mono.just(existing);
+                        })
                         .switchIfEmpty(Mono.defer(() -> {
                             log.info("누락된 메뉴를 추가합니다: {} ({})", menu.getName(), menu.getUrl());
                             return menuRepository.save(menu);
