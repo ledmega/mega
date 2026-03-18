@@ -12,6 +12,8 @@ public interface CsInboundDataRepository extends ReactiveCrudRepository<CsInboun
     
     Flux<CsInboundData> findBySource(String source);
     
+    Flux<CsInboundData> findAllByOrderByReceivedAtDesc();
+    
     @Query("SELECT * FROM cs_inbound_data WHERE raw_payload LIKE CONCAT('%', :keyword, '%') AND status = 'PROCESSED' LIMIT 10")
     Flux<CsInboundData> searchInbound(String keyword);
 }

@@ -238,11 +238,11 @@
                 <div class="stat-info"><h3>대기 중</h3><div class="stat-value" id="statPending">-</div></div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon icon-green"><i class="fas fa-robot"></i></div>
-                <div class="stat-info"><h3>자동 답변 완료</h3><div class="stat-value" id="statAuto">-</div></div>
+                <div class="stat-icon icon-blue"><i class="fas fa-database"></i></div>
+                <div class="stat-info"><h3>수집 데이터 수</h3><div class="stat-value" id="statInbound">-</div></div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon icon-blue"><i class="fas fa-book"></i></div>
+                <div class="stat-icon icon-purple"><i class="fas fa-book"></i></div>
                 <div class="stat-info"><h3>FAQ 등록 수</h3><div class="stat-value" id="statFaq">-</div></div>
             </div>
         </div>
@@ -251,6 +251,9 @@
         <div class="tabs">
             <button class="tab-btn active" id="tab-conv" onclick="switchTab('conv')">
                 <i class="fas fa-comments"></i> 상담 내역
+            </button>
+            <button class="tab-btn" id="tab-inbound" onclick="switchTab('inbound')">
+                <i class="fas fa-database"></i> 수집 데이터
             </button>
             <button class="tab-btn" id="tab-faq" onclick="switchTab('faq')">
                 <i class="fas fa-book"></i> FAQ 관리
@@ -464,7 +467,98 @@
                 </div>
             </div>
         </div>
+        <!-- ===================================================== -->
+        <!-- Tab 4: 수집 데이터 (EMAIL, REDMINE, ...) -->
+        <!-- ===================================================== -->
+        <div class="tab-pane" id="pane-inbound">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Inbound 데이터 수집 현황</div>
+                    <div class="actions">
+                        <button class="btn btn-ghost btn-sm" onclick="loadInboundData()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+                    </div>
+                </div>
+                <div class="filter-bar">
+                    <select id="inboundFilterSource" onchange="filterInbound()">
+                        <option value="">전체 출처</option>
+                        <option value="EMAIL">📧 EMAIL</option>
+                        <option value="REDMINE">🚩 REDMINE</option>
+                        <option value="TALKDREAM">💬 TALKDREAM</option>
+                    </select>
+                    <select id="inboundFilterStatus" onchange="filterInbound()">
+                        <option value="">전체 상태</option>
+                        <option value="RECEIVED">RECEIVED (대기)</option>
+                        <option value="PROCESSED">PROCESSED (완료)</option>
+                        <option value="FAILED">FAILED (실패)</option>
+                    </select>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>출처</th>
+                                <th>참조 ID (번호)</th>
+                                <th>상태</th>
+                                <th>수신시간</th>
+                                <th>처리시간</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inboundTableBody">
+                            <tr><td colspan="7" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div><!-- /container -->
+
+    <!-- Inbound 상세 모달 -->
+    <div class="modal-overlay" id="inboundModal">
+        <div class="modal" style="width: 800px;">
+            <button class="modal-close" onclick="closeInboundModal()">✕</button>
+            <h2>🚩 수집 데이터 상세 / 처리</h2>
+            <form id="inboundForm" onsubmit="submitInbound(event)">
+                <input type="hidden" id="inboundId">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">출처</label>
+                        <input id="inb_source" class="form-control" type="text" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">외부 참조 ID (번호)</label>
+                        <input id="inb_refId" class="form-control" type="text" placeholder="일감 번호 등">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">처리 상태 (RAG 학습 대상 여부)</label>
+                    <select id="inb_status" class="form-control">
+                        <option value="RECEIVED">RECEIVED (대기: RAG 미포함)</option>
+                        <option value="PROCESSED">PROCESSED (완료: RAG 학습 대상)</option>
+                        <option value="FAILED">FAILED (실패)</option>
+                    </select>
+                    <div class="form-hint">상태가 <b>PROCESSED</b> 여야만 AI가 답변 생성 시 이 사례를 참고합니다.</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">원본 문의 내용 (raw_payload)</label>
+                    <textarea id="inb_raw" class="form-control" rows="5"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">최종 답변/해결 내용 (resolved_payload)</label>
+                    <textarea id="inb_resolved" class="form-control" rows="5" placeholder="실제 발송된 최종 답변 내용을 입력하세요."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">상세 처리 히스토리 (processing_history - 계층 구조)</label>
+                    <textarea id="inb_history" class="form-control" rows="6" placeholder="[날짜] 상담사명: 답변내용... 등의 형태로 스레드를 기록하세요."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="closeInboundModal()">취소</button>
+                    <button type="submit" class="btn btn-primary">수정 저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- ===================================================== -->
     <!-- FAQ 등록/수정 모달 -->
@@ -522,11 +616,12 @@
         }
 
         function switchTab(name) {
-            ['conv','faq','sim'].forEach(n => {
+            ['conv','inbound','faq','sim'].forEach(n => {
                 document.getElementById('tab-' + n).classList.toggle('active', n === name);
                 document.getElementById('pane-' + n).classList.toggle('active', n === name);
             });
             if (name === 'conv') loadConversations();
+            if (name === 'inbound') loadInboundData();
             if (name === 'faq') loadFaqs();
             if (name === 'sim') loadSimSamples();
         }
@@ -557,6 +652,10 @@
                 document.getElementById('statTotal').textContent = convs.length;
                 document.getElementById('statPending').textContent = convs.filter(c => c.status === 'PENDING').length;
                 document.getElementById('statAuto').textContent = convs.filter(c => c.status === 'COMPLETED').length;
+            } catch(e) {}
+            try {
+                const inbounds = await fetch('/api/cs/inbound').then(r => r.json());
+                document.getElementById('statInbound').textContent = inbounds.length;
             } catch(e) {}
             try {
                 const faqs = await fetch('/api/cs/faq').then(r => r.json());
@@ -739,6 +838,113 @@
             const res = await fetch(`/api/cs/faq/${id}`, { method: 'DELETE' });
             if (res.ok) { showToast('FAQ가 삭제되었습니다.'); loadFaqs(); }
             else showToast('삭제에 실패했습니다.', 'error');
+        }
+
+        // =====================================================
+        // Tab 4: 수집 데이터 관리
+        // =====================================================
+        let allInbounds = [];
+
+        async function loadInboundData() {
+            const tbody = document.getElementById('inboundTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>';
+            try {
+                allInbounds = await fetch('/api/cs/inbound').then(r => r.json());
+                renderInboundTable(allInbounds);
+                loadStats();
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">❌</div>불러오기 실패</td></tr>';
+            }
+        }
+
+        function renderInboundTable(list) {
+            const tbody = document.getElementById('inboundTableBody');
+            if (!list.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">📭</div>수집된 데이터가 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = list.map((inb, i) => `
+                <tr>
+                    <td style="color:#a0aec0;font-size:11px;">${inb.csInboundId}</td>
+                    <td>${channelIcon(inb.source)}</td>
+                    <td style="font-weight:600;">${inb.externalRefId || '-'}</td>
+                    <td><span class="badge ${inb.status === 'PROCESSED' ? 'badge-completed' : (inb.status === 'FAILED' ? 'badge-escalated' : 'badge-pending')}">${inb.status}</span></td>
+                    <td style="font-size:12px;color:#718096;">${fmtDate(inb.receivedAt)}</td>
+                    <td style="font-size:12px;color:#718096;">${fmtDate(inb.processedAt)}</td>
+                    <td>
+                        <button class="btn btn-ghost btn-sm" onclick="openInboundModal('${inb.csInboundId}')">상세/수정</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterInbound() {
+            const src = document.getElementById('inboundFilterSource').value;
+            const stat = document.getElementById('inboundFilterStatus').value;
+            renderInboundTable(allInbounds.filter(inb => 
+                (!src || inb.source === src) && (!stat || inb.status === stat)
+            ));
+        }
+
+        async function openInboundModal(id) {
+            try {
+                const inb = await fetch(`/api/cs/inbound/${id}`).then(r => r.json());
+                document.getElementById('inboundId').value = id;
+                document.getElementById('inb_source').value = inb.source;
+                document.getElementById('inb_refId').value = inb.externalRefId || '';
+                document.getElementById('inb_status').value = inb.status;
+                document.getElementById('inb_raw').value = inb.rawPayload || '';
+                document.getElementById('inb_resolved').value = inb.resolvedPayload || '';
+                document.getElementById('inb_history').value = inb.processingHistory || '';
+                
+                document.getElementById('inboundModal').classList.add('open');
+            } catch(e) {
+                showToast('데이터를 불러오지 못했습니다.', 'error');
+            }
+        }
+
+        function closeInboundModal() {
+            document.getElementById('inboundModal').classList.remove('open');
+        }
+
+        async function submitInbound(e) {
+            e.preventDefault();
+            const id = document.getElementById('inboundId').value;
+            const body = {
+                externalRefId: document.getElementById('inb_refId').value,
+                status: document.getElementById('inb_status').value,
+                rawPayload: document.getElementById('inb_raw').value,
+                resolved_payload: document.getElementById('inb_resolved').value,
+                processing_history: document.getElementById('inb_history').value
+            };
+            // Note: API Controller mapping uses getResolvedPayload() etc.
+            // But JSON keys should match the updated field names in RequestBody if mapped.
+            // Wait, InboundApiController uses CsInboundData which has camelCase fields with @Column.
+            // Spring Jackson by default uses field names.
+            const camelBody = {
+                externalRefId: body.externalRefId,
+                status: body.status,
+                rawPayload: body.rawPayload,
+                resolvedPayload: body.resolved_payload,
+                processingHistory: body.processing_history
+            };
+
+            try {
+                const res = await fetch(`/api/cs/inbound/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(camelBody)
+                });
+                if (res.ok) {
+                    showToast('데이터가 저장되었습니다. (RAG 반영 준비 완료)');
+                    closeInboundModal();
+                    loadInboundData();
+                } else {
+                    showToast('저장에 실패했습니다.', 'error');
+                }
+            } catch(e) {
+                showToast('서버 오류 발생', 'error');
+            }
         }
 
         // =====================================================
