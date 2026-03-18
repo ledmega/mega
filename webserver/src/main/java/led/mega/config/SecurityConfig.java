@@ -78,9 +78,8 @@ public class SecurityConfig {
                         "/api/exceptions/recent",
                         "/api/agents").permitAll()
                 .pathMatchers("/api/agents/register").permitAll()
-                .pathMatchers("/api/cs/**").authenticated()
+                .pathMatchers("/cs/**", "/api/cs/**").permitAll()
                 .pathMatchers("/api/**").authenticated()
-                .pathMatchers("/cs/**").authenticated()
                 .anyExchange().authenticated()
             )
             // [CHANGED] .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)

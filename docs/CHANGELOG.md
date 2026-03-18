@@ -1,5 +1,18 @@
 # MEGA Project - Changelog
 
+## 2026-03-18 - CS AI 고도화 및 접근 편의성 개선
+
+### ⚡ 성능 및 안정성 최적화
+* **AI API 연동 견고화**: `WebClient` 기반 비동기 통신에 **전용 타임아웃(60s)** 및 **Exponential Backoff 재시도 로직**(503 에러 대응) 적용.
+* **로그 분리 완료**: `mega-cs-ai.log` 파일을 통해 AI 추론 및 CS 비즈니스 로직 로그를 독립적으로 모니터링 가능.
+
+### 🍱 데이터 및 활용성 개선
+* **FAQ 샘플 데이터 확보**: LG CNS 톡드림 브랜드 FAQ(24건)를 추출하여 `cs_faq` 테이블 인서트 스크립트 구축.
+* **접근성 최적화**: 포트폴리오 시현 및 MINI PC 환경에서의 원활한 확인을 위해 **CS 자동화 메뉴 및 API를 비인증(permitAll) 상태로 전환**.
+* **문서 현행화**: `CS_AI_DEVELOPMENT_GUIDE.md`에 최신 구현 사양(Retry, Timeout, Logging) 업데이트.
+
+---
+
 ## 2026-03-17 - CS AI 자동화 시스템 구축 및 버그 수정
 
 ### 🤖 신규: CS 자동화 시스템 (AI 고객 상담 자동화)
