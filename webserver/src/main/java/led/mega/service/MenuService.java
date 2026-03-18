@@ -30,10 +30,10 @@ public class MenuService {
     public Mono<Void> initMenus() {
         List<Menu> defaultMenus = new ArrayList<>();
         defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("홈").url("/dashboard").icon("fa-home").sortOrder(1).build());
-        defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("에이전트").url("/agents").icon("fa-server").sortOrder(2).build());
-        defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("배치 스케줄러").url("/scheduler").icon("fa-clock").sortOrder(3).build());
-        defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("서비스 관리").url("/services").icon("fa-cogs").sortOrder(4).build());
-        defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("CS 자동화").url("/cs/dashboard").icon("fa-robot").sortOrder(5).build());
+        defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("CS 자동화").url("/cs/dashboard").icon("fa-robot").sortOrder(2).build());
+        defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("에이전트").url("/agents").icon("fa-server").sortOrder(3).build());
+        defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("배치 스케줄러").url("/scheduler").icon("fa-clock").sortOrder(4).build());
+        defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("서비스 관리").url("/services").icon("fa-cogs").sortOrder(5).build());
         defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("사용자 관리").url("/members").icon("fa-users").sortOrder(6).requiredRole("ROLE_ADMIN").build());
         defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("권한 관리").url("/authority").icon("fa-user-shield").sortOrder(7).requiredRole("ROLE_ADMIN").build());
         defaultMenus.add(Menu.builder().menuId(IdGenerator.generate(IdGenerator.MENU)).isNew(true).name("메뉴 관리").url("/menu").icon("fa-bars").sortOrder(8).requiredRole("ROLE_ADMIN").build());
