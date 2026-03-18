@@ -1,0 +1,10 @@
+led.mega:mega:jar:1.0.0
++- org.springframework.boot:spring-boot-starter-webflux:jar:3.2.4:compile
+|  +- org.springframework.boot:spring-boot-starter:jar:3.2.4:compile
+|  |  +- org.springframework.boot:spring-boot-starter-logging:jar:3.2.4:compile
+|  |  |  +- ch.qos.logback:logback-classic:jar:1.4.14:compile
+|  +- org.springframework:spring-webflux:jar:6.1.5:compile
++- org.springframework.data:spring-data-r2dbc:jar:3.2.4:compile
++- org.mariadb.jdbc:mariadb-java-client:jar:3.3.3:compile
++- org.projectlombok:lombok:jar:1.18.30:provided
++- com.google.code.gson:gson:jar:2.10.1:compile

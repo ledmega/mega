@@ -1,0 +1,8 @@
+Timestamp,Endpoint,Method,Status,Latency_ms,Client_ID
+2024-03-26 12:00:01,/api/v1/metrics,POST,200,45.2,CUST-99
+2024-03-26 12:05:15,/api/v1/metrics,POST,429,12.0,CUST-99
+2024-03-26 12:10:33,/api/v1/metrics,POST,429,10.1,CUST-99
+2024-03-26 12:15:42,/api/v1/metrics,POST,200,38.5,CUST-99
+2024-03-26 12:20:55,/api/v1/metrics,POST,200,41.2,CUST-99
+2024-03-26 12:25:11,/api/v1/metrics,POST,200,39.8,CUST-102
+2024-03-26 12:30:04,/api/v1/metrics,POST,200,44.7,CUST-102

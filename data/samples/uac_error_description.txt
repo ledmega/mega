@@ -1,0 +1,7 @@
+[UAC Security Alert]
+The application 'MEGA Agent' is attempting to perform a system-level file system operation in 'C:\Program Files\'.
+Error Code: 0x80070005 (Access is denied)
+Current User Context: ADM-USER-01 (Non-Elevated)
+Recommended Action: Please run the process with 'Administrator' privileges.
+Environment: Windows 10/11 Enterprise
+Policy: LOCAL_SECURITY_LEVEL_3
