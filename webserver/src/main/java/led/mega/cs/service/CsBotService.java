@@ -112,12 +112,10 @@ public class CsBotService {
                         .faqMatched(true).build());
     }
 
-    private Mono<CsBotResponseDto> handleAiDraft(CsConversation conversation, String question) {
-        log.info("[CS-BOT] RAG-based AI Draft Start: convId={}", conversation.getCsConvId());
-
+    public Mono<String> generateAiSolution(String question) {
+        log.info("[CS-BOT] AI Solution Generation Start: question={}", question);
         String searchKeyword = question.substring(0, Math.min(question.length(), 10));
 
-        // 1. 관련 FAQ 검색 & 2. 과거 처리 내역(Redmine/Email 등) 검색
         return Mono.zip(
                 faqRepository.searchFaq(searchKeyword).take(5).collectList(),
                 inboundDataRepository.searchInbound(searchKeyword).take(5).collectList()
@@ -126,24 +124,20 @@ public class CsBotService {
             List<CsInboundData> inbounds = tuple.getT2();
 
             StringBuilder contextBuilder = new StringBuilder();
-            
             if (!faqs.isEmpty()) {
                 contextBuilder.append("[공식 FAQ 데이터]\n");
                 for (CsFaq f : faqs) {
                     contextBuilder.append(String.format("질문: %s\n답변: %s\n---\n", f.getQuestion(), f.getAnswer()));
                 }
             }
-
             if (!inbounds.isEmpty()) {
-                contextBuilder.append("\n[과거 상담/처리 상세 히스토리 (Redmine 일감/Email 스레드 등)]\n");
+                contextBuilder.append("\n[과거 상담/처리 상세 히스토리]\n");
                 for (CsInboundData inb : inbounds) {
                     contextBuilder.append(String.format("### [사례: %s]\n", inb.getExternalRefId()));
                     contextBuilder.append(String.format("- 최초 문의 내용: %s\n", inb.getRawPayload()));
-                    
                     if (inb.getProcessingHistory() != null && !inb.getProcessingHistory().isBlank()) {
                         contextBuilder.append("- 처리 및 대화 이력:\n").append(inb.getProcessingHistory()).append("\n");
                     }
-                    
                     if (inb.getResolvedPayload() != null && !inb.getResolvedPayload().isBlank()) {
                         contextBuilder.append(String.format("- 최종 해결 내용: %s\n", inb.getResolvedPayload()));
                     }
@@ -151,59 +145,52 @@ public class CsBotService {
                 }
             }
 
-            String contextText = contextBuilder.toString();
-            log.info("[CS-BOT] Context prepared: FAQ {}건, 계층형 히스토리 {}건", faqs.size(), inbounds.size());
+            String systemPrompt = "당신은 CS 상담 시스템 AI 지원 엔진입니다. 제공된 데이터(FAQ, 과거 이력)를 참고하여 답변 초안을 작성하세요.\n" +
+                    "1. 공식 FAQ 우선. 2. 과거 히스토리의 해결 흐름 참고. 3. 답변하기 모호하면 상담사 개입 권유.\n\n" +
+                    "[참고 지식 베이스]\n" + (contextBuilder.length() == 0 ? "관련 정보 없음" : contextBuilder.toString());
 
-            String systemPrompt = "당신은 CS 상담 시스템 AI 지원 대시보드입니다. 아래 제공된 [공식 FAQ 데이터]와 [과거 상담/처리 상세 히스토리]를 종합적으로 참고하여 최적의 답변 초안을 작성하세요.\n" +
-                    "1. [공식 FAQ]는 최신 표준이므로 가장 높은 우선순위로 참고하세요.\n" +
-                    "2. [과거 상담/처리 상세 히스토리]에는 레드마인 일감의 댓글이나 이메일 스레드처럼 '질문-답변-추가문의'의 흐름이 계층적으로 포함되어 있습니다.\n" +
-                    "   - 대화의 순서와 처리 상태의 변화를 파악하여, 최종적으로 어떻게 문제가 해결되었는지를 중심으로 교훈을 얻으세요.\n" +
-                    "   - 이전에 비슷한 상황에서 상담사가 어떤 톤과 내용으로 답변했는지 참고하되, 현재 상황에 맞게 다듬으세요.\n" +
-                    "3. 정보가 부족하다면 추측하지 말고 '상담사가 상세 내용을 확인 중'임을 안내하고 조언만 덧붙이세요.\n\n" +
-                    "[참고 지식 베이스]\n" + (contextText.isEmpty() ? "관련 정보 없음" : contextText);
+            String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
+            Map<String, Object> requestBody = Map.of(
+                "model", "gemini-flash-latest",
+                "messages", List.of(
+                    Map.of("role", "system", "content", systemPrompt),
+                    Map.of("role", "user", "content", question)
+                )
+            );
 
-                    String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
+            if (apiKey == null || apiKey.isEmpty()) {
+                log.error("[CS-BOT] API Key is missing! .env 파일이나 환경변수(GEMINI_API_KEY)를 확인해주세요.");
+                return Mono.error(new RuntimeException("GEMINI_API_KEY is not set"));
+            }
 
-                    Map<String, Object> requestBody = Map.of(
-                        "model", "gemini-flash-latest",
-                        "messages", List.of(
-                            Map.of("role", "system", "content", systemPrompt),
-                            Map.of("role", "user", "content", question)
-                        )
-                    );
+            log.info("[CS-BOT] Gemini OpenAI-Compatible API Call start... (model: gemini-flash-latest)");
 
-                    if (apiKey == null || apiKey.isEmpty()) {
-                        log.error("[CS-BOT] API Key is missing! .env 파일이나 환경변수(GEMINI_API_KEY)를 확인해주세요.");
-                        return Mono.error(new RuntimeException("GEMINI_API_KEY is not set"));
-                    }
+            return webClientBuilder.build().post().uri(url)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("x-goog-api-key", apiKey)
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody).retrieve().bodyToMono(Map.class)
+                    .timeout(Duration.ofSeconds(60))
+                    .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                            .filter(t -> t instanceof org.springframework.web.reactive.function.client.WebClientResponseException &&
+                                    ((org.springframework.web.reactive.function.client.WebClientResponseException) t).getStatusCode().value() == 503))
+                    .map(response -> {
+                        if (response == null || !response.containsKey("choices")) {
+                            log.error("[CS-BOT] 부적절한 응답: {}", response);
+                            throw new RuntimeException("Invalid response from Gemini API");
+                        }
+                        List choices = (List) response.get("choices");
+                        Map firstChoice = (Map) choices.get(0);
+                        Map messageBody = (Map) firstChoice.get("message");
+                        return (String) messageBody.get("content");
+                    });
+        });
+    }
 
-                    log.info("[CS-BOT] Gemini OpenAI-Compatible API Call start... (model: gemini-flash-latest)");
+    private Mono<CsBotResponseDto> handleAiDraft(CsConversation conversation, String question) {
+        log.info("[CS-BOT] RAG-based AI Draft Start: convId={}", conversation.getCsConvId());
 
-                    return webClientBuilder.build()
-                            .post()
-                            .uri(url)
-                            .header("Authorization", "Bearer " + apiKey)
-                            .header("x-goog-api-key", apiKey)
-                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                            .bodyValue(requestBody)
-                            .retrieve()
-                            .bodyToMono(Map.class)
-                            .timeout(Duration.ofSeconds(60))
-                            .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2)) // 503 대비 최대 3회 재시도 (2초부터 지수 증가)
-                                    .filter(throwable -> throwable instanceof org.springframework.web.reactive.function.client.WebClientResponseException &&
-                                            ((org.springframework.web.reactive.function.client.WebClientResponseException) throwable).getStatusCode().value() == 503))
-                            .map(response -> {
-                                if (response == null || !response.containsKey("choices")) {
-                                    log.error("[CS-BOT] 부적절한 응답: {}", response);
-                                    throw new RuntimeException("Invalid response from Gemini API");
-                                }
-
-                                List choices = (List) response.get("choices");
-                                Map firstChoice = (Map) choices.get(0);
-                                Map message = (Map) firstChoice.get("message");
-                                return (String) message.get("content");
-                            });
-                })
+        return generateAiSolution(question)
                 .flatMap(aiDraft -> {
                     CsMessage draft = CsMessage.builder()
                             .csMsgId(IdGenerator.generate(IdGenerator.CS_MSG))

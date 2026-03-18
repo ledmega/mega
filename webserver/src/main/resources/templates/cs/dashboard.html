@@ -545,8 +545,16 @@
                     <textarea id="inb_raw" class="form-control" rows="5"></textarea>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">최종 답변/해결 내용 (resolved_payload)</label>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px;">
+                        <label class="form-label" style="margin-bottom: 0;">최종 답변/해결 내용 (resolved_payload)</label>
+                        <button type="button" class="btn btn-ai btn-sm" onclick="generateAiSolutionForInbound()">
+                            <i class="fas fa-magic"></i> AI 모범답변 생성
+                        </button>
+                    </div>
                     <textarea id="inb_resolved" class="form-control" rows="5" placeholder="실제 발송된 최종 답변 내용을 입력하세요."></textarea>
+                    <div id="aiLoader" style="display:none; font-size:12px; color:#9333ea; margin-top:4px;">
+                        <i class="fas fa-spinner fa-spin"></i> AI가 최적의 답변을 생성 중입니다...
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">상세 처리 히스토리 (processing_history - 계층 구조)</label>
@@ -905,6 +913,31 @@
 
         function closeInboundModal() {
             document.getElementById('inboundModal').classList.remove('open');
+        }
+
+        async function generateAiSolutionForInbound() {
+            const id = document.getElementById('inboundId').value;
+            const loader = document.getElementById('aiLoader');
+            const textarea = document.getElementById('inb_resolved');
+
+            if (!id) return;
+
+            loader.style.display = 'block';
+            textarea.placeholder = "AI 답변 생성 중...";
+
+            try {
+                const res = await fetch(`/api/cs/inbound/${id}/ai-solution`);
+                if (!res.ok) throw new Error('AI 호출 실패');
+                const data = await res.json();
+                textarea.value = data.solution;
+                showToast("AI 모범답변이 생성되었습니다.");
+            } catch (err) {
+                console.error(err);
+                showToast("AI 답변 생성 중 오류가 발생했습니다.", "error");
+            } finally {
+                loader.style.display = 'none';
+                textarea.placeholder = "실제 발송된 최종 답변 내용을 입력하세요.";
+            }
         }
 
         async function submitInbound(e) {

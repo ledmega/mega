@@ -2,6 +2,7 @@ package led.mega.cs.controller;
 
 import led.mega.entity.CsInboundData;
 import led.mega.repository.CsInboundDataRepository;
+import led.mega.cs.service.CsBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +10,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -17,6 +19,14 @@ import java.time.LocalDateTime;
 public class CsInboundApiController {
 
     private final CsInboundDataRepository inboundDataRepository;
+    private final CsBotService csBotService;
+
+    @GetMapping("/{id}/ai-solution")
+    public Mono<Map<String, String>> getAiSolution(@PathVariable String id) {
+        return inboundDataRepository.findById(id)
+                .flatMap(inbound -> csBotService.generateAiSolution(inbound.getRawPayload()))
+                .map(solution -> Map.of("solution", solution));
+    }
 
     @GetMapping
     public Flux<CsInboundData> getAllInboundData() {
