@@ -51,6 +51,7 @@ public class CsBotService {
                 .source(request.getSource())
                 .externalRefId(request.getExternalRefId())
                 .rawPayload(request.getContent())
+                .attachments(request.getAttachments())
                 .status("RECEIVED")
                 .receivedAt(LocalDateTime.now())
                 .isNew(true)

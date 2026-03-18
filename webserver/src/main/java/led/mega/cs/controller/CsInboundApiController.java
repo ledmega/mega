@@ -64,6 +64,7 @@ public class CsInboundApiController {
                     existing.setRawPayload(request.getRawPayload());
                     existing.setResolvedPayload(request.getResolvedPayload());
                     existing.setProcessingHistory(request.getProcessingHistory());
+                    existing.setAttachments(request.getAttachments());
                     existing.setExternalRefId(request.getExternalRefId());
                     existing.setProcessedAt(LocalDateTime.now());
                     existing.setNew(false);

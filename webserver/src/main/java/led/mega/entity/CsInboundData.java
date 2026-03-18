@@ -41,6 +41,8 @@ public class CsInboundData implements Persistable<String> {
     @Column("ai_suggestion")
     private String aiSuggestion; // AI 제안 답변 기록
 
+    private String attachments; // 첨부파일 목록 (JSON 또는 쉼표 구분 문자열)
+
     private String status; // RECEIVED, PROCESSED, FAILED
 
     @Column("error_message")

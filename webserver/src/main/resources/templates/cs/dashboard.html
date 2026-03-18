@@ -410,6 +410,11 @@
                                 <textarea id="sim_content" class="form-control" rows="6" placeholder="예: 배정이 언제 나오나요? 처리가 너무 늦는 것 같습니다." required></textarea>
                                 <div class="form-hint">FAQ에 등록된 키워드가 포함되면 자동 답변, 없으면 AI 초안이 생성됩니다.</div>
                             </div>
+                            <div class="form-group">
+                                <label class="form-label">첨부 파일 (파일명 시뮬레이션)</label>
+                                <input id="sim_attachments" class="form-control" type="text" placeholder="예: error_log.txt, screenshot.png">
+                                <div class="form-hint">여러 개일 경우 쉼표(,)로 구분하세요.</div>
+                            </div>
                             <div style="display:flex;gap:10px;">
                                 <button type="submit" class="btn btn-ai" id="simBtn">
                                     <div class="spinner" id="simSpinner"></div>
@@ -578,6 +583,10 @@
                 <div class="form-group">
                     <label class="form-label">상세 처리 히스토리 (processing_history - 계층 구조)</label>
                     <textarea id="inb_history" class="form-control" rows="6" placeholder="[날짜] 상담사명: 답변내용... 등의 형태로 스레드를 기록하세요."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-paperclip"></i> 첨부 파일 (attachments)</label>
+                    <input id="inb_attachments" class="form-control" type="text" placeholder="첨부파일 정보가 이곳에 표시됩니다.">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-ghost" onclick="closeInboundModal()">취소</button>
@@ -934,7 +943,7 @@
                 <tr>
                     <td style="color:#a0aec0;font-size:11px;">${inb.csInboundId}</td>
                     <td>${channelIcon(inb.source)}</td>
-                    <td style="font-weight:600;">${inb.externalRefId || '-'}</td>
+                    <td style="font-weight:600;">${inb.externalRefId || '-'} ${inb.attachments ? '<i class="fas fa-paperclip" title="첨부파일 있음" style="color:#6366f1;margin-left:4px;"></i>' : ''}</td>
                     <td><span class="badge ${inb.status === 'PROCESSED' ? 'badge-completed' : (inb.status === 'FAILED' ? 'badge-escalated' : 'badge-pending')}">${inb.status}</span></td>
                     <td style="font-size:12px;color:#718096;">${fmtDate(inb.receivedAt)}</td>
                     <td style="font-size:12px;color:#718096;">${fmtDate(inb.processedAt)}</td>
@@ -960,6 +969,7 @@
                 document.getElementById('inb_raw').value = inb.rawPayload || '';
                 document.getElementById('inb_resolved').value = inb.resolvedPayload || '';
                 document.getElementById('inb_history').value = inb.processingHistory || '';
+                document.getElementById('inb_attachments').value = inb.attachments || '';
                 
                 const aiBox = document.getElementById('aiSuggestionBox');
                 if (inb.aiSuggestion) {
@@ -1013,18 +1023,18 @@
                 rawPayload: document.getElementById('inb_raw').value,
                 resolvedPayload: document.getElementById('inb_resolved').value,
                 processingHistory: document.getElementById('inb_history').value,
-                aiSuggestion: document.getElementById('inb_ai_suggestion_display').textContent // Include AI suggestion if present
+                aiSuggestion: document.getElementById('inb_ai_suggestion').textContent,
+                attachments: document.getElementById('inb_attachments').value
             };
-            // Note: API Controller mapping uses getResolvedPayload() etc.
-            // But JSON keys should match the updated field names in RequestBody if mapped.
-            // Wait, InboundApiController uses CsInboundData which has camelCase fields with @Column.
+            
             const submitBody = {
                 externalRefId: body.externalRefId,
                 status: body.status,
                 rawPayload: body.rawPayload,
                 resolvedPayload: body.resolvedPayload,
                 processingHistory: body.processingHistory,
-                aiSuggestion: body.aiSuggestion
+                aiSuggestion: body.aiSuggestion,
+                attachments: body.attachments
             };
 
             try {
@@ -1085,7 +1095,8 @@
             const body = {
                 source: document.getElementById('sim_source').value,
                 externalId: document.getElementById('sim_externalId').value,
-                content: document.getElementById('sim_content').value
+                content: document.getElementById('sim_content').value,
+                attachments: document.getElementById('sim_attachments').value
             };
 
             try {

@@ -21,6 +21,9 @@ public class CsInboundRequestDto {
     /** 문의 본문 */
     private String content;
 
+    /** 첨부파일 목록 (메일 첨부파일명 등) */
+    private String attachments;
+
     /** 원본 JSON payload (웹훅 수신 시 그대로 저장) */
     private String rawPayload;
 }
