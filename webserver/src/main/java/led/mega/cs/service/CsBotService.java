@@ -135,21 +135,31 @@ public class CsBotService {
             }
 
             if (!inbounds.isEmpty()) {
-                contextBuilder.append("\n[과거 상담/처리 이력 (Redmine/Email 등)]\n");
+                contextBuilder.append("\n[과거 상담/처리 상세 히스토리 (Redmine 일감/Email 스레드 등)]\n");
                 for (CsInboundData inb : inbounds) {
-                    contextBuilder.append(String.format("문의 내용: %s\n최종 답변: %s\n---\n", 
-                            inb.getRawPayload(), 
-                            (inb.getResolvedPayload() != null ? inb.getResolvedPayload() : "내용 없음")));
+                    contextBuilder.append(String.format("### [사례: %s]\n", inb.getExternalRefId()));
+                    contextBuilder.append(String.format("- 최초 문의 내용: %s\n", inb.getRawPayload()));
+                    
+                    if (inb.getProcessingHistory() != null && !inb.getProcessingHistory().isBlank()) {
+                        contextBuilder.append("- 처리 및 대화 이력:\n").append(inb.getProcessingHistory()).append("\n");
+                    }
+                    
+                    if (inb.getResolvedPayload() != null && !inb.getResolvedPayload().isBlank()) {
+                        contextBuilder.append(String.format("- 최종 해결 내용: %s\n", inb.getResolvedPayload()));
+                    }
+                    contextBuilder.append("---\n");
                 }
             }
 
             String contextText = contextBuilder.toString();
-            log.info("[CS-BOT] Context prepared: FAQ {}건, 이력 {}건", faqs.size(), inbounds.size());
+            log.info("[CS-BOT] Context prepared: FAQ {}건, 계층형 히스토리 {}건", faqs.size(), inbounds.size());
 
-            String systemPrompt = "당신은 CS 상담 시스템 AI 지원 대시보드입니다. 아래 제공된 [공식 FAQ 데이터]와 [과거 상담/처리 이력]을 참고하여 답변 초안을 작성하세요.\n" +
-                    "1. 공식 FAQ에 내용이 있다면 그것을 우선적으로 참고하여 정확히 답변하세요.\n" +
-                    "2. 과거 이력을 참고할 때는 실제 성공적으로 처리된 사례인지를 판단하여 조심스럽게 인용하세요.\n" +
-                    "3. 데이터가 부족하여 정확한 답변이 어렵다면, 아는 범주 내에서 조언하되 반드시 '상담사를 통한 확인이 필요하다'는 점을 정중히 명시하세요.\n\n" +
+            String systemPrompt = "당신은 CS 상담 시스템 AI 지원 대시보드입니다. 아래 제공된 [공식 FAQ 데이터]와 [과거 상담/처리 상세 히스토리]를 종합적으로 참고하여 최적의 답변 초안을 작성하세요.\n" +
+                    "1. [공식 FAQ]는 최신 표준이므로 가장 높은 우선순위로 참고하세요.\n" +
+                    "2. [과거 상담/처리 상세 히스토리]에는 레드마인 일감의 댓글이나 이메일 스레드처럼 '질문-답변-추가문의'의 흐름이 계층적으로 포함되어 있습니다.\n" +
+                    "   - 대화의 순서와 처리 상태의 변화를 파악하여, 최종적으로 어떻게 문제가 해결되었는지를 중심으로 교훈을 얻으세요.\n" +
+                    "   - 이전에 비슷한 상황에서 상담사가 어떤 톤과 내용으로 답변했는지 참고하되, 현재 상황에 맞게 다듬으세요.\n" +
+                    "3. 정보가 부족하다면 추측하지 말고 '상담사가 상세 내용을 확인 중'임을 안내하고 조언만 덧붙이세요.\n\n" +
                     "[참고 지식 베이스]\n" + (contextText.isEmpty() ? "관련 정보 없음" : contextText);
 
                     String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
