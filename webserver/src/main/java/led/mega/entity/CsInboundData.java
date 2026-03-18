@@ -38,6 +38,9 @@ public class CsInboundData implements Persistable<String> {
     @Column("processing_history")
     private String processingHistory; // 처리 과정 이력
 
+    @Column("ai_suggestion")
+    private String aiSuggestion; // AI 제안 답변 기록
+
     private String status; // RECEIVED, PROCESSED, FAILED
 
     @Column("error_message")

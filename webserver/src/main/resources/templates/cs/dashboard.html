@@ -540,6 +540,10 @@
                     </select>
                     <div class="form-hint">상태가 <b>PROCESSED</b> 여야만 AI가 답변 생성 시 이 사례를 참고합니다.</div>
                 </div>
+                <div class="form-group" id="aiSuggestionBox" style="display:none; background:#f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                    <div style="font-size:12px; font-weight:700; color:#9333ea; margin-bottom:4px;"><i class="fas fa-robot"></i> AI 추천 기록</div>
+                    <div id="inb_ai_suggestion" style="font-size:13px; color:#4a5568; white-space: pre-wrap;"></div>
+                </div>
                 <div class="form-group">
                     <label class="form-label">원본 문의 내용 (raw_payload)</label>
                     <textarea id="inb_raw" class="form-control" rows="5"></textarea>
@@ -905,6 +909,14 @@
                 document.getElementById('inb_resolved').value = inb.resolvedPayload || '';
                 document.getElementById('inb_history').value = inb.processingHistory || '';
                 
+                const aiBox = document.getElementById('aiSuggestionBox');
+                if (inb.aiSuggestion) {
+                    aiBox.style.display = 'block';
+                    document.getElementById('inb_ai_suggestion').textContent = inb.aiSuggestion;
+                } else {
+                    aiBox.style.display = 'none';
+                }
+                
                 document.getElementById('inboundModal').classList.add('open');
             } catch(e) {
                 showToast('데이터를 불러오지 못했습니다.', 'error');
@@ -947,8 +959,9 @@
                 externalRefId: document.getElementById('inb_refId').value,
                 status: document.getElementById('inb_status').value,
                 rawPayload: document.getElementById('inb_raw').value,
-                resolved_payload: document.getElementById('inb_resolved').value,
-                processing_history: document.getElementById('inb_history').value
+                resolvedPayload: document.getElementById('inb_resolved').value,
+                processingHistory: document.getElementById('inb_history').value,
+                aiSuggestion: document.getElementById('inb_ai_suggestion_display').textContent // Include AI suggestion if present
             };
             // Note: API Controller mapping uses getResolvedPayload() etc.
             // But JSON keys should match the updated field names in RequestBody if mapped.

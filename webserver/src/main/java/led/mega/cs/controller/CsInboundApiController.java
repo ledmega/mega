@@ -24,7 +24,12 @@ public class CsInboundApiController {
     @GetMapping("/{id}/ai-solution")
     public Mono<Map<String, String>> getAiSolution(@PathVariable String id) {
         return inboundDataRepository.findById(id)
-                .flatMap(inbound -> csBotService.generateAiSolution(inbound.getRawPayload()))
+                .flatMap(inbound -> csBotService.generateAiSolution(inbound.getRawPayload())
+                        .flatMap(solution -> {
+                            inbound.setAiSuggestion(solution);
+                            inbound.setNew(false);
+                            return inboundDataRepository.save(inbound).thenReturn(solution);
+                        }))
                 .map(solution -> Map.of("solution", solution));
     }
 
