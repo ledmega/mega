@@ -5,12 +5,22 @@ import led.mega.repository.CsInboundDataRepository;
 import led.mega.cs.service.CsBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
+import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -22,6 +32,9 @@ public class CsInboundApiController {
 
     private final CsInboundDataRepository inboundDataRepository;
     private final CsBotService csBotService;
+
+    @Value("${mega.storage.path}")
+    private String storagePath;
 
     @GetMapping("/{id}/ai-solution")
     public Mono<Map<String, String>> getAiSolution(@PathVariable String id) {
@@ -75,5 +88,25 @@ public class CsInboundApiController {
     @DeleteMapping("/{id}")
     public Mono<Void> deleteInboundData(@PathVariable String id) {
         return inboundDataRepository.deleteById(id);
+    }
+
+    @GetMapping("/{id}/download")
+    public Mono<ResponseEntity<Resource>> downloadAttachment(@PathVariable String id, @RequestParam String filename) {
+        return Mono.fromCallable(() -> {
+            try {
+                Path path = Paths.get(storagePath).resolve(filename).normalize();
+                if (!Files.exists(path)) {
+                    log.error("[CS-API] File not found: {}", path);
+                    return ResponseEntity.notFound().<Resource>build();
+                }
+                Resource resource = new UrlResource(path.toUri());
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                        .body(resource);
+            } catch (MalformedURLException e) {
+                log.error("[CS-API] Download error: {}", e.getMessage());
+                return ResponseEntity.internalServerError().<Resource>build();
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 }
