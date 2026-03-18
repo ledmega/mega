@@ -5,6 +5,8 @@ import led.mega.repository.CsInboundDataRepository;
 import led.mega.cs.service.CsBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,8 +36,19 @@ public class CsInboundApiController {
     }
 
     @GetMapping
-    public Flux<CsInboundData> getAllInboundData() {
-        return inboundDataRepository.findAllByOrderByReceivedAtDesc();
+    public Mono<Map<String, Object>> getAllInboundData(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size) {
+        return inboundDataRepository.findAllByOrderByReceivedAtDesc(PageRequest.of(page, size))
+                .collectList()
+                .zipWith(inboundDataRepository.count())
+                .map(tuple -> Map.of(
+                        "content", tuple.getT1(),
+                        "totalElements", tuple.getT2(),
+                        "page", page,
+                        "size", size,
+                        "totalPages", (int) Math.ceil((double) tuple.getT2() / size)
+                ));
     }
 
     @GetMapping("/{id}")
