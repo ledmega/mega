@@ -115,22 +115,42 @@ public class CsBotService {
     private Mono<CsBotResponseDto> handleAiDraft(CsConversation conversation, String question) {
         log.info("[CS-BOT] RAG-based AI Draft Start: convId={}", conversation.getCsConvId());
 
-        // 1. 관련 FAQ 데이터를 검색하여 Context 생성
-        return faqRepository.searchFaq(question.substring(0, Math.min(question.length(), 10)))
-                .take(5) // 가급적 연관된 상위 5개만 추출
-                .collectList()
-                .flatMap(faqs -> {
-                    String contextText = faqs.stream()
-                            .map(f -> String.format("Q: %s\nA: %s", f.getQuestion(), f.getAnswer()))
-                            .reduce("", (a, b) -> a + "\n---\n" + b);
+        String searchKeyword = question.substring(0, Math.min(question.length(), 10));
 
-                    log.info("[CS-BOT] Found {} relevant FAQs for context", faqs.size());
+        // 1. 관련 FAQ 검색 & 2. 과거 처리 내역(Redmine/Email 등) 검색
+        return Mono.zip(
+                faqRepository.searchFaq(searchKeyword).take(5).collectList(),
+                inboundDataRepository.searchInbound(searchKeyword).take(5).collectList()
+        ).flatMap(tuple -> {
+            List<CsFaq> faqs = tuple.getT1();
+            List<CsInboundData> inbounds = tuple.getT2();
+
+            StringBuilder contextBuilder = new StringBuilder();
+            
+            if (!faqs.isEmpty()) {
+                contextBuilder.append("[공식 FAQ 데이터]\n");
+                for (CsFaq f : faqs) {
+                    contextBuilder.append(String.format("질문: %s\n답변: %s\n---\n", f.getQuestion(), f.getAnswer()));
+                }
+            }
+
+            if (!inbounds.isEmpty()) {
+                contextBuilder.append("\n[과거 상담/처리 이력 (Redmine/Email 등)]\n");
+                for (CsInboundData inb : inbounds) {
+                    contextBuilder.append(String.format("원본데이터 요약: %s\n---\n", inb.getRawPayload()));
+                }
+            }
+
+            String contextText = contextBuilder.toString();
+            log.info("[CS-BOT] Context prepared: FAQ {}건, 이력 {}건", faqs.size(), inbounds.size());
+
+            String systemPrompt = "당신은 CS 상담 시스템 AI 지원 대시보드입니다. 아래 제공된 [공식 FAQ 데이터]와 [과거 상담/처리 이력]을 참고하여 답변 초안을 작성하세요.\n" +
+                    "1. 공식 FAQ에 내용이 있다면 그것을 우선적으로 참고하여 정확히 답변하세요.\n" +
+                    "2. 과거 이력을 참고할 때는 실제 성공적으로 처리된 사례인지를 판단하여 조심스럽게 인용하세요.\n" +
+                    "3. 데이터가 부족하여 정확한 답변이 어렵다면, 아는 범주 내에서 조언하되 반드시 '상담사를 통한 확인이 필요하다'는 점을 정중히 명시하세요.\n\n" +
+                    "[참고 지식 베이스]\n" + (contextText.isEmpty() ? "관련 정보 없음" : contextText);
 
                     String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
-
-                    String systemPrompt = "당신은 CS 상담사 지원 AI입니다. 아래 제공된 [참고 FAQ 데이터]를 바탕으로 사용자 질문에 대한 정확하고 친절한 답변 초안을 작성하세요.\n" +
-                            "만약 제공된 데이터에 답이 없다면, 아는 선에서 정중히 답변하고 '상담사 확인이 필요합니다'라고 덧붙여주세요.\n\n" +
-                            "[참고 FAQ 데이터]\n" + contextText;
 
                     Map<String, Object> requestBody = Map.of(
                         "model", "gemini-flash-latest",
