@@ -1,6 +1,7 @@
 package led.mega.repository;
 
 import led.mega.entity.CsInboundData;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
@@ -13,8 +14,8 @@ public interface CsInboundDataRepository extends ReactiveCrudRepository<CsInboun
     
     Flux<CsInboundData> findBySource(String source);
     
-    Flux<CsInboundData> findAllByOrderByReceivedAtDesc();
+    Flux<CsInboundData> findAllByOrderByReceivedAtDesc(Pageable pageable);
     
-    @Query("SELECT * FROM cs_inbound_data WHERE raw_payload LIKE CONCAT('%', :keyword, '%') AND status = 'PROCESSED' LIMIT 10")
+    @Query("SELECT * FROM cs_inbound_data WHERE raw_payload LIKE CONCAT('%', :keyword, '%') AND status = 'PROCESSED' ORDER BY received_at DESC LIMIT 10")
     Flux<CsInboundData> searchInbound(String keyword);
 }

@@ -9,8 +9,8 @@ import reactor.core.publisher.Flux;
 @Repository
 public interface CsFaqRepository extends ReactiveCrudRepository<CsFaq, String> {
     
-    Flux<CsFaq> findByUseYn(String useYn);
+    Flux<CsFaq> findByUseYnOrderByCreatedAtDesc(String useYn);
     
-    @Query("SELECT * FROM cs_faq WHERE (question LIKE CONCAT('%', :keyword, '%') OR tags LIKE CONCAT('%', :keyword, '%')) AND use_yn = 'Y'")
+    @Query("SELECT * FROM cs_faq WHERE (question LIKE CONCAT('%', :keyword, '%') OR tags LIKE CONCAT('%', :keyword, '%')) AND use_yn = 'Y' ORDER BY created_at DESC")
     Flux<CsFaq> searchFaq(String keyword);
 }

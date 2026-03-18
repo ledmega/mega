@@ -12,9 +12,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.Map;
 
 import java.time.LocalDateTime;
 
@@ -71,7 +75,7 @@ public class CsSimulationController {
 
     @GetMapping("/faq")
     public Flux<CsFaq> listFaq() {
-        return faqRepository.findByUseYn("Y");
+        return faqRepository.findByUseYnOrderByCreatedAtDesc("Y");
     }
 
     @PostMapping("/faq")
@@ -119,8 +123,19 @@ public class CsSimulationController {
     // -------------------------------------------------------------------------
 
     @GetMapping("/conversations")
-    public Flux<?> listConversations() {
-        return conversationRepository.findAll();
+    public Mono<Map<String, Object>> listConversations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size) {
+        return conversationRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
+                .collectList()
+                .zipWith(conversationRepository.count())
+                .map(tuple -> Map.of(
+                        "content", tuple.getT1(),
+                        "totalElements", tuple.getT2(),
+                        "page", page,
+                        "size", size,
+                        "totalPages", (int) Math.ceil((double) tuple.getT2() / size)
+                ));
     }
 
     @GetMapping("/conversations/{id}/messages")
