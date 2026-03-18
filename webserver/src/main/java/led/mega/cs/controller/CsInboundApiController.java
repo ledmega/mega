@@ -94,17 +94,24 @@ public class CsInboundApiController {
     public Mono<ResponseEntity<Resource>> downloadAttachment(@PathVariable String id, @RequestParam String filename) {
         return Mono.fromCallable(() -> {
             try {
-                Path path = Paths.get(storagePath).resolve(filename).normalize();
-                if (!Files.exists(path)) {
-                    log.error("[CS-API] File not found: {}", path);
+                String cleanFilename = filename.trim();
+                Path path = Paths.get(storagePath).resolve(cleanFilename).normalize().toAbsolutePath();
+                log.info("[CS-API] Downloading file. Path: {}, OriginalFilename: {}", path, filename);
+
+                if (!Files.exists(path) || !Files.isReadable(path)) {
+                    log.error("[CS-API] File not found or not readable: {}", path);
                     return ResponseEntity.notFound().<Resource>build();
                 }
+
                 Resource resource = new UrlResource(path.toUri());
+                String encodedFilename = java.net.URLEncoder.encode(cleanFilename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + cleanFilename + "\"; filename*=UTF-8''" + encodedFilename)
+                        .header(HttpHeaders.CONTENT_TYPE, "application/octet-stream")
                         .body(resource);
-            } catch (MalformedURLException e) {
-                log.error("[CS-API] Download error: {}", e.getMessage());
+            } catch (Exception e) {
+                log.error("[CS-API] Download error for filename {}: {}", filename, e.getMessage());
                 return ResponseEntity.internalServerError().<Resource>build();
             }
         }).subscribeOn(Schedulers.boundedElastic());
