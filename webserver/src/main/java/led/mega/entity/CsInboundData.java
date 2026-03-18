@@ -32,6 +32,12 @@ public class CsInboundData implements Persistable<String> {
     @Column("raw_payload")
     private String rawPayload; // 원본 데이터
 
+    @Column("resolved_payload")
+    private String resolvedPayload; // 최종 답변 또는 처리 결과
+
+    @Column("processing_history")
+    private String processingHistory; // 처리 과정 이력
+
     private String status; // RECEIVED, PROCESSED, FAILED
 
     @Column("error_message")

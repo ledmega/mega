@@ -137,7 +137,9 @@ public class CsBotService {
             if (!inbounds.isEmpty()) {
                 contextBuilder.append("\n[과거 상담/처리 이력 (Redmine/Email 등)]\n");
                 for (CsInboundData inb : inbounds) {
-                    contextBuilder.append(String.format("원본데이터 요약: %s\n---\n", inb.getRawPayload()));
+                    contextBuilder.append(String.format("문의 내용: %s\n최종 답변: %s\n---\n", 
+                            inb.getRawPayload(), 
+                            (inb.getResolvedPayload() != null ? inb.getResolvedPayload() : "내용 없음")));
                 }
             }
 

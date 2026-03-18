@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS cs_inbound_data (
     source VARCHAR(20) NOT NULL COMMENT '데이터 출처 (EMAIL, REDMINE, TALKDREAM)',
     external_ref_id VARCHAR(100) COMMENT '외부 참조 ID (메일 UID, 레드마인 일감번호 등)',
     raw_payload LONGTEXT COMMENT '원본 JSON 또는 본문 데이터',
+    resolved_payload LONGTEXT COMMENT '최종 답변 또는 처리 결과 데이터',
+    processing_history LONGTEXT COMMENT '처리 과정 이력 (JSON 또는 히스토리 텍스트)',
     status VARCHAR(20) NOT NULL DEFAULT 'RECEIVED' COMMENT '처리 상태 (RECEIVED, PROCESSED, FAILED)',
     error_message TEXT COMMENT '처리 실패 시 오류 메시지',
     received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '수신 시간',
