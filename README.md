@@ -95,6 +95,7 @@ graph TD
 - 📘 [PRD (기획 문서)](./docs/PRD.md)
 - 🏗 [Architecture (설계 구조)](./docs/ARCHITECTURE.md)
 - 🛠 [Installation & Usage (설치 및 사용법)](./docs/INSTALL_AND_USE.md)
+- 📝 [Logging Policy (로그 운영 정책)](./docs/LOGGING_POLICY.md)
 - 🤖 [Agent 가이드](./agent/README.md)
 
 ---
