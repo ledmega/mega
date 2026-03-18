@@ -142,6 +142,9 @@ public class CsBotService {
                     if (inb.getResolvedPayload() != null && !inb.getResolvedPayload().isBlank()) {
                         contextBuilder.append(String.format("- 최종 해결 내용: %s\n", inb.getResolvedPayload()));
                     }
+                    if (inb.getAttachments() != null && !inb.getAttachments().isBlank()) {
+                        contextBuilder.append(String.format("- 첨부파일 목록: %s\n", inb.getAttachments()));
+                    }
                     contextBuilder.append("---\n");
                 }
             }
