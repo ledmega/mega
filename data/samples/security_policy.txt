@@ -1,0 +1,3 @@
+Allow All Internal Agents
+Block Foreign IPs
+Log all Admin Actions
