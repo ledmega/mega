@@ -43,6 +43,54 @@ graph TD
     WS -- "Configuration Pull" --> A1
 ```
 
+### 📊 데이터베이스 설계 (ER Diagram)
+
+CS AI 자동화 시스템에서 사용하는 핵심 엔티티 간의 관계도입니다.
+
+```mermaid
+erDiagram
+    cs_conversation ||--o{ cs_message : "contains"
+    cs_faq {
+        string cs_faq_id PK
+        string category
+        string question
+        text answer
+        string tags
+        char use_yn
+    }
+    cs_conversation {
+        string cs_conv_id PK
+        string external_id "Email/UserId"
+        string channel "EMAIL/REDMINE/TALK"
+        string status "PENDING/PROCESSING/COMPLETED"
+        text summary
+    }
+    cs_message {
+        string cs_msg_id PK
+        string cs_conv_id FK
+        string sender_type "USER/BOT/ADMIN"
+        text content
+        boolean is_draft
+    }
+    cs_inbound_data {
+        string cs_inbound_id PK
+        string source
+        string external_ref_id "IssueNo/MailUID"
+        text raw_payload "Question"
+        text resolved_payload "Final Answer"
+        text processing_history "Timeline"
+        text ai_suggestion "AI Record"
+        string status "PROCESSED/FAILED/RECEIVED"
+    }
+    cs_report {
+        string cs_report_id PK
+        string report_type "DAILY/WEEKLY"
+        date target_date
+        int total_count
+        json report_data
+    }
+```
+
 ---
 
 ## ✨ 주요 기능 (Key Features)
@@ -109,6 +157,7 @@ graph TD
 - 🛠 [Installation & Usage (설치 및 사용법)](./docs/INSTALL_AND_USE.md)
 - 📝 [Logging Policy (로그 운영 정책)](./docs/LOGGING_POLICY.md)
 - 📗 [CS AI 개발 가이드 (Development Guide)](./docs/CS_AI_DEVELOPMENT_GUIDE.md)
+- 📊 [DB Design Guide (데이터베이스 설계 가이드)](./docs/DATABASE_DESIGN_GUIDE.md)
 - 🤖 [Agent 가이드](./agent/README.md)
 
 ---
