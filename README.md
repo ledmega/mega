@@ -158,6 +158,7 @@ erDiagram
 - 📝 [Logging Policy (로그 운영 정책)](./docs/LOGGING_POLICY.md)
 - 📗 [CS AI 개발 가이드 (Development Guide)](./docs/CS_AI_DEVELOPMENT_GUIDE.md)
 - 📊 [DB Design Guide (데이터베이스 설계 가이드)](./docs/DATABASE_DESIGN_GUIDE.md)
+- 🤖 [AI Chatbot 위젯 구현 보고서](./docs/AI_CHATBOT_IMPLEMENTATION_REPORT.md)
 - 🤖 [Agent 가이드](./agent/README.md)
 
 ---
