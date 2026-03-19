@@ -108,10 +108,10 @@ erDiagram
 - **보안 및 인증**: API Key 기반 에이전트 인증 및 Spring Security를 통한 유저 접근 제어.
 
 ### 🤖 CS Automation Center (Intelligence)
-- **AI-Powered Support**: Gemini AI와 RAG(Retrieval-Augmented Generation)를 결합하여 고객 문의에 대한 답변 초안 자동 생성.
-- **Smart FAQ Matching**: 데이터베이스에 등록된 FAQ를 기반으로 반복적인 문의에 대해 즉각적인 자동 응답 제공.
-- **Context-Aware Solution**: 과거 상담 이력 및 처리 로그를 AI가 분석하여 단순 FAQ를 넘어선 복합적인 문제 해결 가이드 제시.
-- **CS Simulator**: 실제 외부 채널 연동 없이도 문의 유입부터 AI 처리까지 전 과정을 테스트할 수 있는 개발자 대시보드 제공.
+- **TalkDream Domain Specific AI**: 톡드림(TalkDream) 메시징 포털 서비스에 최적화된 상담 로직(알림톡, SMS/LMS/MMS, RCS 부달 등) 제공.
+- **RAG Context Enrichment**: 단순 FAQ를 넘어 과거 상담 이력(`cs_inbound_data`)과 연동하여 메시지 규격 및 전송 실패 원인 분석 가능.
+- **AI-Powered Support**: Gemini API와 RAG 기술을 결합하여 실시간 고객 문의에 대한 전문적인 해결책 제시.
+- **Auto-Seeding**: 서비스 시작 시 메시징 비즈니스에 필수적인 전문 FAQ 샘플이 자동으로 데이터베이스에 주입되어 즉시 활용 가능.
 
 ---
 
