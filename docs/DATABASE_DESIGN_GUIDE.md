@@ -1,131 +1,148 @@
-# CS AI 자동화 시스템 데이터베이스 설계 가이드
+# MEGA 시스템 전체 데이터베이스 설계 가이드 (Full ERD)
 
-이 문서는 CS(Customer Service) 자동화 및 AI 지원 시스템에서 사용하는 `cs_*` 관련 테이블의 구조와 역할을 설명합니다. 
-
-## 1. 개요 (Architecture Overview)
-
-본 시스템은 **RAG(Retrieval-Augmented Generation)** 아키텍처를 기반으로 하며, 다음과 같은 흐름으로 데이터를 관리합니다.
-
-1.  **Staging**: 이메일, 레드마인 등에서 들어온 원본 데이터를 `cs_inbound_data`에 저장합니다.
-2.  **Session**: 대화의 흐름을 `cs_conversation`과 `cs_message`로 관리합니다.
-3.  **Knowledge**: `cs_faq`와 `cs_inbound_data`의 성공 사례를 AI가 학습 컨텍스트로 사용합니다.
-4.  **Reporting**: 누적된 데이터를 `cs_report`로 통계화합니다.
+이 문서는 MEGA(Monitoring & Error Gathering Agent) 프로젝트에서 사용하는 **전체 테이블 구조**와 각 도메인별 관계 모델을 상세히 설명합니다.
 
 ---
 
-## 2. ER 다이어그램 (Entity Relationship)
+## 1. 전사 ER 다이어그램 (Global ER Diagram)
+
+시스템 전체의 핵심 엔티티 간 연결 관계를 보여줍니다.
 
 ```mermaid
 erDiagram
+    %% Core & Monitoring Module
+    member ||--o{ agent : "manages"
+    agent ||--o{ agent_heartbeat : "status"
+    agent ||--o{ task : "executes"
+    agent ||--o{ metric_data : "collects"
+    agent ||--o{ exception_log : "reports"
+    agent ||--o{ monitoring_config : "monitors"
+    
+    %% Task & Service Module
+    task ||--o{ metric_data : "generates"
+    task ||--o{ exception_log : "captures"
+    monitoring_config ||--o{ service_metric_data : "tracks"
+    
+    %% CS AI Module
     cs_conversation ||--o{ cs_message : "contains"
+    
+    %% UI & Menu
+    menu ||--o{ menu : "hierarchy"
+
+    member {
+        string member_id PK
+        string email
+        string password
+        string role "USER/ADMIN"
+        string status "ACTIVE/INACTIVE"
+    }
+
+    agent {
+        string agent_id PK
+        string agent_ref_id UK
+        string name
+        string os_type
+        string status "ONLINE/OFFLINE"
+    }
+
+    task {
+        string task_id PK
+        string agent_id FK
+        string task_type "COMMAND/LOG_PARSE"
+        string command
+        int interval_seconds
+    }
+
+    metric_data {
+        string metric_id PK
+        string agent_id FK
+        string metric_type "CPU/MEM/DISK"
+        decimal metric_value
+        datetime collected_at
+    }
+
+    exception_log {
+        string ex_log_id PK
+        string agent_id FK
+        string exception_type
+        text exception_message
+        text full_stack_trace
+    }
+
+    monitoring_config {
+        string config_id PK
+        string agent_id FK
+        string service_name
+        string target_type "DOCKER/PROCESS/HOST"
+    }
+
+    cs_conversation {
+        string cs_conv_id PK
+        string external_id "User/Email"
+        string status "PENDING/COMPLETED"
+    }
+
     cs_faq {
         string cs_faq_id PK
-        string category
         string question
         text answer
         string tags
-        char use_yn
     }
-    cs_conversation {
-        string cs_conv_id PK
-        string external_id "Email/UserId"
-        string channel "EMAIL/REDMINE/TALK"
-        string status "PENDING/PROCESSING/COMPLETED"
-        text summary
-    }
-    cs_message {
-        string cs_msg_id PK
-        string cs_conv_id FK
-        string sender_type "USER/BOT/ADMIN"
-        text content
-        boolean is_draft
-    }
-    cs_inbound_data {
-        string cs_inbound_id PK
-        string source
-        string external_ref_id "IssueNo/MailUID"
-        text raw_payload "Question"
-        text resolved_payload "Final Answer"
-        text processing_history "Timeline"
-        text ai_suggestion "AI Record"
-        string status "PROCESSED/FAILED/RECEIVED"
-    }
-    cs_report {
-        string cs_report_id PK
-        string report_type "DAILY/WEEKLY"
-        date target_date
-        int total_count
-        json report_data
+
+    batch_job {
+        string batch_job_id PK
+        string job_name
+        string cron_expression
+        boolean enabled
     }
 ```
 
 ---
 
-## 3. 테이블 상세 안내
+## 2. 모듈별 상세 설계 (Domain Specific)
 
-### 3.1 `cs_faq` (지식 베이스 - 표준 답변)
-AI가 직접 매칭하거나(Auto-Reply), 답변 초안을 작성할 때 가장 먼저 참고하는 **공식 가이드라인**입니다.
+### 2.1 코어 및 모니터링 모듈 (Core & Monitoring)
+에이전트의 상태와 서버 리소스 지표를 관리하는 핵심 테이블입니다.
 
-| 컬럼명 | 타입 | 설명 |
-| :--- | :--- | :--- |
-| `cs_faq_id` | VARCHAR(50) | PK (예: FAQ0000000001) |
-| `category` | VARCHAR(50) | 배정, 장애, 단순문의 등 대분류 |
-| `question` | VARCHAR(1000) | 예상 질문 내역 |
-| `answer` | TEXT | 표준 답변 내용 |
-| `tags` | VARCHAR(500) | 검색 엔진(Fulltext Index)용 키워드 |
-| `use_yn` | CHAR(1) | 사용 여부 (Y/N) |
+*   **`member`**: 시스템 관리자 및 사용자 계정 정보.
+*   **`agent`**: 원격지에 설치된 에이전트 식별 및 상태 관리.
+*   **`agent_heartbeat`**: 실시간 연결 유지를 위한 하드비트 로그.
+*   **`metric_data`**: CPU, Memory, Disk 등 시계열 메트릭 데이터.
+*   **`exception_log`**: 에이전트에서 감지된 애플리케이션 예외(Stack Trace).
 
-### 3.2 `cs_inbound_data` (수집 데이터 - 사례 학습)
-이메일, 레드마인 등 외부 시스템에서 유입된 **Raw 데이터 및 최종 해결 이력**을 저장합니다.
+### 2.2 작업 및 스케줄러 모듈 (Task & Scheduler)
+반복적인 작업 수행과 배치 프로세스를 관리합니다.
 
-| 컬럼명 | 타입 | 설명 |
-| :--- | :--- | :--- |
-| `cs_inbound_id` | VARCHAR(50) | PK (예: INB0000000001) |
-| `source` | VARCHAR(20) | 데이터 출처 (EMAIL, REDMINE, TALKDREAM) |
-| `external_ref_id` | VARCHAR(100) | 레드마인 일감번호, 메일 UID 등 외부 참조 ID |
-| `raw_payload` | LONGTEXT | 고객이 보낸 **최초 문의 본문** |
-| `resolved_payload` | LONGTEXT | 상담사가 발송한 **최종 해결 답변** (RAG의 핵심) |
-| `processing_history` | LONGTEXT | 레드마인 댓글 스레드 등 **처리 과정 전체 히스토리** |
-| `ai_suggestion` | LONGTEXT | AI가 추천했던 **모범 답변 기록** (감사/대조 용도) |
-| `status` | VARCHAR(20) | **PROCESSED(학습대상)**, RECEIVED, FAILED |
+*   **`task`**: 에이전트별 실행 작업(명령어 실행, 로그 파싱 등) 설정.
+*   **`batch_job`**: 서버 사이드 주기적 작업(데이터 정리, 리포트 생성 등) 정보.
 
-> [!TIP]
-> **RAG (현행화 학습)**: `status`가 `PROCESSED`인 데이터는 AI가 답변 초안을 작성할 때 "과거 사례"로서 검색 대상이 되어 답변 품질을 비약적으로 높여줍니다.
+### 2.3 서비스 모니터링 모듈 (Service Monitoring)
+특정 애플리케이션(Nginx, Docker 컨테이너 등) 단위의 집중 모니터링을 담당합니다.
 
-### 3.3 `cs_conversation` (상담 세션 관리)
-채널에 관계없이 특정 사용자(`external_id`)와 진행 중인 **상담 흐름을 그룹화**합니다.
+*   **`monitoring_config`**: 모니터링 대상 서비스 식별 및 수집 항목 설정.
+*   **`service_metric_data`**: 개별 서비스 전용 메트릭(프로세스별 점유율 등) 데이터.
 
-| 컬럼명 | 타입 | 설명 |
-| :--- | :--- | :--- |
-| `cs_conv_id` | VARCHAR(50) | PK (예: CON0000000001) |
-| `external_id` | VARCHAR(255) | 톡드림 ID, 이메일 주소 등 발신자 유일 식별값 |
-| `status` | VARCHAR(20) | PENDING(대기), PROCESSING(진행), COMPLETED(완료) |
-| `summary` | TEXT | AI가 대화 종료 후 요약한 상담 핵심 내용 |
+### 2.4 CS AI 자동화 모듈 (CS AI Automation)
+고객 문의 처리 및 AI 기반 자동 응답 시스템입니다.
 
-### 3.4 `cs_message` (대화 상세 내역)
-세션 내에서 오고 간 **개별 메시지**를 저장합니다.
-
-| 컬럼명 | 타입 | 설명 |
-| :--- | :--- | :--- |
-| `cs_msg_id` | VARCHAR(50) | PK (예: MSG0000000001) |
-| `cs_conv_id` | VARCHAR(50) | FK (`cs_conversation` 참조) |
-| `sender_type` | VARCHAR(20) | USER(고객), BOT(AI), ADMIN(상담사) |
-| `is_draft` | BOOLEAN | AI가 작성한 **초안(Draft)** 여부 (상담사 전용) |
-
-### 3.5 `cs_report` (운영 통계)
-상담 처리 결과에 대한 주기적 통계 데이터를 저장합니다.
-
-| 컬럼명 | 타입 | 설명 |
-| :--- | :--- | :--- |
-| `cs_report_id` | VARCHAR(50) | PK (예: RPT0000000001) |
-| `report_type` | VARCHAR(20) | DAILY, WEEKLY, MONTHLY |
-| `total_count` | INT | 해당 기간의 총 문의 건수 |
-| `report_data` | JSON | 고객사별, 유형별 상세 통계 수치 (JSON 포맷) |
+*   **`cs_faq`**: AI 답변의 근거가 되는 표준 지식 베이스.
+*   **`cs_inbound_data`**: 외부 유입된 문의 원본과 최종 해결 이력(RAG 학습 원천).
+*   **`cs_conversation`**: 사용자별 상담 세션(채팅방 개념) 관리.
+*   **`cs_message`**: 세션 내에서 오고 간 실제 대화 및 AI 답변 초안.
+*   **`cs_report`**: 상담 결과 통계 데이터.
 
 ---
 
-## 4. 인덱스 및 검색 전략
+## 3. 핵심 관계 설명 (Core Relationships)
 
-1.  **Fulltext Index**: `cs_faq`의 (question, answer, tags) 컬럼에 적용되어 자연어 검색을 지원합니다.
-2.  **RAG Search**: `cs_inbound_data`에서 `raw_payload`를 `LIKE` 연산으로 검색하여 유사 사례를 추출합니다.
-3.  **Session Index**: `external_id`와 `status`에 인덱스가 걸려 있어 진행 중인 상담 세션을 빠르게 조회합니다.
+1.  **Agent 중심 설계**: 모든 데이터(`metric_data`, `task`, `exception_log` 등)는 `agent_id`를 기준으로 정규화되어 있으며, 에이전트의 온라인 여부에 따라 데이터 수집이 제어됩니다.
+2.  **RAG 기반 AI 연동**: `cs_faq`와 `cs_inbound_data`는 서로 다른 목적으로 사용되지만, 상담 답변 생성 시 AI가 두 테이블을 동시에 검색(Union Search)하여 가장 적절한 답변을 도출합니다.
+3.  **계층형 메뉴**: `menu` 테이블의 `parent_id`를 통해 어드민 대시보드의 다단계 메뉴 구조를 재귀적으로 지원합니다.
+
+---
+
+## 4. 인덱스 최적화 전략
+
+*   **시계열 검색**: `collected_at`, `occurred_at` 컬럼에 인덱스를 부여하여 대시보드의 실시간 차트 조회를 최적화합니다.
+*   **고유 식별**: `agent_ref_id`와 같은 비즈니스 고유 키에는 `Unique Index`를 적용하여 데이터 정합성을 보장합니다.
+*   **자연어 검색**: `cs_faq`와 `cs_inbound_data`의 텍스트 컬럼은 형태소 분석을 통한 전문 검색(Full-text Search)을 지원하도록 설계되었습니다.
