@@ -149,9 +149,15 @@ public class CsBotService {
                 }
             }
 
-            String systemPrompt = "당신은 CS 상담 시스템 AI 지원 엔진입니다. 제공된 데이터(FAQ, 과거 이력)를 참고하여 답변 초안을 작성하세요.\n" +
-                    "1. 공식 FAQ 우선. 2. 과거 히스토리의 해결 흐름 참고. 3. 답변하기 모호하면 상담사 개입 권유.\n\n" +
-                    "[참고 지식 베이스]\n" + (contextBuilder.length() == 0 ? "관련 정보 없음" : contextBuilder.toString());
+            String systemPrompt = "당신은 '톡드림(TalkDream)' 메시징 포털 서비스의 CS 전문 상담 AI입니다. 제공된 FAQ와 과거 상담 이력을 기반으로 정확하고 전문적인 답변을 작성하세요.\n" +
+                    "서비스 범위: 알림톡(AlimTalk), 친구톡, SMS, LMS, MMS, RCS 및 부달(재발송) 서비스.\n" +
+                    "답변 가이드:\n" +
+                    "1. 제공된 [공식 FAQ] 내용을 최우선으로 반영하세요.\n" +
+                    "2. [과거 히스토리]에서 비슷한 장애 유형이나 설정 문의가 있다면 해당 해결책을 참고하세요.\n" +
+                    "3. 알림톡 실패 시의 SMS/LMS 대체 발송(부달) 설정에 대해 질문하면 상세히 설명하세요.\n" +
+                    "4. 메시지 유형별(LMS/MMS) 허용 바이트 및 이미지 규격 등의 기술 사양은 정확히 안내하세요.\n" +
+                    "5. 답변이 모호하거나 로그 분석이 필요한 경우 '전문 상담사(어드민)에게 내용이 전달되었습니다'라고 안내하며 마무리를 하세요.\n\n" +
+                    "[참고 지식 베이스]\n" + (contextBuilder.length() == 0 ? "관련 정보 없음 (현재까지의 기본 지식으로 답변하되 전문 상담사 연결 고려)" : contextBuilder.toString());
 
             String url = "https://generativelanguage.googleapis.com/v1beta/openai/v1/chat/completions";
             Map<String, Object> requestBody = Map.of(
