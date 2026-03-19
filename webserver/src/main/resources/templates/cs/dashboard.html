@@ -809,15 +809,19 @@
         // =====================================================
         function showToast(msg, type='success') {
             const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.className = `toast ${type} show`;
-            setTimeout(() => t.className = 'toast', 3000);
+            if (t) {
+                t.textContent = msg;
+                t.className = `toast ${type} show`;
+                setTimeout(() => { if(t) t.className = 'toast'; }, 3000);
+            }
         }
 
         function switchTab(name) {
             ['conv','inbound','faq','sim'].forEach(n => {
-                document.getElementById('tab-' + n).classList.toggle('active', n === name);
-                document.getElementById('pane-' + n).classList.toggle('active', n === name);
+                const tab = document.getElementById('tab-' + n);
+                const pane = document.getElementById('pane-' + n);
+                if (tab) tab.classList.toggle('active', n === name);
+                if (pane) pane.classList.toggle('active', n === name);
             });
             if (name === 'conv') loadConversations();
             if (name === 'inbound') loadInboundData();
@@ -848,18 +852,21 @@
         async function loadStats() {
             try {
                 const convs = await fetch('/api/cs/conversations').then(r => r.json());
-                document.getElementById('statTotal').textContent = convs.length;
-                document.getElementById('statPending').textContent = convs.filter(c => c.status === 'PENDING').length;
-                document.getElementById('statAuto').textContent = convs.filter(c => c.status === 'COMPLETED').length;
-            } catch(e) {}
-            try {
                 const inbounds = await fetch('/api/cs/inbound').then(r => r.json());
-                document.getElementById('statInbound').textContent = inbounds.length;
-            } catch(e) {}
-            try {
                 const faqs = await fetch('/api/cs/faq').then(r => r.json());
-                document.getElementById('statFaq').textContent = faqs.length;
-            } catch(e) {}
+
+                const statTotal = document.getElementById('statTotal');
+                const statPending = document.getElementById('statPending');
+                const statAuto = document.getElementById('statAuto');
+                const statInbound = document.getElementById('statInbound');
+                const statFaq = document.getElementById('statFaq');
+
+                if (statTotal) statTotal.textContent = (Array.isArray(convs) ? convs.length : (convs.content ? convs.content.length : 0));
+                if (statPending && Array.isArray(convs)) statPending.textContent = convs.filter(c => c.status === 'PENDING').length;
+                if (statAuto && Array.isArray(convs)) statAuto.textContent = convs.filter(c => c.status === 'COMPLETED').length;
+                if (statInbound) statInbound.textContent = (Array.isArray(inbounds) ? inbounds.length : (inbounds.content ? inbounds.content.length : 0));
+                if (statFaq) statFaq.textContent = (Array.isArray(faqs) ? faqs.length : 0);
+            } catch(e) { console.error("Stats load error", e); }
         }
 
         // =====================================================
@@ -871,14 +878,12 @@
         async function loadConversations(page = 0) {
             currentConvPage = page;
             const tbody = document.getElementById('convTableBody');
+            if (!tbody) return;
             tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>';
             try {
-                const filter = document.getElementById('convFilterStatus').value;
-                // Note: Server-side filtering would be better, but for now we paging the whole list
-                // If filter is needed, it should be passed to the API. Simple pagination here:
                 const res = await fetch(`/api/cs/conversations?page=${page}&size=${PAGE_SIZE}`).then(r => r.json());
-                renderConvTable(res.content);
-                renderPagination('convPagination', res.page, res.totalPages, loadConversations);
+                renderConvTable(res.content || res);
+                renderPagination('convPagination', res.page || 0, res.totalPages || 1, loadConversations);
                 loadStats();
             } catch(e) {
                 console.error(e);
@@ -888,6 +893,7 @@
 
         function renderConvTable(list) {
             const tbody = document.getElementById('convTableBody');
+            if (!tbody) return;
             if (!list || !list.length) {
                 tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">💬</div>상담 내역이 없습니다</td></tr>';
                 return;
@@ -910,25 +916,21 @@
 
         function renderPagination(containerId, current, total, callback) {
             const container = document.getElementById(containerId);
+            if (!container) return;
             if (total <= 1) {
                 container.innerHTML = '';
                 return;
             }
-
             let html = `
                 <button class="page-btn" ${current === 0 ? 'disabled' : ''} onclick="${callback.name}(${current - 1})">
                     <i class="fas fa-chevron-left"></i> 이전
                 </button>
             `;
-
-            // 간단하게 앞뒤 2개씩 표시
             const start = Math.max(0, current - 2);
             const end = Math.min(total - 1, current + 2);
-
             for (let i = start; i <= end; i++) {
                 html += `<div class="page-num ${i === current ? 'active' : ''}" onclick="${callback.name}(${i})">${i + 1}</div>`;
             }
-
             html += `
                 <button class="page-btn" ${current === total - 1 ? 'disabled' : ''} onclick="${callback.name}(${current + 1})">
                     다음 <i class="fas fa-chevron-right"></i>
@@ -941,37 +943,35 @@
             document.getElementById('chatTitle').textContent = externalId;
             document.getElementById('chatMeta').textContent = `${channelIcon(channel)}  •  세션 ID: ${convId}`;
             const statusEl = document.getElementById('chatStatus');
-            statusEl.style.display = '';
-            statusEl.className = 'badge ' + (status === 'COMPLETED' ? 'badge-completed' : status === 'PROCESSING' ? 'badge-processing' : 'badge-pending');
-            statusEl.textContent = status === 'COMPLETED' ? '완료' : status === 'PROCESSING' ? '처리중' : '대기';
-
-            document.getElementById('chatBody').innerHTML = '<div style="text-align:center;padding:40px;color:#a0aec0;">메시지 불러오는 중...</div>';
-            document.getElementById('chatFooter').style.display = '';
-
-            try {
-                const msgs = await fetch(`/api/cs/conversations/${convId}/messages`).then(r => r.json());
-                if (!msgs.length) {
-                    document.getElementById('chatBody').innerHTML = '<div class="chat-placeholder"><div style="font-size:48px;margin-bottom:12px;">😶</div>메시지가 없습니다.</div>';
-                    return;
-                }
-                document.getElementById('chatBody').innerHTML = msgs.map(m => {
-                    const cls = m.senderType === 'USER' ? 'user' : (m.senderType === 'ADMIN' ? 'admin' : 'bot');
-                    const label = m.senderType === 'USER' ? '고객' : (m.senderType === 'ADMIN' ? '상담사' : 'AI 봇');
-                    const draftBadge = m.draft ? '<span class="msg-draft-badge">초안</span>' : '';
-                    return `
-                        <div class="msg-row ${cls}">
-                            <div>
-                                <div class="msg-label">${label} · ${fmtDate(m.createdAt)}${draftBadge}</div>
-                                <div class="msg-bubble">${m.content.replace(/\n/g, '<br>')}</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                // 스크롤 아래로
-                const body = document.getElementById('chatBody');
-                body.scrollTop = body.scrollHeight;
-            } catch(e) {
-                document.getElementById('chatBody').innerHTML = '<div class="chat-placeholder">❌ 메시지를 불러오지 못했습니다.</div>';
+            if (statusEl) {
+                statusEl.style.display = '';
+                statusEl.className = 'badge ' + (status === 'COMPLETED' ? 'badge-completed' : status === 'PROCESSING' ? 'badge-processing' : 'badge-pending');
+                statusEl.textContent = status === 'COMPLETED' ? '완료' : status === 'PROCESSING' ? '처리중' : '대기';
+            }
+            const chatBody = document.getElementById('chatBody');
+            if (chatBody) {
+                chatBody.innerHTML = '<div style="text-align:center;padding:40px;color:#a0aec0;">불러오는 중...</div>';
+                document.getElementById('chatFooter').style.display = '';
+                try {
+                    const msgs = await fetch(`/api/cs/conversations/${convId}/messages`).then(r => r.json());
+                    if (!msgs || !msgs.length) {
+                        chatBody.innerHTML = '<div class="chat-placeholder">메시지가 없습니다.</div>';
+                    } else {
+                        chatBody.innerHTML = msgs.map(m => {
+                            const cls = m.senderType === 'USER' ? 'user' : (m.senderType === 'ADMIN' ? 'admin' : 'bot');
+                            const label = m.senderType === 'USER' ? '고객' : (m.senderType === 'ADMIN' ? '상담사' : 'AI 봇');
+                            return `
+                                <div class="msg-row ${cls}">
+                                    <div>
+                                        <div class="msg-label">${label} · ${fmtDate(m.createdAt)}</div>
+                                        <div class="msg-bubble">${m.content.replace(/\n/g, '<br>')}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        chatBody.scrollTop = chatBody.scrollHeight;
+                    }
+                } catch(e) { chatBody.innerHTML = '<div class="chat-placeholder">불러오기 실패</div>'; }
             }
         }
 
@@ -979,46 +979,42 @@
         // Tab 2: FAQ 관리
         // =====================================================
         let allFaqs = [];
-
         async function loadFaqs() {
             const tbody = document.getElementById('faqTableBody');
-            tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>';
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">불러오는 중...</td></tr>';
             try {
                 allFaqs = await fetch('/api/cs/faq').then(r => r.json());
                 renderFaqTable(allFaqs);
                 loadStats();
-            } catch(e) {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">❌</div>불러오기 실패</td></tr>';
-            }
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">불러오기 실패</td></tr>'; }
         }
 
         function renderFaqTable(list) {
             const tbody = document.getElementById('faqTableBody');
+            if (!tbody || !list) return;
             if (!list.length) {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">📭</div>등록된 FAQ가 없습니다<br><small style="margin-top:8px;display:block;">상단 버튼으로 FAQ를 등록해보세요!</small></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">등록된 FAQ가 없습니다.</td></tr>';
                 return;
             }
-            tbody.innerHTML = list.map((f, i) => {
-                const tags = f.tags ? f.tags.split(',').map(t => `<span class="badge" style="background:#f3e8ff;color:#7e22ce;font-size:11px;">${t.trim()}</span>`).join(' ') : '-';
-                return `
-                    <tr>
-                        <td style="color:#a0aec0;font-size:12px;">${i+1}</td>
-                        <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">${f.category}</span></td>
-                        <td style="font-weight:600;max-width:240px;">${f.question}</td>
-                        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#718096;">${f.answer}</td>
-                        <td>${tags}</td>
-                        <td class="actions">
-                            <button class="btn btn-ghost btn-sm" onclick="openFaqModal('${f.csFaqId}')"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteFaq('${f.csFaqId}','${f.question.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            tbody.innerHTML = list.map((f, i) => `
+                <tr>
+                    <td>${i+1}</td>
+                    <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">${f.category}</span></td>
+                    <td style="font-weight:600;">${f.question}</td>
+                    <td>${f.answer}</td>
+                    <td>${f.tags || '-'}</td>
+                    <td>
+                        <button class="btn btn-ghost btn-sm" onclick="openFaqModal('${f.csFaqId}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteFaq('${f.csFaqId}','${f.question.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         function filterFaq() {
-            const q = document.getElementById('faqSearch').value.toLowerCase();
-            const cat = document.getElementById('faqFilterCat').value;
+            const q = document.getElementById('faqSearch')?.value.toLowerCase();
+            const cat = document.getElementById('faqFilterCat')?.value;
             renderFaqTable(allFaqs.filter(f =>
                 (!q || f.question.toLowerCase().includes(q) || (f.tags||'').toLowerCase().includes(q)) &&
                 (!cat || f.category === cat)
@@ -1038,11 +1034,11 @@
                 }
             } else {
                 document.getElementById('faqModalTitle').textContent = '📚 FAQ 등록';
-                document.getElementById('faqForm').reset();
+                document.getElementById('faqForm')?.reset();
             }
-            document.getElementById('faqModal').classList.add('open');
+            document.getElementById('faqModal')?.classList.add('open');
         }
-        function closeFaqModal() { document.getElementById('faqModal').classList.remove('open'); }
+        function closeFaqModal() { document.getElementById('faqModal')?.classList.remove('open'); }
 
         async function submitFaq(e) {
             e.preventDefault();
@@ -1053,69 +1049,48 @@
                 answer:   document.getElementById('faq_answer').value,
                 tags:     document.getElementById('faq_tags').value
             };
-            const url = id ? `/api/cs/faq/${id}` : '/api/cs/faq';
             const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/cs/faq/${id}` : '/api/cs/faq';
             try {
                 const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-                if (res.ok) {
-                    showToast(id ? 'FAQ가 수정되었습니다.' : 'FAQ가 등록되었습니다.');
-                    closeFaqModal();
-                    loadFaqs();
-                } else { showToast('저장에 실패했습니다.', 'error'); }
-            } catch (e) { showToast('서버 오류가 발생했습니다.', 'error'); }
+                if (res.ok) { showToast('성공적으로 저장되었습니다.'); closeFaqModal(); loadFaqs(); }
+            } catch (e) { showToast('서버 오류', 'error'); }
         }
 
         async function deleteFaq(id, question) {
-            if (!confirm(`"${question}" FAQ를 삭제(비활성)하시겠습니까?`)) return;
+            if (!confirm(`"${question}" FAQ를 삭제하시겠습니까?`)) return;
             const res = await fetch(`/api/cs/faq/${id}`, { method: 'DELETE' });
-            if (res.ok) { showToast('FAQ가 삭제되었습니다.'); loadFaqs(); }
-            else showToast('삭제에 실패했습니다.', 'error');
+            if (res.ok) { showToast('삭제되었습니다.'); loadFaqs(); }
         }
 
         // =====================================================
         // Tab 4: 수집 데이터 관리
         // =====================================================
-        let currentInboundPage = 0;
-
         async function loadInboundData(page = 0) {
-            currentInboundPage = page;
             const tbody = document.getElementById('inboundTableBody');
-            tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">⏳</div>불러오는 중...</td></tr>';
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">불러오는 중...</td></tr>';
             try {
                 const res = await fetch(`/api/cs/inbound?page=${page}&size=${PAGE_SIZE}`).then(r => r.json());
-                renderInboundTable(res.content);
-                renderPagination('inboundPagination', res.page, res.totalPages, loadInboundData);
-                loadStats();
-            } catch(e) {
-                console.error(e);
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">❌</div>불러오기 실패</td></tr>';
-            }
+                renderInboundTable(res.content || res);
+                renderPagination('inboundPagination', res.page || 0, res.totalPages || 1, loadInboundData);
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">불러오기 실패</td></tr>'; }
         }
 
         function renderInboundTable(list) {
             const tbody = document.getElementById('inboundTableBody');
-            if (!list || !list.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">📭</div>수집된 데이터가 없습니다.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = list.map((inb, i) => `
+            if (!tbody || !list) return;
+            tbody.innerHTML = list.map(inb => `
                 <tr>
-                    <td style="color:#a0aec0;font-size:11px;">${inb.csInboundId}</td>
+                    <td style="font-size:11px;">${inb.csInboundId}</td>
                     <td>${channelIcon(inb.source)}</td>
-                    <td style="font-weight:600;">${inb.externalRefId || '-'} ${inb.attachments ? '<i class="fas fa-paperclip" title="첨부파일 있음" style="color:#6366f1;margin-left:4px;"></i>' : ''}</td>
-                    <td><span class="badge ${inb.status === 'PROCESSED' ? 'badge-completed' : (inb.status === 'FAILED' ? 'badge-escalated' : 'badge-pending')}">${inb.status}</span></td>
-                    <td style="font-size:12px;color:#718096;">${fmtDate(inb.receivedAt)}</td>
-                    <td style="font-size:12px;color:#718096;">${fmtDate(inb.processedAt)}</td>
-                    <td>
-                        <button class="btn btn-ghost btn-sm" onclick="openInboundModal('${inb.csInboundId}')">상세/수정</button>
-                    </td>
+                    <td style="font-weight:600;">${inb.externalRefId || '-'}</td>
+                    <td><span class="badge ${inb.status === 'PROCESSED' ? 'badge-completed' : 'badge-pending'}">${inb.status}</span></td>
+                    <td style="font-size:11px;">${fmtDate(inb.receivedAt)}</td>
+                    <td style="font-size:11px;">${fmtDate(inb.processedAt)}</td>
+                    <td><button class="btn btn-ghost btn-sm" onclick="openInboundModal('${inb.csInboundId}')">상세</button></td>
                 </tr>
             `).join('');
-        }
-
-        function filterInbound() {
-            // Server-side filtering would be better. For now, we just reload page 0
-            loadInboundData(0);
         }
 
         async function openInboundModal(id) {
@@ -1129,83 +1104,10 @@
                 document.getElementById('inb_resolved').value = inb.resolvedPayload || '';
                 document.getElementById('inb_history').value = inb.processingHistory || '';
                 document.getElementById('inb_attachments').value = inb.attachments || '';
-                
-                const attachList = document.getElementById('inb_attachments_list');
-                attachList.innerHTML = '';
-                if (inb.attachments) {
-                    inb.attachments.split(',').map(s => s.trim()).filter(s => s).forEach(f => {
-                        const link = document.createElement('a');
-                        link.href = '#';
-                        link.className = 'attachment-link';
-                        link.innerHTML = `<i class="fas fa-file-download"></i> ${f}`;
-                        link.onclick = (e) => { e.preventDefault(); downloadFile(id, f); };
-                        attachList.appendChild(link);
-                    });
-                } else {
-                    attachList.innerHTML = '<span style="color:#a0aec0;font-size:12px;">첨부파일 없음</span>';
-                }
-                
-                const aiBox = document.getElementById('aiSuggestionBox');
-                if (inb.aiSuggestion) {
-                    aiBox.style.display = 'block';
-                    document.getElementById('inb_ai_suggestion').textContent = inb.aiSuggestion;
-                } else {
-                    aiBox.style.display = 'none';
-                }
-                
-                document.getElementById('inboundModal').classList.add('open');
-            } catch(e) {
-                showToast('데이터를 불러오지 못했습니다.', 'error');
-            }
+                document.getElementById('inboundModal')?.classList.add('open');
+            } catch(e) { showToast('데이터 호출 실패', 'error'); }
         }
-
-        function closeInboundModal() {
-            document.getElementById('inboundModal').classList.remove('open');
-        }
-
-        async function downloadFile(id, filename) {
-            try {
-                const res = await fetch(`/api/cs/inbound/${id}/download?filename=${encodeURIComponent(filename)}`);
-                if (!res.ok) throw new Error('파일 다운로드 실패');
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-            } catch (err) {
-                console.error(err);
-                showToast("파일을 찾을 수 없거나 다운로드 중 오류가 발생했습니다.", "error");
-            }
-        }
-
-        async function generateAiSolutionForInbound() {
-            const id = document.getElementById('inboundId').value;
-            const loader = document.getElementById('aiLoader');
-            const textarea = document.getElementById('inb_resolved');
-
-            if (!id) return;
-
-            loader.style.display = 'block';
-            textarea.placeholder = "AI 답변 생성 중...";
-
-            try {
-                const res = await fetch(`/api/cs/inbound/${id}/ai-solution`);
-                if (!res.ok) throw new Error('AI 호출 실패');
-                const data = await res.json();
-                textarea.value = data.solution;
-                showToast("AI 모범답변이 생성되었습니다.");
-            } catch (err) {
-                console.error(err);
-                showToast("AI 답변 생성 중 오류가 발생했습니다.", "error");
-            } finally {
-                loader.style.display = 'none';
-                textarea.placeholder = "실제 발송된 최종 답변 내용을 입력하세요.";
-            }
-        }
+        function closeInboundModal() { document.getElementById('inboundModal')?.classList.remove('open'); }
 
         async function submitInbound(e) {
             e.preventDefault();
@@ -1216,126 +1118,48 @@
                 rawPayload: document.getElementById('inb_raw').value,
                 resolvedPayload: document.getElementById('inb_resolved').value,
                 processingHistory: document.getElementById('inb_history').value,
-                aiSuggestion: document.getElementById('inb_ai_suggestion').textContent,
                 attachments: document.getElementById('inb_attachments').value
             };
-            
-            const submitBody = {
-                externalRefId: body.externalRefId,
-                status: body.status,
-                rawPayload: body.rawPayload,
-                resolvedPayload: body.resolvedPayload,
-                processingHistory: body.processingHistory,
-                aiSuggestion: body.aiSuggestion,
-                attachments: body.attachments
-            };
-
             try {
-                const res = await fetch(`/api/cs/inbound/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(submitBody)
-                });
-                if (res.ok) {
-                    showToast('데이터가 저장되었습니다. (RAG 반영 준비 완료)');
-                    closeInboundModal();
-                    loadInboundData();
-                } else {
-                    showToast('저장에 실패했습니다.', 'error');
-                }
-            } catch(e) {
-                showToast('서버 오류 발생', 'error');
-            }
+                const res = await fetch(`/api/cs/inbound/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                if (res.ok) { showToast('데이터가 저장되었습니다.'); closeInboundModal(); loadInboundData(); }
+            } catch(e) { showToast('저장 실패', 'error'); }
         }
 
         // =====================================================
         // Tab 3: 시뮬레이터
         // =====================================================
-        function loadSimSamples() {
-            if (!allFaqs.length) loadFaqs().then(renderSimSamples); else renderSimSamples();
-        }
-
+        function loadSimSamples() { if(!allFaqs.length) loadFaqs().then(renderSimSamples); else renderSimSamples(); }
         function renderSimSamples() {
             const container = document.getElementById('simSamples');
-            if (!allFaqs.length) {
-                container.innerHTML = '<div style="font-size:13px;color:#718096;">FAQ를 먼저 등록하면 샘플이 나타납니다.</div>';
-                return;
-            }
-            container.innerHTML = allFaqs.slice(0, 5).map(f => `
-                <button type="button" class="btn btn-ghost btn-sm" style="text-align:left;padding:8px 12px;border-radius:8px;"
-                    onclick="fillSim('${f.question.replace(/'/g, "\\'")}')">
-                    <i class="fas fa-chevron-right" style="font-size:10px;color:#6366f1;margin-right:4px;"></i>
-                    ${f.question}
-                </button>
-            `).join('');
+            if(!container || !allFaqs.length) return;
+            container.innerHTML = allFaqs.slice(0, 5).map(f => `<button type="button" class="btn btn-ghost btn-sm" onclick="fillSim('${f.question.replace(/'/g, "\\'")}')">${f.question}</button>`).join('');
         }
-
-        function fillSim(q) {
-            document.getElementById('sim_content').value = q;
-        }
+        function fillSim(q) { document.getElementById('sim_content').value = q; }
 
         async function runSimulation(e) {
             e.preventDefault();
             const btn = document.getElementById('simBtn');
-            const spinner = document.getElementById('simSpinner');
-            const icon = document.getElementById('simIcon');
-            const txt = document.getElementById('simBtnTxt');
-            btn.disabled = true;
-            spinner.style.display = 'block';
-            icon.style.display = 'none';
-            txt.textContent = '처리 중...';
-
             const body = {
                 source: document.getElementById('sim_source').value,
                 externalId: document.getElementById('sim_externalId').value,
-                content: document.getElementById('sim_content').value,
-                attachments: document.getElementById('sim_attachments').value
+                content: document.getElementById('sim_content').value
             };
-
+            btn.disabled = true;
             try {
-                const res = await fetch('/api/cs/simulate/inbound', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
+                const res = await fetch('/api/cs/simulate/inbound', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
                 const data = await res.json();
                 displaySimResult(data);
                 loadStats();
-            } catch(err) {
-                document.getElementById('simResult').style.display = 'block';
-                document.getElementById('simResult').className = 'result-box result-escalated';
-                document.getElementById('simResultTitle').textContent = '❌ 서버 오류';
-                document.getElementById('simResultContent').textContent = err.message;
-            } finally {
-                btn.disabled = false;
-                spinner.style.display = 'none';
-                icon.style.display = '';
-                txt.textContent = '문의 전송 & AI 처리';
-            }
+            } catch(err) { showToast("오류 발생", "error"); } finally { btn.disabled = false; }
         }
 
         function displaySimResult(data) {
             const box = document.getElementById('simResult');
-            const title = document.getElementById('simResultTitle');
-            const content = document.getElementById('simResultContent');
-            const meta = document.getElementById('simResultMeta');
-
+            if(!box) return;
             box.style.display = 'block';
-            if (data.resultType === 'AUTO_REPLIED') {
-                box.className = 'result-box result-auto';
-                title.textContent = '✅ 자동 답변 완료 (FAQ 매칭)';
-            } else if (data.resultType === 'DRAFT_CREATED') {
-                box.className = 'result-box result-draft';
-                title.textContent = '🤖 AI 초안 생성 완료';
-            } else {
-                box.className = 'result-box result-escalated';
-                title.textContent = '🔔 상담사 배정됨 (AI 처리 실패)';
-            }
-
-            content.textContent = data.botReply || data.statusMessage || '응답 없음';
-            meta.textContent = `세션: ${data.conversationId}  |  FAQ매칭: ${data.faqMatched ? '✅' : '❌'}  |  AI처리: ${data.aiProcessed ? '✅' : '❌'}`;
-
-            // 상담 내역 탭 갱신
+            document.getElementById('simResultTitle').textContent = data.resultType;
+            document.getElementById('simResultContent').textContent = data.botReply || data.statusMessage || '응답 없음';
             loadConversations();
         }
 
@@ -1349,16 +1173,19 @@
         // =====================================================
         function toggleChatbot() {
             const win = document.getElementById('chatbotWindow');
-            const isVisible = win.style.display === 'flex';
+            if (!win) return;
+            const isVisible = (win.style.display === 'flex');
             win.style.display = isVisible ? 'none' : 'flex';
-            if (!isVisible && document.getElementById('chatbotBody').children.length === 0) {
-                appendBotMessage("반갑습니다! MEGA CS 자동화 시스템입니다. 무엇을 도와드릴까요? (로그인 없이 바로 문의가 가능합니다)");
-                renderChips(["배정 처리 기간", "Agent 설치 방법", "장애 신고 방법", "단순 문의"]);
+            const body = document.getElementById('chatbotBody');
+            if (!isVisible && body && body.children.length === 0) {
+                appendBotMessage("안녕하세요! MEGA AI입니다.");
+                renderChips(["배정 처리 기간", "Agent 설치 방법", "장애 신고 방법"]);
             }
         }
 
         function appendBotMessage(text) {
             const body = document.getElementById('chatbotBody');
+            if (!body) return;
             const div = document.createElement('div');
             div.className = 'cb-msg bot';
             div.textContent = text;
@@ -1368,6 +1195,7 @@
 
         function appendUserMessage(text) {
             const body = document.getElementById('chatbotBody');
+            if (!body) return;
             const div = document.createElement('div');
             div.className = 'cb-msg user';
             div.textContent = text;
@@ -1377,16 +1205,14 @@
 
         function renderChips(chips) {
             const body = document.getElementById('chatbotBody');
+            if (!body) return;
             const wrap = document.createElement('div');
             wrap.className = 'cb-chips';
             chips.forEach(c => {
                 const span = document.createElement('span');
                 span.className = 'cb-chip';
                 span.textContent = c;
-                span.onclick = () => {
-                    appendUserMessage(c);
-                    sendToBot(c);
-                };
+                span.onclick = function() { appendUserMessage(c); sendToBot(c); };
                 wrap.appendChild(span);
             });
             body.appendChild(wrap);
@@ -1395,39 +1221,38 @@
 
         async function sendToBot(msg) {
             const body = document.getElementById('chatbotBody');
+            if (!body) return;
             const typing = document.createElement('div');
             typing.className = 'cb-typing';
             typing.id = 'cb-typing-indicator';
-            typing.innerHTML = 'AI가 생각 중 <span class="cb-dot"></span><span class="cb-dot"></span><span class="cb-dot"></span>';
+            typing.innerHTML = 'AI가 생각 중...';
             body.appendChild(typing);
             body.scrollTop = body.scrollHeight;
-            
             try {
-                const response = await fetch('/api/cs/simulate/inbound', {
+                const res = await fetch('/api/cs/simulate/inbound', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        source: 'PORTAL',
-                        externalId: 'GUEST_USER',
-                        content: msg
-                    })
+                    body: JSON.stringify({ source: 'PORTAL', externalId: 'GUEST_USER', content: msg })
                 });
-                const data = await response.json();
-                document.getElementById('cb-typing-indicator').remove();
-                appendBotMessage(data.botReply || data.statusMessage || "죄송합니다. 답변을 생성하지 못했습니다.");
+                const data = await res.json();
+                document.getElementById('cb-typing-indicator')?.remove();
+                appendBotMessage(data.botReply || data.statusMessage || "죄송합니다.");
             } catch(e) {
-                document.getElementById('cb-typing-indicator').textContent = "연결 오류가 발생했습니다.";
+                const indicator = document.getElementById('cb-typing-indicator');
+                if (indicator) indicator.textContent = "오류 발생";
             }
         }
 
         function handleChatSubmit(e) {
             if (e.key === 'Enter' || e.type === 'click') {
                 const input = document.getElementById('chatbotInput');
-                const msg = input.value.trim();
-                if (msg) {
-                    appendUserMessage(msg);
-                    sendToBot(msg);
-                    input.value = '';
+                if (input) {
+                    const msg = input.value.trim();
+                    if (msg) {
+                        appendUserMessage(msg);
+                        sendToBot(msg);
+                        input.value = '';
+                    }
                 }
             }
         }
@@ -1435,10 +1260,10 @@
         // =====================================================
         // Init
         // =====================================================
-        window.onload = () => {
+        window.onload = function() {
             loadStats();
             loadConversations(0);
-        }
+        };
     </script>
 </body>
 </html>
