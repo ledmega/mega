@@ -2,7 +2,7 @@
 
 - [x] **Phase 1: Database & Entity (기반 마련)**
     - [x] `os_monitoring_config` 테이블 생성 (DDL 작성)
-    - [ ] `OsMonitoringConfig` 엔티티 및 `OsMonitoringConfigRepository` 생성
+    - [x] `OsMonitoringConfig` 엔티티 및 `OsMonitoringConfigRepository` 생성
 - [ ] **Phase 2: Backend API (서버 로직)**
     - [ ] `OsMonitoringConfigService` 구현 (CRUD 및 에이전트용 조회)
     - [ ] `OsMonitoringConfigApiController` 구현
