@@ -22,10 +22,15 @@ public class DashboardApiController {
     @GetMapping("/metrics/recent")
     public Flux<MetricDataResponseDto> getRecentMetrics(
             @org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "0") int hours,
-            @org.springframework.web.bind.annotation.RequestParam(required = false) String metricType) {
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String metricType,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String metricName) {
+        
+        if (metricName != null && !metricName.isEmpty()) {
+            return metricDataService.getRecentMetricsByName(metricName, hours > 0 ? hours : 1);
+        }
         
         if (metricType != null && !metricType.isEmpty()) {
-            return metricDataService.getRecentMetricsByType(metricType, hours > 0 ? hours : 1); // 타입 지정 시 최소 1시간
+            return metricDataService.getRecentMetricsByType(metricType, hours > 0 ? hours : 1);
         }
         
         if (hours > 0) {

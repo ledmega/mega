@@ -40,6 +40,9 @@ public interface MetricDataRepository extends ReactiveCrudRepository<MetricData,
     @Query("SELECT * FROM metric_data WHERE metric_type = :metricType AND collected_at >= :startTime ORDER BY collected_at DESC LIMIT 2000")
     Flux<MetricData> findByMetricTypeAndCollectedAtAfterOrderByCollectedAtDesc(String metricType, LocalDateTime startTime);
 
+    @Query("SELECT * FROM metric_data WHERE metric_name = :metricName AND collected_at >= :startTime ORDER BY collected_at DESC LIMIT 2000")
+    Flux<MetricData> findByMetricNameAndCollectedAtAfterOrderByCollectedAtDesc(String metricName, LocalDateTime startTime);
+
     @Query("SELECT * FROM metric_data WHERE monitoring_config_id = :configId AND metric_type = :metricType ORDER BY collected_at DESC LIMIT 1")
     Flux<MetricData> findLatestByMonitoringConfigIdAndMetricType(String configId, String metricType);
 

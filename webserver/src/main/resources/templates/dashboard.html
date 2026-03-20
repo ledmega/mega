@@ -754,16 +754,21 @@
             // 로컬 상태 업데이트
             chartsMap[chartKey].currentHours = hours;
 
-            // 특정 타입의 데이터만 서버에서 다시 조회 (MEMORY, DISK 등)
-            // chartKey가 'MEMORY_COMBINED'라면 'MEMORY' 타입으로 요청
-            let typeToFetch = chartKey;
-            if (chartKey === 'MEMORY_COMBINED') typeToFetch = 'MEMORY';
-            if (chartKey === 'DISK_COMBINED') typeToFetch = 'DISK';
+            // 특정 항목(metricName) 또는 타입(metricType)으로 데이터 조회
+            let queryParam = "";
+            if (chartKey === 'MEMORY_COMBINED') {
+                queryParam = `metricType=MEMORY`;
+            } else if (chartKey === 'DISK_COMBINED') {
+                queryParam = `metricType=DISK`;
+            } else {
+                // 개별 메트릭 (CPU 등)은 metricName으로 조회
+                queryParam = `metricName=${encodeURIComponent(chartKey)}`;
+            }
 
             try {
                 const url = hours > 0 
-                    ? `/api/metrics/recent?hours=${hours}&metricType=${typeToFetch}` 
-                    : `/api/metrics/recent?metricType=${typeToFetch}`; // 실시간은 최근 500개
+                    ? `/api/metrics/recent?hours=${hours}&${queryParam}` 
+                    : `/api/metrics/recent?${queryParam}`;
                 
                 const response = await fetch(url);
                 const newData = await response.json();
