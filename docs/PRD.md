@@ -30,6 +30,7 @@ MEGA는 분산된 리눅스 서버 환경에서 시스템 자원(CPU, Memory, Di
 * **동적 차트 자동 생성 (Chart.js)**: Host 단일 차트 및 개별 서비스 `monitoring_config`별 차트를 탭 없이 한 화면에 다중 생성.
 * **과거 데이터(History) 시각화**: 브라우저 접속 즉시 DB에서 최신 메트릭을 불러들여 기존 히스토리 복원 (KST 변환).
 * **깜박임 없는 실시간 업데이트 (Flicker-free)**: `Chart.js`의 `.update()` 및 `DOM` Text Node 교체 방식을 통해 렌더링 부하 없는 10초 주기 매끄러운 Refresh 반영.
+* **개별 차트 독립 필터 (Independent Time Range)**: 전역 설정이 아닌, 각 차트별로 독립적인 시간 범위(실시간, 1h, 12h, 1d)를 설정하여 여러 지표를 다양한 시점에서 동시 분석 가능.
 * **Service 목록 UI 풀 폴링**: 대시보드 뿐만 아니라 `/services` 전체 목록 페이지에서도 SSE 또는 AJAX Polling을 통해 상태 배지 및 최신 지표 실시간 감시 가능.
 
 ### 2.4. CS 자동화 시스템 (AI 기반 고객 상담 자동화)
