@@ -121,7 +121,8 @@ public class DatabaseInitializer implements ApplicationRunner {
                     "('MNU0000000003', '서비스 관리', '/services', 'cog', 3, NULL, TRUE)",
                     "('MNU0000000004', '배치 스케줄러', '/scheduler', 'clock', 4, NULL, TRUE)",
                     "('MNU0000000005', '회원 관리', '/members', 'users', 5, 'ROLE_ADMIN', TRUE)",
-                    "('MNU0000000006', '메뉴 관리', '/menu', 'list', 6, 'ROLE_ADMIN', TRUE)"
+                    "('MNU0000000006', '메뉴 관리', '/menu', 'list', 6, 'ROLE_ADMIN', TRUE)",
+                    "('MNU0000000007', 'OS 설정 관리', '/os-configs', 'microchip', 7, NULL, TRUE)"
                 };
                 for (String item : items) {
                     String sql = "INSERT INTO menu (menu_id, name, url, icon, sort_order, required_role, is_enabled) VALUES " + item;
@@ -144,6 +145,14 @@ public class DatabaseInitializer implements ApplicationRunner {
                     stmt.executeUpdate("INSERT INTO menu (menu_id, name, url, icon, sort_order, required_role, is_enabled) " +
                             "VALUES ('MNU0000000004', '배치 스케줄러', '/scheduler', 'clock', 4, NULL, TRUE)");
                     log.info("✓ '배치 스케줄러' 메뉴 생성 완료!");
+                }
+                // OS 설정 관리 메뉴가 없으면 추가
+                ResultSet rs4 = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM menu WHERE url = '/os-configs'");
+                rs4.next();
+                if (rs4.getInt("cnt") == 0) {
+                    stmt.executeUpdate("INSERT INTO menu (menu_id, name, url, icon, sort_order, required_role, is_enabled) " +
+                            "VALUES ('MNU0000000007', 'OS 설정 관리', '/os-configs', 'microchip', 7, NULL, TRUE)");
+                    log.info("✓ 'OS 설정 관리' 메뉴 생성 완료!");
                 } else {
                     log.info("✓ 메뉴 데이터가 이미 존재합니다.");
                 }
