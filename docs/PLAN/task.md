@@ -4,7 +4,7 @@
     - [x] `os_monitoring_config` 테이블 생성 (DDL 작성)
     - [x] `OsMonitoringConfig` 엔티티 및 `OsMonitoringConfigRepository` 생성
 - [ ] **Phase 2: Backend API (서버 로직)**
-    - [ ] `OsMonitoringConfigService` 구현 (CRUD 및 에이전트용 조회)
+    - [x] `OsMonitoringConfigService` 구현 (CRUD 및 에이전트용 조회)
     - [ ] `OsMonitoringConfigApiController` 구현
     - [ ] 에이전트 전용 설정 Pull API 엔드포인트 추가
 - [ ] **Phase 3: Frontend UI (관리 화면)**
