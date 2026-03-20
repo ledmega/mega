@@ -43,6 +43,7 @@ MEGA는 분산된 리눅스 서버 환경에서 시스템 자원(CPU, Memory, Di
       v (SSE Event Stream /api/sse/events)
 [ Dashboard ]
  └──> 브라우저 수신 후 Chart.js 동적 렌더링 (깜박임 없는 실시간 업데이트)
+ └──> 개별 차트별 독립적인 시간 범위 필터링 (REST API 기반 동적 데이터 리로드)
 ```
 
 ## 4. 데이터베이스 스키마

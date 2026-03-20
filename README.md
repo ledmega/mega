@@ -105,6 +105,7 @@ erDiagram
 - **Full-Reactive Stack**: Spring WebFlux와 R2DBC(MariaDB)를 사용하여 대량의 스트리밍 데이터를 효율적으로 처리.
 - **실시간 대시보드**: SSE 기술을 적용해 브라우저 새로고침 없이 차트와 지표가 실시간으로 업데이트.
 - **차트 자동 생성**: 등록된 에이전트와 서비스별로 `Chart.js` 기반의 전용 대시보드가 자동으로 구성.
+- **개별 차트 필터링**: 모든 차트가 하나에 묶이지 않고, 각 차트별로 별도의 시간 범위(실시간, 1h, 12h, 1d)를 설정하여 독립적인 분석 가능.
 - **보안 및 인증**: API Key 기반 에이전트 인증 및 Spring Security를 통한 유저 접근 제어.
 
 ### 🤖 CS Automation Center (Intelligence)
