@@ -108,6 +108,12 @@ public class MetricDataService {
                 .map(this::toResponseDto);
     }
 
+    public Flux<MetricDataResponseDto> getRecentMetricsByType(String metricType, int hours) {
+        LocalDateTime startTime = LocalDateTime.now().minusHours(hours);
+        return metricDataRepository.findByMetricTypeAndCollectedAtAfterOrderByCollectedAtDesc(metricType, startTime)
+                .map(this::toResponseDto);
+    }
+
     public Mono<Long> getTodayMetricCount() {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
         return metricDataRepository.countByCollectedAtAfter(startOfDay);

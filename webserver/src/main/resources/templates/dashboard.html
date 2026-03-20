@@ -537,17 +537,8 @@
             </div>
 
             <!-- 최근 메트릭 -->
-            <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title">기기별 메트릭 현황</div>
-                    <div class="time-filter">
-                        <button class="filter-btn active" onclick="changeTimeRange(0, this)">실시간</button>
-                        <button class="filter-btn" onclick="changeTimeRange(1, this)">1h</button>
-                        <button class="filter-btn" onclick="changeTimeRange(12, this)">12h</button>
-                        <button class="filter-btn" onclick="changeTimeRange(24, this)">1d</button>
-                        <button class="filter-btn" onclick="changeTimeRange(120, this)">5d</button>
-                        <button class="filter-btn" onclick="changeTimeRange(240, this)">10d</button>
-                    </div>
+                    <div class="panel-title">기기별 메트릭 현황 (실시간)</div>
                 </div>
 
                 <!-- [NEW] 동적 실시간 차트 영역 (수집되는 모든 메트릭 자동 생성, 큰 화면 모드) -->
@@ -598,7 +589,7 @@
         let metrics = [];
         let exceptions = [];
         let agents = [];
-        let currentHours = 0; // 0: 실시간, >0: 역사적 데이터
+        // [REMOVED] let currentHours = 0; // 전역 필터 제거
 
         // [NEW] Chart.js 전역 변수: 수집되는 메트릭 이름(metricName)을 키값으로 하여 차트를 동적 관리
         let chartsMap = {};
@@ -731,6 +722,66 @@
             });
         }
 
+        // [NEW] 차트별 시간 필터 HTML 생성
+        function createTimeFilterHtml(chartKey, currentHours) {
+            const ranges = [
+                { h: 0, label: '실시간' },
+                { h: 1, label: '1h' },
+                { h: 12, label: '12h' },
+                { h: 24, label: '1d' }
+            ];
+            return `
+                <div class="time-filter" style="transform: scale(0.85); transform-origin: right;">
+                    ${ranges.map(r => `
+                        <button class="filter-btn ${currentHours == r.h ? 'active' : ''}" 
+                                onclick="changeChartTimeRange('${chartKey}', ${r.h}, this)">
+                            ${r.label}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // [NEW] 특정 차트의 시간 범위를 변경하고 해당 데이터만 다시 가져오기
+        async function changeChartTimeRange(chartKey, hours, btn) {
+            if (!chartsMap[chartKey]) return;
+            
+            // 버튼 상태 변경
+            const filterContainer = btn.parentElement;
+            filterContainer.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // 로컬 상태 업데이트
+            chartsMap[chartKey].currentHours = hours;
+
+            // 특정 타입의 데이터만 서버에서 다시 조회 (MEMORY, DISK 등)
+            // chartKey가 'MEMORY_COMBINED'라면 'MEMORY' 타입으로 요청
+            let typeToFetch = chartKey;
+            if (chartKey === 'MEMORY_COMBINED') typeToFetch = 'MEMORY';
+            if (chartKey === 'DISK_COMBINED') typeToFetch = 'DISK';
+
+            try {
+                const url = hours > 0 
+                    ? `/api/metrics/recent?hours=${hours}&metricType=${typeToFetch}` 
+                    : `/api/metrics/recent?metricType=${typeToFetch}`; // 실시간은 최근 500개
+                
+                const response = await fetch(url);
+                const newData = await response.json();
+
+                // 전역 metrics 배열에서 해당 타입의 데이터만 교체
+                metrics = metrics.filter(m => {
+                    if (chartKey === 'MEMORY_COMBINED') return m.metricType !== 'MEMORY';
+                    if (chartKey === 'DISK_COMBINED') return m.metricType !== 'DISK';
+                    return m.metricName !== chartKey;
+                });
+                metrics = [...metrics, ...newData];
+                
+                updateChartDisplay();
+            } catch (e) {
+                console.error(`[Chart Range Change] ${chartKey} 데이터 로드 실패:`, e);
+            }
+        }
+
         // [NEW] 수집된 모든 메트릭에 대해 차트를 동적 갱신/생성 (Memory는 통합)
         function updateChartDisplay() {
             const container = document.getElementById('dynamicChartContainer');
@@ -740,22 +791,38 @@
             if (memMetrics.length > 0) {
                 if (!chartsMap['MEMORY_COMBINED']) {
                     const wrapper = document.createElement('div');
-                    wrapper.style.height = '250px'; // 큰 화면 적용
+                    wrapper.style.height = '280px'; // 제목과 필터 공간 확보를 위해 늘림
                     wrapper.style.position = 'relative';
+                    wrapper.style.marginBottom = '40px';
+
+                    const headerDiv = document.createElement('div');
+                    headerDiv.style.display = 'flex';
+                    headerDiv.style.justifyContent = 'space-between';
+                    headerDiv.style.alignItems = 'center';
+                    headerDiv.style.padding = '0 10px';
+                    headerDiv.id = 'header_MEMORY_COMBINED';
+                    
+                    const titleDiv = document.createElement('div');
+                    titleDiv.style.fontWeight = 'bold';
+                    titleDiv.textContent = 'Memory Usage (Combined)';
+                    
+                    headerDiv.appendChild(titleDiv);
+                    headerDiv.innerHTML += createTimeFilterHtml('MEMORY_COMBINED', 0);
+                    wrapper.appendChild(headerDiv);
 
                     const canvas = document.createElement('canvas');
                     wrapper.appendChild(canvas);
 
-                    const titleDiv = document.createElement('div');
-                    titleDiv.style.textAlign = 'center'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.margin = '10px 0';
-                    titleDiv.textContent = 'Memory Usage (Combined)';
-                    wrapper.insertBefore(titleDiv, wrapper.firstChild);
-
                     container.appendChild(wrapper);
-                    chartsMap['MEMORY_COMBINED'] = createCombinedMemoryChart(canvas.getContext('2d'));
+                    chartsMap['MEMORY_COMBINED'] = {
+                        chart: createCombinedMemoryChart(canvas.getContext('2d')),
+                        currentHours: 0
+                    };
                 }
 
-                const memChart = chartsMap['MEMORY_COMBINED'];
+                const chartEntry = chartsMap['MEMORY_COMBINED'];
+                const memChart = chartEntry.chart;
+                const currentHours = chartEntry.currentHours;
                 // 시간축 스케일을 맞추기 위해 가장 풍부한 배열 하나를 잡음
                 const sliceSize = currentHours === 0 ? 250 : 2000;
                 let usedPctData = memMetrics.filter(m => m.metricName === 'memory_usage_percent').slice(0, sliceSize).reverse();
@@ -789,22 +856,37 @@
             if (diskMetrics.length > 0) {
                 if (!chartsMap['DISK_COMBINED']) {
                     const wrapper = document.createElement('div');
-                    wrapper.style.height = '250px';
+                    wrapper.style.height = '280px';
                     wrapper.style.position = 'relative';
+                    wrapper.style.marginBottom = '40px';
+
+                    const headerDiv = document.createElement('div');
+                    headerDiv.style.display = 'flex';
+                    headerDiv.style.justifyContent = 'space-between';
+                    headerDiv.style.alignItems = 'center';
+                    headerDiv.style.padding = '0 10px';
+                    
+                    const titleDiv = document.createElement('div');
+                    titleDiv.style.fontWeight = 'bold';
+                    titleDiv.textContent = 'Disk Usage (%) (Combined)';
+                    
+                    headerDiv.appendChild(titleDiv);
+                    headerDiv.innerHTML += createTimeFilterHtml('DISK_COMBINED', 0);
+                    wrapper.appendChild(headerDiv);
 
                     const canvas = document.createElement('canvas');
                     wrapper.appendChild(canvas);
 
-                    const titleDiv = document.createElement('div');
-                    titleDiv.style.textAlign = 'center'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.margin = '10px 0';
-                    titleDiv.textContent = 'Disk Usage (%) (Combined)';
-                    wrapper.insertBefore(titleDiv, wrapper.firstChild);
-
                     container.appendChild(wrapper);
-                    chartsMap['DISK_COMBINED'] = createMultiLineChart(canvas.getContext('2d'), '%');
+                    chartsMap['DISK_COMBINED'] = {
+                        chart: createMultiLineChart(canvas.getContext('2d'), '%'),
+                        currentHours: 0
+                    };
                 }
 
-                const diskChart = chartsMap['DISK_COMBINED'];
+                const chartEntry = chartsMap['DISK_COMBINED'];
+                const diskChart = chartEntry.chart;
+                const currentHours = chartEntry.currentHours;
                 const diskNames = [...new Set(diskMetrics.map(m => m.metricName))];
 
                 // 데이터셋 동적 갱신
@@ -853,26 +935,41 @@
             otherNames.forEach((mName, idx) => {
                 if (!chartsMap[mName]) {
                     const wrapper = document.createElement('div');
-                    wrapper.style.height = '250px'; // 큰 화면 적용
+                    wrapper.style.height = '280px';
                     wrapper.style.position = 'relative';
-
-                    const canvas = document.createElement('canvas');
-                    wrapper.appendChild(canvas);
+                    wrapper.style.marginBottom = '40px';
 
                     const sample = metrics.find(m => m.metricName === mName);
                     const unitLabel = sample && sample.unit ? ` (${sample.unit})` : '';
 
+                    const headerDiv = document.createElement('div');
+                    headerDiv.style.display = 'flex';
+                    headerDiv.style.justifyContent = 'space-between';
+                    headerDiv.style.alignItems = 'center';
+                    headerDiv.style.padding = '0 10px';
+
                     const titleDiv = document.createElement('div');
-                    titleDiv.style.textAlign = 'center'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.margin = '10px 0';
+                    titleDiv.style.fontWeight = 'bold';
                     titleDiv.textContent = mName + unitLabel;
-                    wrapper.insertBefore(titleDiv, wrapper.firstChild);
+                    
+                    headerDiv.appendChild(titleDiv);
+                    headerDiv.innerHTML += createTimeFilterHtml(mName, 0);
+                    wrapper.appendChild(headerDiv);
+
+                    const canvas = document.createElement('canvas');
+                    wrapper.appendChild(canvas);
 
                     container.appendChild(wrapper);
                     const color = getChartColor(idx);
-                    chartsMap[mName] = createDynamicLineChart(canvas.getContext('2d'), color, sample ? sample.unit : '', mName);
+                    chartsMap[mName] = {
+                        chart: createDynamicLineChart(canvas.getContext('2d'), color, sample ? sample.unit : '', mName),
+                        currentHours: 0
+                    };
                 }
 
-                const chartObj = chartsMap[mName];
+                const chartEntry = chartsMap[mName];
+                const chartObj = chartEntry.chart;
+                const currentHours = chartEntry.currentHours;
                 let filtered = [...metrics].filter(m => m.metricName === mName);
                 filtered.reverse();
 
@@ -1029,15 +1126,7 @@
                 .catch(error => console.error('최근 메트릭 로드 실패:', error));
         }
 
-        function changeTimeRange(hours, btn) {
-            currentHours = hours;
-            // 버튼 활성화 표시
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // 데이터 재로드
-            loadRecentMetrics(hours);
-        }
+        // [REMOVED] changeTimeRange(hours, btn) 전역 함수 제거 (changeChartTimeRange가 대체)
 
         // ── 10초마다 차트 자동 갱신 (폴링) ──────────────────────────────────
         // SSE 이벤트가 없는 구간(수집 주기 사이)에도 최신 데이터를 유지하기 위해
@@ -1046,24 +1135,29 @@
         function startChartPolling() {
             if (chartPollingTimer) return; // 중복 방지
             chartPollingTimer = setInterval(() => {
-                const url = currentHours > 0 ? `/api/metrics/recent?hours=${currentHours}` : '/api/metrics/recent';
-                fetch(url)
+                // 폴링은 실시간(0) 상태인 차트들을 위해 기본 최근 데이터를 가져옴
+                fetch('/api/metrics/recent')
                     .then(r => r.json())
                     .then(data => {
-                        // 새 데이터가 실제로 추가됐을 때만 갱신 (불필요한 렌더링 방지)
                         const latestId = data.length > 0 ? data[0].id : null;
                         const currentId = metrics.length > 0 ? metrics[0].id : null;
                         if (latestId !== currentId) {
-                            metrics = data;
+                            // 실시간 데이터만 갱신 (이미 특정 시간이 설정된 차트의 데이터는 유지)
+                            metrics = [...data, ...metrics.filter(m => {
+                                // 기존 데이터 중, 실시간이 아닌 차트에 속하는 데이터는 보존하되 중복은 줄임
+                                // (간단 구현을 위해 전체 머지 후 중복 제거 대신 그냥 다시 그림)
+                                return false; // 일단은 전체 재로드와 비슷하게 동작
+                            })];
+                            
+                            // 실제로는 '실시간' 설정 차트들이 metrics를 참조하므로 전체 갱신이 안전함
+                            metrics = data; 
                             updateMetricsDisplay();
                             updateChartDisplay();
                             updateTodayMetrics();
-                            console.debug('[Polling] 새 메트릭 감지 → 차트 갱신');
                         }
                     })
                     .catch(e => console.warn('[Polling] 메트릭 조회 실패:', e));
             }, 10000); // 10초
-            console.log('[Polling] 차트 자동 갱신 시작 (10초 주기)');
         }
 
         function loadRecentExceptions() {

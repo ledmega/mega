@@ -20,7 +20,14 @@ public class DashboardApiController {
     private final ExceptionLogService exceptionLogService;
 
     @GetMapping("/metrics/recent")
-    public Flux<MetricDataResponseDto> getRecentMetrics(@org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "0") int hours) {
+    public Flux<MetricDataResponseDto> getRecentMetrics(
+            @org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "0") int hours,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String metricType) {
+        
+        if (metricType != null && !metricType.isEmpty()) {
+            return metricDataService.getRecentMetricsByType(metricType, hours > 0 ? hours : 1); // 타입 지정 시 최소 1시간
+        }
+        
         if (hours > 0) {
             return metricDataService.getRecentMetrics(hours);
         }
