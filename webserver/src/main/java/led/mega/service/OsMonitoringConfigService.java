@@ -44,15 +44,42 @@ public class OsMonitoringConfigService {
 
     /**
      * OS 설정 저장 (등록/수정)
+     * - 동일한 에이전트(또는 공통)에 동일한 메트릭 타입이 있으면 업데이트 소스 정보를 덮어씁니다.
      */
     public Mono<OsMonitoringConfig> saveConfig(OsMonitoringConfig config) {
-        if (config.getConfigId() == null || config.getConfigId().isEmpty()) {
-            config.setConfigId("OSC" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
-            config.setNew(true);
-            config.setCreatedAt(LocalDateTime.now());
+        Mono<OsMonitoringConfig> existingMono;
+        
+        if (config.getAgentId() == null || config.getAgentId().isEmpty()) {
+            existingMono = osMonitoringConfigRepository.findByAgentIdIsNullAndMetricTypeAndEnabledTrue(config.getMetricType());
+        } else {
+            existingMono = osMonitoringConfigRepository.findByAgentIdAndMetricTypeAndEnabledTrue(config.getAgentId(), config.getMetricType());
         }
-        config.setUpdatedAt(LocalDateTime.now());
-        return osMonitoringConfigRepository.save(config);
+
+        return existingMono
+                .flatMap(existing -> {
+                    // 기존 데이터가 있으면 정보 업데이트 (ID 유지)
+                    existing.setMetricName(config.getMetricName());
+                    existing.setIntervalSeconds(config.getIntervalSeconds());
+                    existing.setDashboardYn(config.getDashboardYn());
+                    existing.setCollectYn(config.getCollectYn());
+                    existing.setThresholdValue(config.getThresholdValue());
+                    existing.setThresholdType(config.getThresholdType());
+                    existing.setAlertYn(config.getAlertYn());
+                    existing.setOptions(config.getOptions());
+                    existing.setEnabled(true);
+                    existing.setUpdatedAt(LocalDateTime.now());
+                    return osMonitoringConfigRepository.save(existing);
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    // 기존 데이터 없으면 신규 생성
+                    if (config.getConfigId() == null || config.getConfigId().isEmpty()) {
+                        config.setConfigId("OSC" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+                        config.setNew(true);
+                        config.setCreatedAt(LocalDateTime.now());
+                    }
+                    config.setUpdatedAt(LocalDateTime.now());
+                    return osMonitoringConfigRepository.save(config);
+                }));
     }
 
     /**

@@ -18,5 +18,6 @@ CREATE TABLE IF NOT EXISTS os_monitoring_config (
     FOREIGN KEY (agent_id) REFERENCES agent(agent_id) ON DELETE CASCADE,
     INDEX idx_osc_agent_id (agent_id),
     INDEX idx_osc_type     (metric_type),
-    INDEX idx_osc_enabled  (enabled)
+    INDEX idx_osc_enabled  (enabled),
+    UNIQUE INDEX idx_osc_agent_metric (agent_id, metric_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OS 자원 모니터링 설정 테이블';
