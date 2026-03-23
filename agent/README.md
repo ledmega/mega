@@ -20,7 +20,7 @@
 
 - Java 1.8 이상
 - Linux 운영체제
-- 네트워크 연결 (웹서버 접근 가능)
+- 네트워크 연결 (**HTTPS** 웹서버 접근 가능)
 
 ## 빌드
 
@@ -41,8 +41,8 @@
 `agent/src/main/resources/application.properties` 파일을 수정하세요:
 
 ```properties
-# 웹서버 연결 정보
-webserver.url=http://your-server:8080
+# 웹서버 연결 정보 (Public Domain & HTTPS)
+webserver.url=https://ledmega.cloud
 webserver.api.key=your-api-key-here
 
 # 에이전트 정보
@@ -90,7 +90,7 @@ sudo systemctl start mega-agent
 
 | 속성 | 설명 | 기본값 |
 |------|------|--------|
-| `webserver.url` | 웹서버 URL | `http://localhost:8080` |
+| `webserver.url` | 웹서버 URL | `https://ledmega.cloud` |
 | `webserver.api.key` | API 키 (등록 후 자동 설정) | `your-api-key-here` |
 | `agent.name` | 에이전트 이름 | `default-agent` |
 | `agent.hostname` | 호스트명 (자동 감지 가능) | `${HOSTNAME:unknown}` |

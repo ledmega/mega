@@ -24,7 +24,7 @@
     // Java 관련 설정
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
-    "java.jdt.ls.java.home": "D:\\ws\\mega\\openjdk-25.0.1_windows-x64_bin\\jdk-25.0.1",
+    "java.jdt.ls.java.home": "E:\\ws\\mega\\openjdk-21+35_windows-x64_bin\\jdk-21",
     "java.configuration.runtimes": [
         {
             "name": "JavaSE-21",

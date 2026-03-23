@@ -1,8 +1,9 @@
-# MEGA (Monitoring & Error Gathering Agent) 🚀
+# MEGA (Monitoring & Error Gathering Agent) 🚀 [[ledmega.cloud](https://ledmega.cloud)]
 
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=java)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.5-brightgreen?logo=springboot)
 ![Reactive](https://img.shields.io/badge/Stack-Reactive-blue?logo=reactivex)
+![SSL](https://img.shields.io/badge/SSL-Cloudflare-F38020?logo=cloudflare)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 
 **MEGA**는 분산 환경의 서버 자원과 애플리케이션 예외 로그를 실시간으로 통합 관리하는 **경량형 모니터링 시스템**입니다. 
@@ -125,7 +126,8 @@ erDiagram
 | **Agent** | Java 8 (Compatibility), OkHttp 4, Gson, Logback |
 | **Frontend** | Vanilla JS (ES6), Tailwind CSS (Optional), Chart.js, Thymeleaf |
 | **Intelligence** | Gemini 1.5 Flash (LLM), RAG (Retrieval-Augmented Generation) |
-| **Deployment** | Linux Shell Script, Nginx (Reverse Proxy) |
+| **Deployment** | Linux Shell Script, Nginx (Reverse Proxy), Docker |
+| **Domain/SSL** | https://ledmega.cloud (Cloudflare SSL) |
 
 ---
 
