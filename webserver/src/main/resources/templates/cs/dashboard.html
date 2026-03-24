@@ -344,9 +344,76 @@
         .cb-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes cbBounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
 
-        @media (max-width: 1024px) {
-            .split-layout { grid-template-columns: 1fr; }
-            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        /* ── [High-Refined] Mobile Optimization ──────────────── */
+        @media (max-width: 768px) {
+            .navbar { padding: 0.8rem 1rem; position: sticky; top: 0; z-index: 2200; height: 64px; }
+            .nav-toggle { display: flex !important; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.1); }
+            
+            .nav-links {
+                position: fixed; top: 0; right: 0; width: 280px; height: 100vh;
+                background: white; color: #2d3748;
+                flex-direction: column; align-items: flex-start; padding: 80px 24px;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: -10px 0 25px rgba(0,0,0,0.1);
+                z-index: 2300; gap: 10px;
+                display: flex;
+                transform: translateX(100%);
+            }
+            .nav-links.active { transform: translateX(0); }
+            .nav-link { color: #4a5568 !important; font-size: 1.05rem; width: 100%; padding: 14px 16px; border-radius: 12px; }
+            .nav-link:hover { background: #f7fafc; color: #6366f1 !important; }
+            .nav-link i { width: 24px; }
+            
+            .nav-close { display: flex !important; position: absolute; top: 20px; right: 20px; color: #718096; width: 40px; height: 40px; align-items: center; justify-content: center; }
+            .nav-user-info { flex-direction: column; align-items: flex-start; width: 100%; border-top: 1px solid #edf2f7; padding-top: 20px; margin-top: 10px; }
+            .nav-brand { font-size: 1.25rem; }
+
+            .container { margin-top: 16px; padding: 0 16px; }
+            .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .page-title { font-size: 22px; }
+            .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stat-card { flex-direction: column; align-items: flex-start; padding: 15px; gap: 10px; }
+            .stat-icon { width: 36px; height: 36px; font-size: 18px; }
+            .stat-value { font-size: 20px; }
+
+            .tabs { width: 100%; overflow-x: auto; flex-wrap: nowrap; border-radius: 10px; padding: 4px; }
+            .tab-btn { padding: 8px 14px; font-size: 12.5px; white-space: nowrap; flex-shrink: 0; }
+
+            .split-layout { grid-template-columns: 1fr; gap: 16px; }
+            .chat-panel { height: 75vh; }
+            
+            /* Table Optimization */
+            .table-wrap { -webkit-overflow-scrolling: touch; }
+            .panel-header { padding: 14px 16px; }
+            .panel-title { font-size: 16px; }
+            
+            /* 상담 목록: ID, 생성일시, 관리 버튼 숨김 */
+            #pane-conv thead th:nth-child(1), #pane-conv tbody td:nth-child(1) { display: none; }
+            #pane-conv thead th:nth-child(5), #pane-conv tbody td:nth-child(5) { display: none; }
+            #pane-conv thead th:nth-child(6), #pane-conv tbody td:nth-child(6) { display: none; }
+            
+            /* FAQ 목록: 미리보기용 긴 답변 숨김 */
+            #pane-faq thead th:nth-child(4), #pane-faq tbody td:nth-child(4) { display: none; }
+            #pane-faq thead th:nth-child(5), #pane-faq tbody td:nth-child(5) { display: none; }
+
+            /* Inbound: ID, 수신/처리시간 숨김 */
+            #pane-inbound thead th:nth-child(1), #pane-inbound tbody td:nth-child(1) { display: none; }
+            #pane-inbound thead th:nth-child(5), #pane-inbound tbody td:nth-child(5) { display: none; }
+            #pane-inbound thead th:nth-child(6), #pane-inbound tbody td:nth-child(6) { display: none; }
+
+            /* Modal Style */
+            .modal { padding: 20px; border-radius: 20px; }
+            .modal h2 { font-size: 18px; }
+
+            /* Chatbot Widget Mobile */
+            .chatbot-fab { bottom: 20px; right: 20px; top: auto; left: auto; width: 54px; height: 54px; }
+            .chatbot-window { 
+                top: auto; bottom: 84px; left: 10px; right: 10px; 
+                width: calc(100% - 20px); height: 70vh; 
+                border-radius: 20px;
+                transform-origin: bottom right;
+                display: none; /* JS will handle display: flex */
+            }
         }
     </style>
 </head>
@@ -355,14 +422,16 @@
     <!-- Navbar -->
     <nav class="navbar">
         <a href="/dashboard" class="nav-brand">MEGA Dashboard</a>
-        <div class="nav-links">
+        <div class="nav-toggle" id="navToggle"><i class="fas fa-bars"></i></div>
+        <div class="nav-links" id="navLinks">
+            <div class="nav-close" id="navClose"><i class="fas fa-times"></i></div>
             <th:block th:each="menu : ${menus}">
                 <a th:href="${menu.url}" class="nav-link">
                     <i th:if="${menu.icon}" th:class="'fas ' + ${menu.icon}"></i>
                     [[${menu.name}]]
                 </a>
             </th:block>
-            <span th:if="${isLoggedIn}" style="display:flex;align-items:center;gap:20px;">
+            <span th:if="${isLoggedIn}" class="nav-user-info" style="display:flex;align-items:center;gap:20px;">
                 <span style="opacity:.8;font-size:.9rem;" th:text="${username}"></span>
                 <form th:action="@{/logout}" method="post" style="display:inline;margin:0;">
                     <button type="submit" class="nav-link" style="background:none;border:none;cursor:pointer;padding:0;">로그아웃</button>
@@ -1272,10 +1341,37 @@
         // =====================================================
         // Init
         // =====================================================
-        window.onload = function() {
+        window.addEventListener('load', function() {
+            // [NEW] 모바일 메뉴 토글
+            const navToggle = document.getElementById('navToggle');
+            const navClose = document.getElementById('navClose');
+            const navLinks = document.getElementById('navLinks');
+            
+            if(navToggle) {
+                navToggle.onclick = (e) => {
+                    e.stopPropagation();
+                    navLinks.classList.add('active');
+                };
+            }
+            if(navClose) {
+                navClose.onclick = (e) => {
+                    e.stopPropagation();
+                    navLinks.classList.remove('active');
+                };
+            }
+
+            // 바깥 영역 클릭 시 메뉴 닫기
+            document.addEventListener('click', (e) => {
+                if (navLinks.classList.contains('active') && !navLinks.contains(e.target) && e.target !== navToggle) {
+                    navLinks.classList.remove('active');
+                }
+            });
+
             loadStats();
-            loadConversations(0);
-        };
+            loadConversations();
+            loadSimSamples();
+            connectSSE();
+        });
     </script>
 </body>
 </html>

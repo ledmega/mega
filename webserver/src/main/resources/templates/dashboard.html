@@ -399,27 +399,42 @@
             color: white !important;
         }
 
-        /* [NEW] 모바일 최적화 및 스크롤 배경 수정 */
+        /* ── [High-Refined] Mobile Optimization ──────────────── */
         @media (max-width: 768px) {
-            .navbar {
-                flex-direction: column;
-                align-items: flex-start;
-                padding: 1rem;
-                gap: 1rem;
-            }
-
+            .navbar { padding: 0.8rem 1rem; position: sticky; top: 0; z-index: 2200; height: 64px; }
+            .nav-toggle { display: flex !important; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.1); }
+            
             .nav-links {
-                width: 100%;
-                overflow-x: auto;
-                padding-bottom: 5px;
-                -webkit-overflow-scrolling: touch; /* 부드러운 스크롤 */
+                position: fixed; top: 0; right: 0; width: 280px; height: 100vh;
+                background: white; color: #2d3748;
+                flex-direction: column; align-items: flex-start; padding: 80px 24px;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: -10px 0 25px rgba(0,0,0,0.1);
+                z-index: 2300; gap: 10px;
+                display: flex;
+                transform: translateX(100%);
             }
+            .nav-links.active { transform: translateX(0); }
+            .nav-link { color: #4a5568 !important; font-size: 1.05rem; width: 100%; justify-content: flex-start; padding: 14px 16px; border-radius: 12px; }
+            .nav-link:hover { background: #f7fafc; color: #6366f1 !important; }
+            .nav-link i { width: 24px; }
+            
+            .nav-close { display: flex !important; position: absolute; top: 20px; right: 20px; color: #718096; width: 40px; height: 40px; align-items: center; justify-content: center; }
+            .user-info { flex-direction: column; align-items: flex-start; width: 100%; border-top: 1px solid #edf2f7; padding-top: 20px; margin-top: 10px; }
+            .nav-brand { font-size: 1.25rem; }
 
-            /* 가로 스크롤 시 배경이 끊기는 문제 해결 */
-            .navbar {
-                width: 100%;
-                background-attachment: fixed;
-            }
+            .container { margin-top: 16px; padding: 0 16px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stat-card { padding: 15px; border-radius: 12px; }
+            .stat-card h3 { font-size: 13px; }
+            .stat-value { font-size: 22px; }
+            .stat-label { font-size: 12px; }
+
+            .content-grid { gap: 16px; }
+            .panel { padding: 15px; border-radius: 12px; }
+            .panel-header { padding-bottom: 10px; margin-bottom: 15px; }
+            .panel-title { font-size: 16px; }
+            .time-filter { width: 100%; overflow-x: auto; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
         }
 
         /* [NEW] 시간 필터 스타일 */
@@ -458,7 +473,9 @@
 <body>
     <nav class="navbar">
         <a href="/dashboard" class="nav-brand">MEGA Dashboard</a>
-        <div class="nav-links">
+        <div class="nav-toggle" id="navToggle"><i class="fas fa-bars"></i></div>
+        <div class="nav-links" id="navLinks">
+            <div class="nav-close" id="navClose"><i class="fas fa-times"></i></div>
             <th:block th:each="menu : ${menus}">
                 <a th:href="${menu.url}" class="nav-link">
                     <i th:if="${menu.icon}" th:class="'fas ' + ${menu.icon}"></i>
@@ -466,7 +483,7 @@
                 </a>
             </th:block>
 
-            <div class="user-info" th:if="${isLoggedIn}" style="display:flex; align-items:center; gap:20px;">
+            <div class="user-info" th:if="${isLoggedIn}">
                 <div class="ws-status" style="display:flex; align-items:center; gap:8px;">
                     <div class="ws-indicator" id="wsIndicator"></div>
                     <span id="wsStatus">연결 중...</span>
@@ -1258,6 +1275,18 @@
 
         // 페이지 로드 시 연결
         window.addEventListener('load', function () {
+            // [NEW] 모바일 메뉴 토글
+            const navToggle = document.getElementById('navToggle');
+            const navClose = document.getElementById('navClose');
+            const navLinks = document.getElementById('navLinks');
+            
+            if(navToggle) {
+                navToggle.onclick = () => navLinks.classList.add('active');
+            }
+            if(navClose) {
+                navClose.onclick = () => navLinks.classList.remove('active');
+            }
+
             loadAgents();             // 에이전트 목록 로드
             loadRecentMetrics();      // 최근 메트릭 로드 (여기서 차트 자동 생성)
             loadRecentExceptions();   // 최근 Exception 로그 로드
