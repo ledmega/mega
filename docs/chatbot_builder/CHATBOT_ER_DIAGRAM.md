@@ -16,26 +16,38 @@ erDiagram
         string tenant_id PK "UUID"
         string name "회사/고객명"
         string api_token "인증용 토큰"
+        string status "ACTIVE/SUSPENDED"
         datetime created_at
+        datetime updated_at
+        string created_by
+        string updated_by
     }
 
     BOT_CONFIG {
         string bot_id PK "UUID"
         string tenant_id FK "고객사 ID"
+        string bot_name "챗봇 이름"
         string system_prompt "페르소나(임무)"
         string welcome_message "첫 인사말"
         string theme_color "위젯 색상"
         string logo_url "로고 경로"
+        datetime created_at
+        datetime updated_at
+        string created_by
+        string updated_by
     }
 
     KNOWLEDGE_BASE {
         string item_id PK "UUID"
         string bot_id FK "봇 ID"
-        string tenant_id FK "고객사 ID (인덱싱 필터용)"
-        string source_type "FILE / URL"
-        string source_url "수집 주소"
+        string tenant_id FK "고객사 ID"
+        string source_type "FILE/URL"
+        string source_url "수입 주소"
         string content_text "원본 텍스트"
-        vector embedding "벡터 데이터 (1536차원)"
+        datetime created_at
+        datetime updated_at
+        string created_by
+        string updated_by
     }
 
     CONVERSATION {
