@@ -14,10 +14,11 @@
 ### 2. Admin Dashboard
 * **역할**: 챗봇 소유주(고객사)가 봇의 지능과 외형을 관리하는 관리자 화면.
 * **기능**:
-  * **프롬프트 관리**: "친절한 상담원", "반말하는 친구" 등 시스템 페르소나 설계.
-  * **Knowledge Base (RAG 데이터)**: PDF, 매뉴얼, Q&A 텍스트 업로드 기능.
+  * **프롬프트 관리**: 고객사가 직접 "페르소나(임무)"를 정의하고 시스템 프롬프트를 DB에 저장/수정.
+  * **Knowledge Base (RAG 데이터)**: PDF, 매뉴얼, Q&A 텍스트 업로드 및 사이트 URL 크롤링 관리.
   * **배포 설정**: 챗봇 위젯 테마 색상, 웰컴 메시지 설정 및 스니펫 발급.
-  * **Analytics**: 사용자 대화 이력 조회 및 통계 대시보드.
+  * **Analytics & Billing**: 사용자 대화 이력 조회, 실시간 토큰 사용량 및 과금 통계 대시보드.
+  * **Human Escalation**: AI가 답변 불가 시 실제 상담원 채팅창으로 전환 알림 기능.
 
 ### 3. Backend Proxy Server (Spring Boot / WebFlux)
 * **역할**: 트래픽 라우팅, RAG 적용, LLM 호출의 중추.
@@ -26,9 +27,13 @@
   * **RAG 파이프라인**: 고객의 질문을 임베딩하여 Vector DB에서 고객사 전용 문서를 검색(Semantic Search).
   * **LLM Integration**: 검색된 문맥(Context)과 고객사 프롬프트를 융합해 Google Gemini API를 안전하게 호출.
 
-### 4. Database Layer (Multi-tenant)
-* **RDB (PostgreSQL 등)**: 고객사 계정 정보, 프롬프트, UI 설정값, 대화 이력 및 토큰 사용량 로그 테이블.
-* **Vector DB (Milvus, pgvector 등)**: RAG 활용을 위한 임베딩 데이터. `Tenant ID`별 파티셔닝을 통해 데이터 격리 보장.
+### 4. Database Layer (Multi-tenant Structure)
+* **RDB (PostgreSQL / MariaDB)**:
+  * `TENANT`: 고객사 계정 및 API 인증 정보.
+  * `BOT_CONFIG`: **테넌트별 시스템 프롬프트(Persona)**, 위젯 UI 설정(색상, 로고).
+  * `CHAT_CONVERSATION`: 대화 세션 및 상태 관리.
+  * `USAGE_LOG`: 토큰 사용량, API 호출 로그 (과금 및 통계용).
+* **Vector DB (Milvus, pgvector 등)**: RAG 활용을 위한 임베딩 데이터. `Tenant ID` 컬럼을 통한 논리적 파티셔닝(Data Isolation) 필수 적용.
 
 ---
 
@@ -41,6 +46,7 @@
 ### [Phase 2] Backend Core & LLM 통합
 * Spring Boot 기반 API Gateway 및 LLM Proxy 기능 구축.
 * 텍스트 임베딩 파이프라인 (문서 업로드 -> 청킹(Chunking) -> 임베딩 -> Vector DB 저장) 구현.
+* **Web Ingestion Engine**: 특정 URL(사이트 주소) 입력 시 사이트 전체를 크롤링하여 지식화하는 자동 수집 파이프라인 구축.
 * Client ID 기반의 RAG + Gemini 응답 생성 비즈니스 로직 작성.
 
 ### [Phase 3] Admin Dashboard 개발

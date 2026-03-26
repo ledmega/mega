@@ -6,10 +6,13 @@
 - [x] Draft system architecture & implementation plan
 
 ## Phase 2: Backend & Database Development
-- [ ] Design Multi-tenant RDB schema (Customers, Prompts, Logs)
+- [ ] Design Multi-tenant RDB schema (Tenant, BotConfig, UsageLog)
 - [ ] Setup Vector DB (e.g., pgvector, Milvus) for RAG
 - [ ] Implement Gemini Proxy API Server in Spring Boot
 - [ ] Develop RAG embedding and semantic search pipeline
+- [ ] **Develop Web Crawler logic for URL-based knowledge ingestion**
+- [ ] **Implement Dynamic Prompt loading from DB per Tenant**
+- [ ] **Implement API Usage & Token Logging for Billing**
 
 ## Phase 3: Admin Dashboard Development
 - [ ] Create tenant registration & API token flow
