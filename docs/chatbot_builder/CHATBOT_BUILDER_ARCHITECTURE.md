@@ -4,6 +4,8 @@
 고객사가 고유한 프롬프트 및 RAG 학습 데이터를 기반으로 맞춤형 챗봇을 생성하고, 제공받은 JS 스니펫(Embed Code)을 자사 웹사이트에 손쉽게 연동하여 고객지원(CS) 챗봇을 서비스할 수 있는 B2B 통합 플랫폼을 구축합니다. 
 가장 큰 특징은 고객(Tenant)별로 개별 제미나이(Gemini) API 키를 발급받을 필요 없이, 우리 메인 서버가 중앙에서 통합된 API 키를 활용하여 대리 호출(Proxy)하며 보안과 비용 효율을 달성하는 것입니다.
 
+*   **[아키텍처 다이어그램 보기](file:///e:/ws/mega/docs/chatbot_builder/CHATBOT_BUILDER_DIAGRAM.md)**
+
 ## System Architecture
 
 ### 1. Frontend Widget (`chatbot-widget.js`)
