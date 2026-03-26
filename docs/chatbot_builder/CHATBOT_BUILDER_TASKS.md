@@ -1,26 +1,26 @@
-# B2B SaaS Chatbot Builder Project
+# B2B SaaS 챗봇 빌더 프로젝트 태스크 리스트
 
-## Phase 1: Planning & Architecture Design
-- [x] Initial B2B SaaS Chatbot business model ideation
-- [x] Gemini API Key Management design
-- [x] Draft system architecture & implementation plan
+## Phase 1: 기획 및 아키텍처 설계
+- [x] 초기 B2B SaaS 챗봇 비즈니스 모델 아이디어 구상
+- [x] 제미나이(Gemini) API 키 관리 체계 설계
+- [x] 시스템 아키텍처 초안 및 단계별 구현 계획 수립
 
-## Phase 2: Backend & Database Development
-- [ ] Design Multi-tenant RDB schema (Tenant, BotConfig, UsageLog)
-- [ ] Setup Vector DB (e.g., pgvector, Milvus) for RAG
-- [ ] Implement Gemini Proxy API Server in Spring Boot
-- [ ] Develop RAG embedding and semantic search pipeline
-- [ ] **Develop Web Crawler logic for URL-based knowledge ingestion**
-- [ ] **Implement Dynamic Prompt loading from DB per Tenant**
-- [ ] **Implement API Usage & Token Logging for Billing**
+## Phase 2: 백엔드 및 데이터베이스 개발
+- [ ] 멀티테넌트 RDB 스키마 설계 (Tenant, BotConfig, UsageLog)
+- [ ] RAG를 위한 벡터 DB 구축 (pgvector, Milvus 등)
+- [ ] Spring Boot 기반 제미나이 프록시 API 서버 구현
+- [ ] RAG 임베딩 및 시맨틱(의미) 검색 파이프라인 개발
+- [ ] **URL 기반 지식 수집을 위한 웹 크롤러 로직 개발**
+- [ ] **테넌트별 DB 기반 동적 프롬프트(Persona) 로딩 구현**
+- [ ] **과금 및 통계를 위한 API 사용량 및 토큰 로깅 구현**
 
-## Phase 3: Admin Dashboard Development
-- [ ] Create tenant registration & API token flow
-- [ ] Implement bot customization UI (System Prompt Editor)
-- [ ] Implement Knowledge Base upload interface
-- [ ] Develop JS Snippet generator
+## Phase 3: 관리자 대시보드(어드민) 개발
+- [ ] 테넌트 가입 및 API 토큰 발급 흐름 구축
+- [ ] 챗봇 커스터마이징 UI 구현 (시스템 프롬프트 에디터)
+- [ ] 지식 베이스 업로드/링크 관리 인터페이스 구현
+- [ ] 웹사이트 연동용 자바스크립트 스니펫(Snippet) 생성기 개발
 
-## Phase 4: Frontend Widget Development
-- [ ] Build embeddable `chatbot-widget.js` SDK
-- [ ] Implement responsive UI for Chat interactions
-- [ ] Secure communication with backend APIs
+## Phase 4: 프론트엔드 위젯 SDK 개발
+- [ ] 웹사이트 삽입용 `chatbot-widget.js` SDK 구축
+- [ ] 채팅 상호작용을 위한 반응형 대화 UI 구현
+- [ ] 백엔드 API와의 보안 통신(CORS/Token) 적용
