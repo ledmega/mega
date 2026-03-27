@@ -174,5 +174,24 @@ sequenceDiagram
 ```
 
 ---
+
+## 6. 리액티브 프로그래밍 (Mono/Flux) 관점의 이해
+
+이 배치 시스템은 Spring WebFlux(Reactive Programming) 기반 위에서 동작합니다. 동기(Blocking) 방식과 가장 큰 차이는 **"요청을 던진 후 스레드가 멈춰서 기다리지 않고(Non-Blocking), 결과가 완료되면 통보(Event)받아 후속 처리를 한다"**는 점입니다.
+
+### 6-1. 핵심 타입 (Publisher)
+*   `Mono<T>`: **0개 또는 1개**의 결과를 반환할 때 사용. (예: `delete()`처럼 완료 후 몇 건 지워졌는지 1개의 값 반환)
+*   `Flux<T>`: **0개부터 N개(무한대 포함)**의 결과를 반환할 때 사용. (예: 리스트 조회)
+
+### 6-2. 파이프라인(Assembly)과 구독(Subscribe)
+앞서 본 `executeJob()` 내부의 코드(`.flatMap()`, `.onErrorResume()`)와 `MetricCleanupTask` 내부의 코드(`.map()`)는 **작업 명세서(파이프라인)를 조립(Assembly)**하는 과정일 뿐, 코드가 그 줄을 지나갈 때 DB가 즉시 실행되는 것이 아닙니다. 
+
+최종적으로 상위의 **스프링 스케줄러(Scheduler)가 `.subscribe()`를 호출하는 순간**, 정의해둔 파이프라인에 물이 흐르듯 연속적인 비동기 처리가 시작됩니다. 이를 **"구독(Subscribe)해야 실행된다"**라고 표현합니다.
+
+### 6-3. 연산자 요약
+*   **`.map(...)`**: 넘어온 응답 데이터를 다른 모양(예: 숫자 `100` ➡️ 문자열 `"100건 삭제"`)으로 동기적으로 단순 변형할 때 씁니다. (`MetricCleanupTask.execute` 참고)
+*   **`.flatMap(...)`**: 넘어온 데이터를 기반으로 **또 다른 비동기 I/O 작업(예: DB에 로그 저장)**을 수행하여 파이프라인을 연장할 때 씁니다. (`BatchJobService.executeJob` 참고)
+
+---
 **문서 작성일**: 2026.03.27  
 **작성자**: Antigravity (AI Assistant)
