@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자바 리액티브 학습 - MEGA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        /* 네비게이션 바 메뉴 통일 */
+        .navbar {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            padding: 1rem 2rem;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: white !important;
+            white-space: nowrap;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white !important;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .page-desc {
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+
+        /* 검색 바 */
+        .search-container {
+            margin-bottom: 40px;
+            position: relative;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 24px;
+            padding-left: 50px;
+            border-radius: 999px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.2);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 1.2rem;
+        }
+
+        /* FAQ 스타일 리스트 */
+        .faq-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
+            border: 1px solid #f1f5f9;
+        }
+
+        .faq-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .faq-question {
+            padding: 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #1e293b;
+            background: white;
+            transition: background 0.2s;
+        }
+
+        .faq-question:hover {
+            background: #f8fafc;
+        }
+
+        .faq-question.active {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .faq-icon {
+            transition: transform 0.3s;
+            color: #6366f1;
+        }
+
+        .faq-question.active .faq-icon {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease-in-out;
+            background: #fafafa;
+        }
+
+        .faq-answer.show {
+            padding: 24px;
+            max-height: 2000px;
+        }
+
+        .answer-content {
+            line-height: 1.7;
+            font-size: 1.05rem;
+            color: #334155;
+            white-space: pre-wrap;
+        }
+
+        .example-box {
+            margin-top: 20px;
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            color: #e2e8f0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.95rem;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .example-label {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #6366f1;
+            color: white;
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            border-bottom-left-radius: 12px;
+            font-family: sans-serif;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .tag-list {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: #eef2ff;
+            color: #4f46e5;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            background: white;
+            border-radius: 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1rem;
+                gap: 1rem;
+            }
+            .nav-links {
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 5px;
+            }
+            .page-title {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+<nav class="navbar">
+    <a href="/dashboard" class="nav-brand">MEGA Dashboard</a>
+    <div class="nav-links">
+        <th:block th:each="menu : ${menus}">
+            <a th:href="${menu.url}" class="nav-link">
+                <i th:if="${menu.icon}" th:class="'fas ' + ${menu.icon}"></i>
+                [[${menu.name}]]
+            </a>
+        </th:block>
+        <div th:if="${isLoggedIn}" style="display:flex; align-items:center; gap:15px;">
+            <span style="opacity: 0.8; font-size: 0.9rem;" th:text="${username}"></span>
+            <form th:action="@{/logout}" method="post" style="display: inline; margin: 0;">
+                <button type="submit" class="nav-link"
+                        style="background:none; border:none; cursor:pointer; padding:0;">로그아웃</button>
+            </form>
+        </div>
+        <div th:if="${isLoggedIn == null or !isLoggedIn}">
+            <a href="/login" class="nav-link">로그인</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1 class="page-title">자바 리액티브 학습</h1>
+        <p class="page-desc">Reactive Programming (Project Reactor, WebFlux) 관련 용어와 예제를 학습합니다.</p>
+    </div>
+
+    <div class="search-container">
+        <form action="/learn" method="get">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" name="keyword" class="search-input" placeholder="용어 또는 키워드를 검색하세요 (예: Flux, Mono, Scheduler...)" th:value="${keyword}">
+        </form>
+    </div>
+
+    <div class="faq-list" th:if="${!#lists.isEmpty(learnings)}">
+        <div class="faq-item" th:each="item : ${learnings}">
+            <div class="faq-question" onclick="toggleFaq(this)">
+                <span>[[${item.question}]]</span>
+                <i class="fas fa-chevron-down faq-icon"></i>
+            </div>
+            <div class="faq-answer">
+                <div class="answer-content" th:text="${item.answer}"></div>
+                
+                <!-- 예제 코드가 답변 내에 특정 마커로 구분되어 있다고 가정하거나, 태그/필드를 활용 (여기서는 간단히 태그가 code인 경우 예제 박스 표시 예시) -->
+                <div class="example-box" th:if="${item.tags.contains('example')}">
+                    <div class="example-label">Example Code</div>
+                    <code th:if="${item.question.contains('Flux')}">
+Flux.just(1, 2, 3)<br>
+&nbsp;&nbsp;.map(i -> i * 10)<br>
+&nbsp;&nbsp;.subscribe(System.out::println);
+                    </code>
+                    <code th:if="${item.question.contains('Mono')}">
+Mono.just("Hello")<br>
+&nbsp;&nbsp;.map(s -> s + " World")<br>
+&nbsp;&nbsp;.subscribe(System.out::println);
+                    </code>
+                    <code th:if="${!item.question.contains('Flux') && !item.question.contains('Mono')}">
+// 상세 예제는 공식 문서를 참조하세요.<br>
+return reactiveService.process(data);
+                    </code>
+                </div>
+
+                <div class="tag-list" th:if="${item.tags != null}">
+                    <span class="tag" th:each="tag : ${item.tags.split(',')}" th:text="${tag}"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="empty-state" th:if="${#lists.isEmpty(learnings)}">
+        <i class="fas fa-search"></i>
+        <p th:if="${keyword != null}"> '[[${keyword}]]'에 대한 검색 결과가 없습니다.</p>
+        <p th:if="${keyword == null}">등록된 학습 콘텐츠가 아직 없습니다.</p>
+    </div>
+</div>
+
+<script>
+    function toggleFaq(element) {
+        element.classList.toggle('active');
+        const answer = element.nextElementSibling;
+        answer.classList.toggle('show');
+    }
+</script>
+</body>
+</html>

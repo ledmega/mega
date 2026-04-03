@@ -70,7 +70,7 @@ public class SecurityConfig {
             .authorizeExchange(auth -> auth
                 // 정적 리소스 및 공개 페이지
                 .pathMatchers("/", "/public/**", "/css/**", "/js/**", "/images/**",
-                        "/favicon.ico", "/signup", "/login", "/error", "/dashboard").permitAll()
+                        "/favicon.ico", "/signup", "/login", "/error", "/dashboard", "/learn").permitAll()
                 // 포트폴리오용 대시보드 조회 API(SSE/최근 메트릭/최근 예외/에이전트 목록)는 읽기 전용으로 공개
                 .pathMatchers(HttpMethod.GET,
                         "/api/sse/events",

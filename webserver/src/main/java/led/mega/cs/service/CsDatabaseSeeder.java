@@ -31,7 +31,10 @@ public class CsDatabaseSeeder {
                     return Flux.just(
                             createFaq("알림톡", "알림톡 발송에 실패하면 어떻게 되나요?", "알림톡 발송 실패 시, 자동으로 SMS 또는 LMS로 대체 발송되도록 하는 [부달(메시지 보상)] 기능을 설정할 수 있습니다. 포털 내 [발송 설정] 메뉴에서 부달 여부를 체크하고 대체 문구를 등록해 주세요.", "알림톡,발송실패,부달,SMS대체"),
                             createFaq("LMS/MMS", "LMS와 MMS의 차이점과 최대 바이트는 무엇인가요?", "SMS는 단문(90byte), LMS는 장문(한글 1000자/2000byte), MMS는 이미지가 포함된 메시지입니다. 이미지는 JPG/PNG 형식을 지원하며 최대 3장까지 첨부 가능합니다.", "LMS,MMS,바이트,규격"),
-                            createFaq("RCS", "RCS 브랜드 등록 절차가 궁금합니다.", "RCS 발송을 위해서는 먼저 [브랜드 등록]이 필요합니다. 업체 정보를 등록하고 심사를 거쳐 승인된 후 [템플릿]을 생성하여 발송할 수 있습니다. 심사 기간은 일반적으로 영업일 기준 2~3일이 소요됩니다.", "RCS,브랜드등록,심사,승인")
+                            createFaq("RCS", "RCS 브랜드 등록 절차가 궁금합니다.", "RCS 발송을 위해서는 먼저 [브랜드 등록]이 필요합니다. 업체 정보를 등록하고 심사를 거쳐 승인된 후 [템플릿]을 생성하여 발송할 수 있습니다. 심사 기간은 일반적으로 영업일 기준 2~3일이 소요됩니다.", "RCS,브랜드등록,심사,승인"),
+                            createFaq("JAVA_REACTIVE", "Flux와 Mono의 차이점은 무엇인가요?", "Flux는 0~N개의 데이터를 발행하는 발행자(Publisher)이고, Mono는 0~1개의 데이터를 발행하는 발행자입니다. 여러 데이터를 다룰 때는 Flux를, 단일 결과나 완료 신호만 필요할 때는 Mono를 사용합니다.", "Flux,Mono,Reactor,Publisher,example"),
+                            createFaq("JAVA_REACTIVE", "Backpressure(배압)란 무엇인가요?", "발행자(Publisher)의 데이터 생산 속도가 구독자(Subscriber)의 처리 속도보다 빠를 때, 구독자가 감당할 수 있는 만큼만 데이터를 요청하도록 제어하는 메커니즘입니다. Reactor에서는 request(n) 신호를 통해 이를 구현합니다.", "Backpressure,배압,Reactor,FlowControl"),
+                            createFaq("JAVA_REACTIVE", "Schedulers.publishOn()과 subscribeOn()의 차이는?", "subscribeOn은 구독(Subscription)이 일어나는 시점의 스레드를 전역적으로 지정하고, publishOn은 연산자 체인 중간에 호출되어 그 이후의 연산들이 실행될 스레드를 변경합니다.", "Scheduler,publishOn,subscribeOn,Threading")
                     ).flatMap(faqRepository::save);
                 })
                 .subscribe();
